@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import { statusBadgeClass } from '../lib/statusColors';
+import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
+import DeliveryIncidentsPanel from '../components/DeliveryIncidentsPanel';
 import { orderIsAdr } from '../lib/adrDetect';
 import { driverDisplayName } from '../lib/driverName';
 import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
@@ -245,30 +247,15 @@ export default function TripDetailsPage() {
               <h1 className="text-2xl font-bold text-text">
                 {trip.tripNumber || trip.referenceNumber || t('noReference', 'Trip Without Reference')}
               </h1>
-              <div className="relative inline-flex items-center">
-                <select
-                  aria-label="Trip status"
-                  className={`appearance-none text-xs font-black uppercase tracking-wider pl-3 pr-7 py-1.5 rounded-xl border shadow-xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${statusBadgeClass(trip.status)}`}
-                  value={trip.status || 'planned'}
-                  onChange={async (e) => {
-                    const newStatus = e.target.value;
-                    try {
-                      await api.patch(`/trips/${trip.id}`, { status: newStatus });
-                      setTrip((prev: any) => ({ ...prev, status: newStatus }));
-                      toast.success(t('status_updated', 'Status cursă actualizat!'));
-                    } catch (err: any) {
-                      toast.error(err?.response?.data?.message || t('error', 'Eroare la actualizarea statusului'));
-                    }
-                  }}
-                >
-                  {TRIP_STATUSES.map(st => (
-                    <option key={st} value={st} className="bg-card text-text font-semibold capitalize">
-                      {t(`status_${st}`, st.replace(/_/g, ' '))}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute right-2 pointer-events-none opacity-70" />
-              </div>
+              {/* Operational status is read-only here. It is advanced by the
+                  driver's stop actions and by dispatch, never by a local legacy
+                  status dropdown that could contradict the stops. */}
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusBadgeClass(operationalStatusForDisplay(trip))}`}
+                title={t('operational_status_source', 'Authoritative trip status')}
+              >
+                {t(operationalStatusKey(trip), operationalStatusForDisplay(trip))}
+              </span>
             </div>
             <p className="text-sm text-text-secondary mt-1 font-medium">
               {t('createdBy', 'Created by')} <span className="text-primary font-bold">{trip.dispatcher?.name || trip.dispatcher?.email || trip.createdBy?.name || trip.createdBy?.email || t('systemUnknown', 'System / Unknown')}</span> {t('onDate', 'on')} {formatDate(trip.createdAt)}
@@ -338,6 +325,8 @@ export default function TripDetailsPage() {
             </button>}
         </div>
       </div>
+
+      <DeliveryIncidentsPanel tripId={trip.id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         

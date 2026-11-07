@@ -269,4 +269,81 @@ class TripProvider extends ChangeNotifier {
       return _errorText(e);
     }
   }
+
+  /// Uploads one rejection photograph and returns the persisted Document row.
+  /// The incident is not submitted until every evidence id is available, so a
+  /// failed upload can be retried without losing the driver's report.
+  Future<Map<String, dynamic>> uploadIncidentPhoto(
+    String token,
+    String tripId,
+    String filePath,
+  ) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath),
+        'tripId': tripId,
+        'type': 'photo',
+      });
+      final res = await _dio(token).post('/documents/upload', data: formData);
+      if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
+      return {'error': 'Unexpected upload response'};
+    } catch (e) {
+      return {'error': _errorText(e)};
+    }
+  }
+
+  Future<String?> submitDeliveryIncident(
+    String token,
+    String tripId, {
+    required String clientRequestId,
+    required String reason,
+    required String outcome,
+    String? stopId,
+    String? orderId,
+    String? notes,
+    int? affectedPallets,
+    double? affectedQuantity,
+    String? quantityUnit,
+    String? customerName,
+    String? customerExplanation,
+    bool signatureRefused = false,
+    List<String> photoIds = const [],
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      await _dio(token).post('/trips/$tripId/delivery-incidents', data: {
+        'clientRequestId': clientRequestId,
+        'reason': reason,
+        'reasonCode': 'OTHER',
+        'outcome': outcome,
+        'stopId': stopId,
+        'orderId': orderId,
+        'notes': notes,
+        'affectedPallets': affectedPallets,
+        'affectedQuantity': affectedQuantity,
+        'quantityUnit': quantityUnit,
+        'customerName': customerName,
+        'customerExplanation': customerExplanation,
+        'signatureRefused': signatureRefused,
+        'photoIds': photoIds,
+        'latitude': latitude,
+        'longitude': longitude,
+      });
+      await silentReloadTrips(token);
+      return null;
+    } catch (e) {
+      return _errorText(e);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> deliveryIncidents(String token, String tripId) async {
+    try {
+      final res = await _dio(token).get('/trips/$tripId/delivery-incidents');
+      if (res.data is List) return List<Map<String, dynamic>>.from(res.data);
+    } catch (e) {
+      debugPrint('deliveryIncidents error: $e');
+    }
+    return <Map<String, dynamic>>[];
+  }
 }

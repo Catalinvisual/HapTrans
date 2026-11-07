@@ -44,6 +44,21 @@ export class Trip {
   @Column({ type: 'varchar', default: 'planned' })
   status: string;
 
+  /** Canonical operational lifecycle code shown identically in every UI. */
+  @Column({ type: 'varchar', length: 40, default: 'PLANNING' })
+  operationalStatus: string;
+
+  /** Latest delivery outcome (full/partial rejection, accepted with remarks…). */
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  deliveryOutcome: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  hasOpenIncident: boolean;
+
+  /** A POD is required before a delivery stop may be completed. */
+  @Column({ type: 'boolean', default: true })
+  podRequired: boolean;
+
   // Fleet Type: Own Fleet vs Subcontractor vs Charter
   @Column({ type: 'varchar', default: 'own_fleet' })
   fleetType: string; // 'own_fleet' | 'subcontractor' | 'charter'

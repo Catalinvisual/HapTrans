@@ -8,6 +8,7 @@ import { Trip } from "./trip.entity";
 import { TripCost } from "./trip-cost.entity";
 import { Stop } from "./stop.entity";
 import { StopTask } from "./stop-task.entity";
+import { DeliveryIncident } from "./delivery-incident.entity";
 import { TripsController } from "./trips.controller";
 import { TripsService } from "./trips.service";
 import { TripCostController } from "./trip-cost.controller";
@@ -17,6 +18,7 @@ import { ChatModule } from "../chat/chat.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { InvoicesModule } from "../invoices/invoices.module";
 import { ActionLogsModule } from "../action-logs/action-logs.module";
+import { DocumentsModule } from "../documents/documents.module";
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { RoutingModule } from "../routing/routing.module";
@@ -38,7 +40,7 @@ const storage = multer.memoryStorage();
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Trip, TripCost, Stop, StopTask]),
+    TypeOrmModule.forFeature([Trip, TripCost, Stop, StopTask, DeliveryIncident]),
     MulterModule.register({ storage }),
     forwardRef(() => ChatModule),
     NotificationsModule,
@@ -49,6 +51,7 @@ const storage = multer.memoryStorage();
     forwardRef(() => TrucksModule),
     UsersModule,
     ActionLogsModule,
+    DocumentsModule,
   ],
   controllers: [TripsController, TripCostController],
   providers: [TripsService, TripCostService, TripScannerService, ResendService],

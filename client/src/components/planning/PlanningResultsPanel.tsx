@@ -25,6 +25,7 @@ import { appLocale, fmtMoney, fmtNumber } from '../../lib/format';
 import { buildTripMetrics, costBucket, minutesBetween, nameOfDriver, toMs, toNum } from '../../lib/planningResultsMetrics';
 import { planningApi } from '../../lib/planningApi';
 import { emissionUnavailableKey, fuelTypeLabel } from '../../lib/truckFuel';
+import { operationalStatusForDisplay } from '../../lib/operationalI18n';
 
 type ViewKey = 'results' | 'route' | 'costs' | 'driver' | 'conflicts' | 'emissions';
 type ExportFormat = 'xlsx' | 'csv' | 'pdf';
@@ -50,19 +51,25 @@ const MAX_HEIGHT = 800;
 const DEFAULT_HEIGHT = 360;
 // The persisted TripStatus enum. Transition aliases (in_transit, confirmed, etc.)
 // are workflow inputs, not stored statuses, so they must not appear as filters.
+// Canonical lifecycle codes only. Legacy workflow aliases are not operational
+// states and must never appear as filters or badges.
 const TRIP_STATUS_VALUES = [
-  'planning',
-  'planned',
-  'assigned',
-  'dispatched',
-  'driver_accepted',
-  'started',
-  'loading',
-  'driving',
-  'partially_delivered',
-  'completed',
-  'closed',
-  'cancelled',
+  'PLANNING',
+  'ACCEPTED',
+  'EN_ROUTE_TO_PICKUP',
+  'ARRIVED_AT_PICKUP',
+  'LOADING',
+  'EN_ROUTE_TO_DELIVERY',
+  'ARRIVED_AT_DELIVERY',
+  'UNLOADING',
+  'COMPLETED',
+  'DELAYED',
+  'EXCEPTION',
+  'CANCELLED',
+  'DELIVERY_REJECTED',
+  'PARTIALLY_REJECTED',
+  'DELIVERY_EXCEPTION',
+  'DELIVERY_ACCEPTED_WITH_REMARKS',
 ] as const;
 
 function fmtMinutes(value: number | null): string {
@@ -606,16 +613,19 @@ export default function PlanningResultsPanel({
   );
 
   const statusBadge = (raw: string) => {
-    const status = String(raw || '').toLowerCase();
-    const label = t(`status_${status}`, raw || t('pr.not_provided', 'Not provided'));
+    const code = operationalStatusForDisplay({ status: raw });
+    const status = code.toLowerCase();
+    const label = t(`operational_${code}`, code);
     const cls =
-      status === 'completed' || status === 'closed'
+      status === 'completed'
         ? 'bg-emerald-500/15 text-emerald-600'
-        : status === 'cancelled'
+        : ['cancelled', 'delivery_rejected'].includes(status)
         ? 'bg-rose-500/15 text-rose-600'
-        : status === 'driving' || status === 'in_transit' || status === 'started' || status === 'loading'
+        : ['delayed', 'exception', 'delivery_exception', 'partially_rejected'].includes(status)
         ? 'bg-amber-500/15 text-amber-600'
-        : status === 'assigned' || status === 'dispatched' || status === 'driver_accepted'
+        : ['arrived_at_pickup', 'arrived_at_delivery', 'loading', 'unloading'].includes(status)
+        ? 'bg-violet-500/15 text-violet-600'
+        : ['en_route_to_pickup', 'en_route_to_delivery', 'accepted', 'delivery_accepted_with_remarks'].includes(status)
         ? 'bg-blue-500/15 text-blue-600'
         : 'bg-slate-500/15 text-slate-600';
     return (
@@ -771,7 +781,7 @@ export default function PlanningResultsPanel({
           emptyKm: m.emptyKm ?? '',
           utilization: m.utilizationPct ?? '',
           currency: m.currency,
-          status: t(`status_${String(m.status || '').toLowerCase()}`, m.status || ''),
+          status: t(`operational_${operationalStatusForDisplay({ status: m.status })}`, m.status || ''),
         }));
         return { fileBase: `planning-results-${dateTag}`, headers, rows };
       }
@@ -1241,7 +1251,7 @@ export default function PlanningResultsPanel({
             onChange={(value) => setStatusFilterValue(value === '__all' ? '' : value)}
             options={[
               { value: '__all', label: t('up_res_all_statuses', 'All statuses') },
-              ...TRIP_STATUS_VALUES.map((status) => ({ value: status, label: t(`status_${status}`, status) })),
+              ...TRIP_STATUS_VALUES.map((status) => ({ value: status, label: t(`operational_${status}`, status) })),
             ]}
             title={t('up_res_status', 'Status')}
           />

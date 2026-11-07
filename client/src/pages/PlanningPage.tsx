@@ -39,6 +39,7 @@ import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { providerStatusMessage } from '../lib/providerStatus';
 import { statusTone } from '../lib/statusColors';
+import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import SplitTripModal from '../components/planning/SplitTripModal';
 import CombineTripsModal from '../components/planning/CombineTripsModal';
 import PlanningExportModal from '../components/planning/PlanningExportModal';
@@ -535,7 +536,9 @@ function TripBlock({
   const pos = tripTimePosition(trip, fromDate, totalMinutes);
   if (!pos) return null;
 
-  const st = String(trip.status || 'planning').toLowerCase();
+  const legacySt = String(trip.status || 'planning').toLowerCase();
+  const st = operationalStatusForDisplay(trip).toLowerCase();
+  const opLabel = t(operationalStatusKey(trip), operationalStatusForDisplay(trip));
   const tone = planningTone(st);
   const col = { border: tone.border, text: tone.text, bg: tone.soft };
   const hex = tone.accent;
@@ -565,7 +568,7 @@ function TripBlock({
       className="absolute top-1 bottom-1 cursor-pointer group/block z-[5]"
       style={{ left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '3rem' }}
       onClick={onClick}
-      title={['planning', 'planned', 'assigned'].includes(st) ? t('drag_trip_to_unassign', 'Trage spre Order Pool pentru a dezasocia, sau click pentru detalii') : undefined}
+      title={['planning', 'planned', 'assigned'].includes(legacySt) ? t('drag_trip_to_unassign', 'Trage spre Order Pool pentru a dezasocia, sau click pentru detalii') : undefined}
     >
       <div
         className={`h-full rounded-xl border-2 overflow-hidden transition-all duration-150 flex flex-col ${
@@ -591,7 +594,7 @@ function TripBlock({
             </span>
             {!isVeryNarrow && (
               <span className={`shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase ${col.text} opacity-80`}>
-                {t(`status_${st}`, st)}
+                {opLabel}
               </span>
             )}
             {trip.fleetType === 'subcontractor' && (
@@ -1058,6 +1061,7 @@ function TripDetailDrawer({
   const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
   const blockingConflicts = tripConflicts.filter((c: any) => c.level === 'blocking' || c.severity === 'BLOCKING');
   const st = String((trip.status || tripSummary.status || 'planning')).toLowerCase();
+  const opLabel = t(operationalStatusKey(trip), operationalStatusForDisplay(trip));
   
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
   const isConfirmed = st === 'confirmed' || st === 'assigned';
@@ -1291,7 +1295,7 @@ function TripDetailDrawer({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
-              <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase ${col.border} ${col.text}`}>{t(`status_${st}`, st)}</span>
+              <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase ${col.border} ${col.text}`}>{opLabel}</span>
               {trip.fleetType && trip.fleetType !== 'own_fleet' && (
                 <span className="px-2 py-0.5 text-[10px] font-black rounded-full border uppercase bg-violet-500/10 border-violet-500/30 text-violet-600">
                   {trip.fleetType === 'subcontractor' ? `Sub: ${trip.carrierName || 'Carrier'}` : 'Charter'}
@@ -1703,7 +1707,7 @@ function TripDetailDrawer({
               <div className="flex items-center justify-between p-3 bg-surface/70 rounded-xl border border-border">
                 <div className="text-xs font-bold text-text-primary flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-primary" />
-                  <span>{stops.length} {t('stops', 'Stops')} · {isConfirmed ? t('status_confirmed', 'Confirmed') : t(`status_${st}`, st)}</span>
+                  <span>{stops.length} {t('stops', 'Stops')} · {isConfirmed ? t('status_confirmed', 'Confirmed') : opLabel}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {isPlanning && stops.length > 1 && (
@@ -2059,7 +2063,7 @@ function TripDetailDrawer({
               ) : isDispatched ? (
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 text-xs font-black flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" /> {t(`status_${st}`, st)}
+                    <CheckCircle2 className="w-4 h-4" /> {opLabel}
                   </span>
                   <button
                     onClick={() => navigate(`/tracking?tripId=${tripId}`)}
@@ -2088,7 +2092,7 @@ function TripDetailDrawer({
               ) : isCompleted ? (
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs font-black flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" /> {t(`status_${st}`, st)}
+                    <CheckCircle2 className="w-4 h-4" /> {opLabel}
                   </span>
                   <button
                     onClick={() => navigate(`/tracking?tripId=${tripId}`)}
@@ -2395,14 +2399,16 @@ export default function PlanningPage() {
     setIsLoading(true);
     setFetchError(null);
     try {
-      const isSpecificStatus = statusFilter && !['planned', 'driving', 'delayed', 'unassigned'].includes(statusFilter);
+      // Operational filters are applied against the canonical status returned
+      // by the board, not the legacy persistence status. Sending an operational
+      // code to the legacy query would silently return nothing.
       const [boardRes, mapRes] = await Promise.allSettled([
         api.get('/planning/board', {
           params: {
             from,
             to,
             search: search || undefined,
-            status: isSpecificStatus ? statusFilter : undefined,
+            status: undefined,
             vehicleId: truckFilter || undefined,
             driverId: driverFilter || undefined,
             priority: priorityFilter || undefined,
@@ -2425,6 +2431,22 @@ export default function PlanningPage() {
   }, [from, to, search, statusFilter, truckFilter, driverFilter, priorityFilter]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Keep Planning live without ever resetting the user's current filter,
+  // selected trip, sort or scroll position. The API remains authoritative;
+  // the socket event is only a refresh trigger.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => loadData(), 250);
+    };
+    window.addEventListener('hapcargo:operational-update', refresh);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('hapcargo:operational-update', refresh);
+    };
+  }, [loadData]);
 
   // ── Shortcuts ──
   useShortcuts({
@@ -2726,15 +2748,15 @@ export default function PlanningPage() {
   const activeFilterCount = [search, statusFilter, truckFilter, driverFilter, priorityFilter, attentionActive].filter(Boolean).length;
 
   const plannedTripsCount = useMemo(() => {
-    return trips.filter((tr: any) => ['planning', 'planned', 'assigned', 'dispatched'].includes(tr.status)).length;
+    return trips.filter((tr: any) => ['PLANNING', 'ACCEPTED'].includes(operationalStatusForDisplay(tr))).length;
   }, [trips]);
 
   const drivingTripsCount = useMemo(() => {
-    return trips.filter((tr: any) => ['driving', 'started', 'loading', 'driver_accepted', 'partially_delivered'].includes(tr.status)).length;
+    return trips.filter((tr: any) => ['EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING'].includes(operationalStatusForDisplay(tr))).length;
   }, [trips]);
 
   const delayedTripsCount = useMemo(() => {
-    return trips.filter((tr: any) => tr.isDelayed || (tr.plannedArrival && new Date(tr.plannedArrival) < new Date() && !['completed', 'closed', 'cancelled'].includes(tr.status))).length || (boardData?.delayedTrips || 0);
+    return trips.filter((tr: any) => operationalStatusForDisplay(tr) === 'DELAYED' || tr.isDelayed || (tr.plannedArrival && new Date(tr.plannedArrival) < new Date() && !['COMPLETED', 'CANCELLED'].includes(operationalStatusForDisplay(tr)))).length || (boardData?.delayedTrips || 0);
   }, [trips, boardData?.delayedTrips]);
 
   // ── Filtered resources for display ──
@@ -2782,18 +2804,19 @@ export default function PlanningPage() {
 
     // Status filter
     if (statusFilter && statusFilter !== 'unassigned') {
+      const requested = String(statusFilter).toUpperCase();
       list = list.filter((r: any) => {
         const resTrips = getResTrips(r);
         if (statusFilter === 'planned') {
-          return resTrips.some((tr: any) => ['planning', 'planned', 'assigned', 'dispatched'].includes(tr.status));
+          return resTrips.some((tr: any) => ['PLANNING', 'ACCEPTED'].includes(operationalStatusForDisplay(tr)));
         }
         if (statusFilter === 'driving') {
-          return resTrips.some((tr: any) => ['driving', 'started', 'loading', 'driver_accepted', 'partially_delivered'].includes(tr.status));
+          return resTrips.some((tr: any) => ['EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING'].includes(operationalStatusForDisplay(tr)));
         }
         if (statusFilter === 'delayed') {
-          return resTrips.some((tr: any) => tr.isDelayed || (tr.plannedArrival && new Date(tr.plannedArrival) < new Date() && !['completed', 'closed', 'cancelled'].includes(tr.status)));
+          return resTrips.some((tr: any) => operationalStatusForDisplay(tr) === 'DELAYED' || tr.isDelayed || (tr.plannedArrival && new Date(tr.plannedArrival) < new Date() && !['COMPLETED', 'CANCELLED'].includes(operationalStatusForDisplay(tr))));
         }
-        return resTrips.some((tr: any) => tr.status === statusFilter) || r.status === statusFilter;
+        return resTrips.some((tr: any) => operationalStatusForDisplay(tr) === requested);
       });
     }
 

@@ -2407,6 +2407,7 @@ export class PlanningService {
     const orderSnapshots = (trip.orders || []).map((o) => ({ id: o.id, tripId: o.trip?.id || trip.id, status: o.status }));
     const oldStatus = trip.status;
     trip.status = to;
+    (trip as any).operationalStatus = this.operationalStatusForLegacy(to);
     await this.tripRepo.save(trip);
 
     const orderStatusMap: Record<string, string> = {
@@ -2428,6 +2429,7 @@ export class PlanningService {
       for (const o of trip.orders || []) {
         if (!o?.id || String(o.status) === 'cancelled') continue;
         o.status = orderStatusMap[to];
+        (o as any).operationalStatus = this.operationalStatusForLegacy(to);
         await this.orderRepo.save(o);
       }
     }
@@ -3054,12 +3056,27 @@ export class PlanningService {
     }
   }
 
+  /** Central legacy-to-canonical map used by TMS status changes. */
+  private operationalStatusForLegacy(status: string): string {
+    const s = String(status || '').toLowerCase();
+    if (s === 'driver_accepted' || s === 'accepted') return 'ACCEPTED';
+    if (s === 'started' || s === 'in_transit') return 'EN_ROUTE_TO_PICKUP';
+    if (s === 'loading') return 'LOADING';
+    if (s === 'driving') return 'EN_ROUTE_TO_DELIVERY';
+    if (s === 'unloading') return 'UNLOADING';
+    if (s === 'completed' || s === 'closed' || s === 'delivered') return 'COMPLETED';
+    if (s === 'cancelled' || s === 'canceled') return 'CANCELLED';
+    if (s === 'delayed') return 'DELAYED';
+    return 'PLANNING';
+  }
+
   async driverReceived(user: any, tripId: string) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
     this.assertDriverOwnsTrip(trip, user);
     if (trip.status === 'driver_received') return trip; // idempotent
     trip.status = 'driver_received';
+    (trip as any).operationalStatus = 'PLANNING';
     trip.driverAcknowledgedAt = new Date();
     await this.tripRepo.save(trip);
     return this.loadTrip(tripId);
@@ -3085,8 +3102,14 @@ export class PlanningService {
       );
     }
     trip.status = 'driver_accepted';
+    (trip as any).operationalStatus = 'ACCEPTED';
     trip.driverAcceptedAt = new Date();
     await this.tripRepo.save(trip);
+    for (const order of (trip as any).orders || []) {
+      if (!order?.id || String(order.status) === 'cancelled') continue;
+      (order as any).operationalStatus = 'ACCEPTED';
+      await this.orderRepo.save(order);
+    }
     return this.loadTrip(tripId);
   }
 

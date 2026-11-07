@@ -554,10 +554,20 @@ export default function Layout() {
       setTimeout(fetchNotifications, 500);
     });
 
+    // One operational event feeds every TMS view. Pages listen for this DOM
+    // event and reload the row while preserving their filters and pagination.
+    const onOperational = (payload: any) => {
+      window.dispatchEvent(new CustomEvent('hapcargo:operational-update', { detail: payload }));
+    };
+    socket.on('tripStatusUpdate', onOperational);
+    socket.on('deliveryIncident', onOperational);
+
     const interval = setInterval(fetchNotifications, 60000); // keep a fallback sync every minute
 
     return () => {
       clearInterval(interval);
+      socket.off('tripStatusUpdate', onOperational);
+      socket.off('deliveryIncident', onOperational);
       socket.disconnect();
     };
   }, []);

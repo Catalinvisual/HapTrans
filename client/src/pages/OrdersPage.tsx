@@ -15,6 +15,7 @@ import type { Column } from '../components/ui/DataTable';
 import KpiStrip from '../components/ui/KpiStrip';
 import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
+import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
@@ -160,6 +161,11 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => {
+    const refresh = () => fetchOrders();
+    window.addEventListener('hapcargo:operational-update', refresh);
+    return () => window.removeEventListener('hapcargo:operational-update', refresh);
+  }, [fetchOrders]);
 
   const clientOptions: SelectOption[] = useMemo(() => {
     const map = new Map<string, number>();
@@ -177,9 +183,10 @@ export default function OrdersPage() {
     return orders.filter(o => {
       if (!matchesSearch(search, o.orderNumber, o.referenceNumber, o.customerReference, o.client?.name, o.contactPerson, o.notes)) return false;
       if (filters.status !== 'all') {
-        if (filters.status === 'plannedGroup' && !['new', 'planned'].includes(o.status)) return false;
-        else if (filters.status === 'activeGroup' && !['assigned', 'loading', 'in_transit'].includes(o.status)) return false;
-        else if (filters.status === 'deliveredGroup' && !['delivered', 'pod_received'].includes(o.status)) return false;
+        const op = operationalStatusForDisplay(o);
+        if (filters.status === 'plannedGroup' && !['PLANNING', 'ACCEPTED'].includes(op)) return false;
+        else if (filters.status === 'activeGroup' && !['EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING'].includes(op)) return false;
+        else if (filters.status === 'deliveredGroup' && op !== 'COMPLETED') return false;
         else if (filters.status === 'invoicedGroup' && !['ready_for_invoice', 'invoiced', 'paid'].includes(o.status)) return false;
         else if (!['plannedGroup', 'activeGroup', 'deliveredGroup', 'invoicedGroup'].includes(filters.status) && o.status !== filters.status) return false;
       }
@@ -216,7 +223,11 @@ export default function OrdersPage() {
 
   const statusCounts = useMemo(() => {
     const c: Record<string, number> = {};
-    orders.forEach(o => { c[o.status] = (c[o.status] || 0) + 1; });
+    orders.forEach(o => {
+      c[o.status] = (c[o.status] || 0) + 1;
+      const op = operationalStatusForDisplay(o);
+      c[op] = (c[op] || 0) + 1;
+    });
     return c;
   }, [orders]);
 
@@ -454,7 +465,7 @@ export default function OrdersPage() {
     { key: 'price', label: t('price', 'Price'), sortable: true, align: 'right', width: '104px', render: o => (
       <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(o.price || 0, o.currency || 'EUR')}</div>
     ) },
-    { key: 'status', label: t('status', 'Status'), width: '120px', render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' ')) as string} /> },
+    { key: 'status', label: t('status', 'Status'), width: '150px', render: o => <StatusBadge status={operationalStatusForDisplay(o)} label={t(operationalStatusKey(o), operationalStatusForDisplay(o)) as string} /> },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', sticky: 'right', width: '150px', render: o => {
       const trip = o.trip;
       const trackingToken = trip?.trackingToken;
@@ -521,9 +532,9 @@ return (
       <>
       <KpiStrip items={[
         { key: 'total', label: t('kpi_total', 'Total'), value: orders.length, icon: Box, color: 'text-text-primary', onClick: () => setStatusFilterFromKpi('all'), active: filters.status === 'all' },
-        { key: 'planned', label: t('kpi_planned', 'Planned'), value: (statusCounts.new || 0) + (statusCounts.planned || 0), icon: Boxes, color: 'text-amber-600', onClick: () => setStatusFilterFromKpi('plannedGroup'), active: filters.status === 'plannedGroup' },
-        { key: 'active', label: t('kpi_active', 'In transit'), value: (statusCounts.assigned || 0) + (statusCounts.loading || 0) + (statusCounts.in_transit || 0), icon: Activity, color: 'text-blue-600', onClick: () => setStatusFilterFromKpi('activeGroup'), active: filters.status === 'activeGroup' },
-        { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: (statusCounts.delivered || 0) + (statusCounts.pod_received || 0), icon: Flag, color: 'text-green-600', onClick: () => setStatusFilterFromKpi('deliveredGroup'), active: filters.status === 'deliveredGroup' },
+        { key: 'planned', label: t('kpi_planned', 'Planned'), value: (statusCounts.PLANNING || 0) + (statusCounts.ACCEPTED || 0), icon: Boxes, color: 'text-amber-600', onClick: () => setStatusFilterFromKpi('plannedGroup'), active: filters.status === 'plannedGroup' },
+        { key: 'active', label: t('kpi_active', 'In transit'), value: (statusCounts.EN_ROUTE_TO_PICKUP || 0) + (statusCounts.ARRIVED_AT_PICKUP || 0) + (statusCounts.LOADING || 0) + (statusCounts.EN_ROUTE_TO_DELIVERY || 0) + (statusCounts.ARRIVED_AT_DELIVERY || 0) + (statusCounts.UNLOADING || 0), icon: Activity, color: 'text-blue-600', onClick: () => setStatusFilterFromKpi('activeGroup'), active: filters.status === 'activeGroup' },
+        { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: statusCounts.COMPLETED || 0, icon: Flag, color: 'text-green-600', onClick: () => setStatusFilterFromKpi('deliveredGroup'), active: filters.status === 'deliveredGroup' },
         { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (statusCounts.ready_for_invoice || 0) + (statusCounts.invoiced || 0) + (statusCounts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatusFilterFromKpi('invoicedGroup'), active: filters.status === 'invoicedGroup' },
         { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: fmtMoney(totalRevenue), icon: Coins, color: 'text-primary' },
       ]} dense />

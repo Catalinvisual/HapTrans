@@ -87,7 +87,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             _updateAutomaticTracking(auth, tripProv, chatProv);
           }
         });
-        chatProv.connectGlobal(auth.token!, auth.user?['id'] ?? '', locale: auth.locale.languageCode);
+        chatProv.connectGlobal(
+          auth.token!,
+          auth.user?['id'] ?? '',
+          locale: auth.locale.languageCode,
+          onTripUpdated: () => tripProv.silentReloadTrips(auth.token!),
+        );
         
         _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
           if (mounted && auth.token != null) {

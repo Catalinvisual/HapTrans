@@ -20,6 +20,7 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
     trip = {
       id: 'trip-1',
       status: 'driver_accepted',
+      podRequired: false,
       actualDeparture: null,
       actualArrival: null,
       driver: { id: 'driver-1', user: { id: 'user-1' } },
@@ -80,7 +81,7 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
     expect(stop.ata).toBeInstanceOf(Date);
     // trip leaves "accepted" as soon as the driver is at the loading site
     expect(repo.update).toHaveBeenCalledWith('trip-1', expect.objectContaining({ status: 'loading' }));
-    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, { status: 'loading' });
+    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, expect.objectContaining({ status: 'loading', operationalStatus: 'ARRIVED_AT_PICKUP' }));
 
     await service.updateStopStatus('stop-1', 'loading', driverUser);
     expect(stop.loadingStartedAt).toBeInstanceOf(Date);
@@ -90,7 +91,7 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
     expect(stop.completedAt).toBeInstanceOf(Date);
     // pickup done => driving to delivery, order in transit, departure recorded
     expect(repo.update).toHaveBeenCalledWith('trip-1', expect.objectContaining({ status: 'driving' }));
-    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, { status: 'in_transit' });
+    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, expect.objectContaining({ status: 'in_transit', operationalStatus: 'EN_ROUTE_TO_DELIVERY' }));
     expect(repo.update).toHaveBeenCalledWith('trip-1', expect.objectContaining({ actualDeparture: expect.any(Date) }));
   });
 
@@ -119,7 +120,7 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
     await service.updateStopStatus('stop-2', 'completed', driverUser);
 
     expect(repo.update).toHaveBeenCalledWith('trip-1', expect.objectContaining({ status: 'completed' }));
-    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, { status: 'delivered' });
+    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, expect.objectContaining({ status: 'delivered', operationalStatus: 'COMPLETED' }));
   });
 
   it('absorbs repeated taps without a second event', async () => {

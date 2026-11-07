@@ -10,6 +10,7 @@ import { truckFuelResources } from './truckFuelI18n';
 import { truckFormResources } from './truckFormI18n';
 import { langOverrides } from './langOverrides';
 import { adrResources } from './adrI18n';
+import { operationalResources } from './operationalI18n';
 
 const resources = {
   ro: { translation: {
@@ -11908,6 +11909,11 @@ for (const lng of Object.keys(orderCoreResources)) {
   Object.assign((resources as any)[lng].translation, orderCoreResources[lng]);
 }
 
+
+for (const lng of Object.keys(operationalResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, operationalResources[lng].translation);
+}
 
 const getInitialLanguage = (): string => {
   const supported = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];

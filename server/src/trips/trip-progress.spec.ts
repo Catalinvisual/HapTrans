@@ -59,7 +59,9 @@ describe('trip-progress lifecycle', () => {
     expect(deriveOrderStatusForStop('pickup', 'loading')).toBe('loading');
     expect(deriveOrderStatusForStop('pickup', 'completed')).toBe('in_transit');
     expect(deriveOrderStatusForStop('delivery', 'arrived')).toBe('in_transit');
-    expect(deriveOrderStatusForStop('delivery', 'unloading')).toBe('delivered');
+    // Arrival and unloading are not delivery: only a completed, POD-backed
+    // stop may move the order to delivered.
+    expect(deriveOrderStatusForStop('delivery', 'unloading')).toBe('in_transit');
     expect(deriveOrderStatusForStop('delivery', 'completed')).toBe('delivered');
   });
 

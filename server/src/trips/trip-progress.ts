@@ -60,14 +60,14 @@ export function assertActorMayOperateTrip(trip: any, user: any) {
 const STOP_TRANSITIONS: Record<string, Record<string, string[]>> = {
   pickup: {
     pending: ['arrived'],
-    arrived: ['loading', 'completed'],
+    arrived: ['loading'],
     loading: ['completed'],
     unloading: [],
     completed: [],
   },
   delivery: {
     pending: ['arrived'],
-    arrived: ['unloading', 'completed'],
+    arrived: ['unloading'],
     unloading: ['completed'],
     loading: [],
     completed: [],
@@ -155,12 +155,15 @@ export function timestampsForStop(status: string, at: Date): Record<string, Date
   }
 }
 
-/** Order status implied by the stop operation, or null when nothing changes. */
+/**
+ * Legacy order status implied by the stop operation. Arrival never marks an
+ * order delivered, and unloading only moves it to in_transit. The operational
+ * status is derived separately by `operational-status.ts`.
+ */
 export function deriveOrderStatusForStop(stopType: string, status: string): string | null {
   if (normalizeStopType(stopType) === 'delivery') {
-    if (status === 'unloading') return 'delivered';
     if (status === 'completed') return 'delivered';
-    if (status === 'arrived') return 'in_transit';
+    if (status === 'arrived' || status === 'unloading') return 'in_transit';
     return null;
   }
   if (status === 'arrived' || status === 'loading') return 'loading';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/delivery_rejection_l10n.dart';
 import '../providers/trip_provider.dart';
 import '../services/document_opener.dart';
 import '../utils/constants.dart';
@@ -12,6 +13,7 @@ import '../utils/number_format.dart';
 import '../utils/trip_actions.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
+import '../widgets/delivery_rejection_sheet.dart';
 import '../widgets/navigation_dialog.dart';
 import '../widgets/report_flow.dart';
 import '../widgets/status_badge.dart';
@@ -43,6 +45,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   late Map<String, dynamic> tripData;
   Future<List<Map<String, dynamic>>>? _history;
   Future<List<Map<String, dynamic>>?>? _documents;
+  Future<List<Map<String, dynamic>>>? _incidents;
   bool _busy = false;
 
   @override
@@ -51,6 +54,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     tripData = widget.trip;
     _documents = context.read<TripProvider>().documentsForTrip(widget.token, tripData['id'].toString());
     _history = context.read<TripProvider>().statusHistory(widget.token, tripData['id'].toString());
+    _incidents = context.read<TripProvider>().deliveryIncidents(widget.token, tripData['id'].toString());
   }
 
   Future<void> _refreshTrip() async {
@@ -61,6 +65,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
       if (updated != null) tripData = updated;
       _documents = context.read<TripProvider>().documentsForTrip(widget.token, tripData['id'].toString());
       _history = context.read<TripProvider>().statusHistory(widget.token, tripData['id'].toString());
+      _incidents = context.read<TripProvider>().deliveryIncidents(widget.token, tripData['id'].toString());
     });
   }
 
@@ -170,6 +175,26 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     showDelayReport(context, token: widget.token, trip: tripData);
   }
 
+  Map<String, dynamic>? get _activeDeliveryStop {
+    for (final stop in sortedStops(tripData)) {
+      if (!stopIsPickup(stop) && stopStatus(stop) != 'completed') return stop;
+    }
+    return null;
+  }
+
+  Future<void> _showRejection(AppLocalizations l) async {
+    final stop = _activeDeliveryStop;
+    if (stop == null) return;
+    final reported = await showDeliveryRejectionSheet(
+      context,
+      token: widget.token,
+      trip: tripData,
+      locale: widget.locale,
+      stopId: stop['id']?.toString(),
+    );
+    if (reported == true) await _refreshTrip();
+  }
+
   // ─── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -217,6 +242,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             _headerCard(locale, l),
             const SizedBox(height: 12),
             _reportRow(l),
+            _incidentCard(l),
             const SizedBox(height: 14),
             _nextStepCard(l, locale),
             if (pickups.isNotEmpty) ...[
@@ -726,42 +752,139 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   }
 
   Widget _reportRow(AppLocalizations l) {
-    return Row(
+    final rl = RejectionL10n.of(widget.locale);
+    final stop = _activeDeliveryStop;
+    final canReject = stop != null &&
+        const ['arrived', 'unloading'].contains(stopStatus(stop));
+    return Column(
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _showReportIssueDialog,
-            icon: Icon(Icons.report_problem_outlined, size: 16, color: kError),
-            label: Text(
-              l.translate('report_issue'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kError),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _showReportIssueDialog,
+                icon: Icon(Icons.report_problem_outlined, size: 16, color: kError),
+                label: Text(
+                  l.translate('report_issue'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kError),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: kError),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
             ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: kError),
-              padding: const EdgeInsets.symmetric(vertical: 10),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _showReportDelayDialog,
+                icon: Icon(Icons.access_time, size: 16, color: kWarning),
+                label: Text(
+                  l.translate('report_delay'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kWarning),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: kWarning),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (canReject) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : () => _showRejection(l),
+              icon: Icon(Icons.gpp_bad_outlined, size: 17, color: kError),
+              label: Text(
+                rl.t('report_rejection'),
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: kError),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: kError, width: 1.3),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                backgroundColor: kError.withOpacity(0.05),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _showReportDelayDialog,
-            icon: Icon(Icons.access_time, size: 16, color: kWarning),
-            label: Text(
-              l.translate('report_delay'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kWarning),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: kWarning),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-            ),
-          ),
-        ),
+        ],
       ],
+    );
+  }
+
+  Widget _incidentCard(AppLocalizations l) {
+    final rl = RejectionL10n.of(widget.locale);
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _incidents,
+      builder: (context, snapshot) {
+        final incidents = snapshot.data ?? const <Map<String, dynamic>>[];
+        if (incidents.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: kError.withOpacity(0.055),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kError.withOpacity(0.35)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.gpp_bad_outlined, size: 17, color: kError),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        rl.t('rejection_incident'),
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: kText),
+                      ),
+                    ),
+                    Text(
+                      incidents.every((i) => i['status'] == 'RESOLVED')
+                          ? rl.t('rejection_resolved')
+                          : rl.t('rejection_waiting'),
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: incidents.every((i) => i['status'] == 'RESOLVED') ? kSuccess : kError),
+                    ),
+                  ],
+                ),
+                for (final incident in incidents) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    incident['outcome'] == 'PARTIAL_REJECTION'
+                        ? rl.t('rejection_partial_label')
+                        : rl.t('rejection_full_label'),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: kError, letterSpacing: 0.3),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    (incident['description'] ?? '').toString(),
+                    style: TextStyle(fontSize: 12, height: 1.35, color: kText),
+                  ),
+                  if (incident['resolutionNotes'] != null) ...[
+                    const SizedBox(height: 7),
+                    Text(
+                      rl.t('rejection_dispatcher_instructions').toUpperCase(),
+                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: kTextSecondary, letterSpacing: 0.3),
+                    ),
+                    Text(
+                      incident['resolutionNotes'].toString(),
+                      style: TextStyle(fontSize: 12, height: 1.35, color: kText),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

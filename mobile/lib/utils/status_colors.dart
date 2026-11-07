@@ -181,6 +181,14 @@ const Map<String, StatusToneName> statusToneAssignments = {
   'pending': StatusToneName.neutral,
   'at_pickup': StatusToneName.arrived,
   'at_delivery': StatusToneName.arrived,
+  'arrived_at_pickup': StatusToneName.arrived,
+  'arrived_at_delivery': StatusToneName.arrived,
+  'en_route_to_pickup': StatusToneName.progress,
+  'en_route_to_delivery': StatusToneName.progress,
+  'partially_rejected': StatusToneName.rejected,
+  'delivery_rejected': StatusToneName.rejected,
+  'delivery_exception': StatusToneName.exception,
+  'delivery_accepted_with_remarks': StatusToneName.loaded,
   'driver_arrived': StatusToneName.arrived,
 
   // Loading

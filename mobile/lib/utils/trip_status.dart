@@ -171,13 +171,86 @@ const Map<String, Map<String, String>> _stageLabels = {
   },
 };
 
+/// Canonical operational labels. The code is never rendered raw; all seven
+/// driver languages use the same keys as the TMS.
+const Map<String, Map<String, String>> _operationalLabels = {
+  'ro': {
+    'planning': 'În planificare', 'accepted': 'Acceptată', 'en_route_to_pickup': 'În drum spre încărcare',
+    'arrived_at_pickup': 'Sosit la încărcare', 'loading': 'În curs de încărcare',
+    'en_route_to_delivery': 'În drum spre descărcare', 'arrived_at_delivery': 'Sosit la descărcare',
+    'unloading': 'În curs de descărcare', 'completed': 'Finalizată',
+    'delivery_rejected': 'Livrare refuzată', 'partially_rejected': 'Livrare parțial refuzată',
+    'delivery_exception': 'Problemă la livrare', 'delivery_accepted_with_remarks': 'Livrată cu observații',
+  },
+  'en': {
+    'planning': 'Planning', 'accepted': 'Accepted', 'en_route_to_pickup': 'En route to pickup',
+    'arrived_at_pickup': 'Arrived at pickup', 'loading': 'Loading',
+    'en_route_to_delivery': 'En route to delivery', 'arrived_at_delivery': 'Arrived at delivery',
+    'unloading': 'Unloading', 'completed': 'Completed',
+    'delivery_rejected': 'Delivery rejected', 'partially_rejected': 'Partially rejected',
+    'delivery_exception': 'Delivery exception', 'delivery_accepted_with_remarks': 'Delivered with remarks',
+  },
+  'nl': {
+    'planning': 'Planning', 'accepted': 'Geaccepteerd', 'en_route_to_pickup': 'Onderweg naar laden',
+    'arrived_at_pickup': 'Aangekomen bij laden', 'loading': 'Laden',
+    'en_route_to_delivery': 'Onderweg naar lossen', 'arrived_at_delivery': 'Aangekomen bij lossen',
+    'unloading': 'Lossen', 'completed': 'Voltooid',
+    'delivery_rejected': 'Levering geweigerd', 'partially_rejected': 'Gedeeltelijk geweigerd',
+    'delivery_exception': 'Probleem bij levering', 'delivery_accepted_with_remarks': 'Geleverd met opmerkingen',
+  },
+  'de': {
+    'planning': 'Planung', 'accepted': 'Akzeptiert', 'en_route_to_pickup': 'Unterwegs zur Beladung',
+    'arrived_at_pickup': 'Bei Beladung angekommen', 'loading': 'Beladung läuft',
+    'en_route_to_delivery': 'Unterwegs zur Entladung', 'arrived_at_delivery': 'Bei Entladung angekommen',
+    'unloading': 'Entladung läuft', 'completed': 'Abgeschlossen',
+    'delivery_rejected': 'Lieferung abgelehnt', 'partially_rejected': 'Teilweise abgelehnt',
+    'delivery_exception': 'Lieferproblem', 'delivery_accepted_with_remarks': 'Mit Anmerkungen geliefert',
+  },
+  'fr': {
+    'planning': 'Planification', 'accepted': 'Acceptée', 'en_route_to_pickup': 'En route vers le chargement',
+    'arrived_at_pickup': 'Arrivé au chargement', 'loading': 'Chargement en cours',
+    'en_route_to_delivery': 'En route vers la livraison', 'arrived_at_delivery': 'Arrivé à la livraison',
+    'unloading': 'Déchargement en cours', 'completed': 'Terminée',
+    'delivery_rejected': 'Livraison refusée', 'partially_rejected': 'Partiellement refusée',
+    'delivery_exception': 'Problème de livraison', 'delivery_accepted_with_remarks': 'Livrée avec réserves',
+  },
+  'es': {
+    'planning': 'Planificación', 'accepted': 'Aceptada', 'en_route_to_pickup': 'En ruta a la carga',
+    'arrived_at_pickup': 'Llegado a la carga', 'loading': 'Carga en curso',
+    'en_route_to_delivery': 'En ruta a la descarga', 'arrived_at_delivery': 'Llegado a la descarga',
+    'unloading': 'Descarga en curso', 'completed': 'Finalizada',
+    'delivery_rejected': 'Entrega rechazada', 'partially_rejected': 'Rechazo parcial',
+    'delivery_exception': 'Incidencia de entrega', 'delivery_accepted_with_remarks': 'Entregada con reservas',
+  },
+  'pl': {
+    'planning': 'Planowanie', 'accepted': 'Zaakceptowana', 'en_route_to_pickup': 'W drodze do załadunku',
+    'arrived_at_pickup': 'Na załadunku', 'loading': 'Załadunek trwa',
+    'en_route_to_delivery': 'W drodze do rozładunku', 'arrived_at_delivery': 'Na rozładunku',
+    'unloading': 'Rozładunek trwa', 'completed': 'Zakończona',
+    'delivery_rejected': 'Dostawa odrzucona', 'partially_rejected': 'Częściowo odrzucona',
+    'delivery_exception': 'Problem z dostawą', 'delivery_accepted_with_remarks': 'Dostarczona z uwagami',
+  },
+};
+
 String _pick(Map<String, Map<String, String>> table, String key, String lang) {
   return table[lang]?[key] ?? table['en']?[key] ?? key;
 }
 
 String tripStatusLabel(String status, String lang) {
   final key = status.toString().trim().toLowerCase();
-  final direct = _statusLabels[lang]?[key] ?? _statusLabels['en']?[key];
+  const canonical = {
+    'planning': 'planning', 'accepted': 'accepted',
+    'en_route_to_pickup': 'en_route_to_pickup', 'arrived_at_pickup': 'arrived_at_pickup',
+    'loading': 'loading', 'en_route_to_delivery': 'en_route_to_delivery',
+    'arrived_at_delivery': 'arrived_at_delivery', 'unloading': 'unloading',
+    'completed': 'completed', 'delivery_rejected': 'delivery_rejected',
+    'partially_rejected': 'partially_rejected', 'delivery_exception': 'delivery_exception',
+    'delivery_accepted_with_remarks': 'delivery_accepted_with_remarks',
+  };
+  final normalized = canonical[key] ?? key;
+  final canonicalLabel = _operationalLabels[lang]?[normalized] ?? _operationalLabels['en']?[normalized];
+  if (canonicalLabel != null && canonicalLabel.isNotEmpty) return canonicalLabel;
+  final direct = _statusLabels[lang]?[normalized] ?? _statusLabels['en']?[normalized];
   if (direct != null && direct.isNotEmpty) return direct;
   final human = key.replaceAll('_', ' ').replaceAll('-', ' ').trim();
   if (human.isEmpty) return '';

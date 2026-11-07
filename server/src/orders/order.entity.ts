@@ -67,6 +67,16 @@ export class Order {
   @Column({ type: 'varchar', default: 'draft' })
   status: string;
 
+  /** Operational progress of this order, independent of commercial status. */
+  @Column({ type: 'varchar', length: 40, default: 'PLANNING' })
+  operationalStatus: string;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  deliveryOutcome: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  hasOpenIncident: boolean;
+
   @Column({ nullable: true, unique: true })
   trackingToken: string; // e.g. HC-A1B2C3D4
 

@@ -30,6 +30,26 @@ export class TripsController {
     return this.service.findForDriver(req.user);
   }
 
+  @Get(":id/delivery-incidents")
+  getDeliveryIncidents(@Param("id") id: string, @Request() req: any) {
+    return this.service.getDeliveryIncidents(id, req.user);
+  }
+
+  @Post(":id/delivery-incidents")
+  reportDeliveryIncident(@Param("id") id: string, @Body() body: any, @Request() req: any) {
+    return this.service.reportDeliveryIncident(id, req.user, body);
+  }
+
+  @Patch(":id/delivery-incidents/:incidentId/resolution")
+  resolveDeliveryIncident(
+    @Param("id") id: string,
+    @Param("incidentId") incidentId: string,
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.service.resolveDeliveryIncident(id, incidentId, req.user, body);
+  }
+
   @Post(":id/report-issue")
   reportIssue(@Param("id") id: string, @Body() body: any, @Request() req: any) {
     return this.service.reportIssue(id, req.user, body);

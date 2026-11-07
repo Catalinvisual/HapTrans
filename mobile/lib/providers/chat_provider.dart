@@ -67,7 +67,7 @@ class ChatProvider extends ChangeNotifier {
     return _notifTranslations[locale]?[key] ?? _notifTranslations['en']![key] ?? key;
   }
 
-  void connectGlobal(String token, String currentUserId, {String locale = 'ro'}) {
+  void connectGlobal(String token, String currentUserId, {String locale = 'ro', void Function()? onTripUpdated}) {
     if (_socket != null && _socket!.connected) return;
 
     _socket = IO.io(kWsUrl, IO.OptionBuilder()
@@ -113,6 +113,10 @@ class ChatProvider extends ChangeNotifier {
           title: title,
           body: label.isNotEmpty ? 'Status: $label' : 'Cursa ta a fost actualizată',
         );
+        // The event is only a wake-up signal. Reloading the authoritative trip
+        // payload also delivers dispatcher resolution instructions and covers
+        // missed or duplicated socket messages.
+        onTripUpdated?.call();
         notifyListeners();
       }
     });

@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, Optional, forwardRef, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Between } from 'typeorm';
@@ -17,6 +17,21 @@ import { PlanningEngine } from '../engines/planning.engine';
 import { PricingEngine } from '../engines/pricing.engine';
 import { CostEngine } from '../engines/cost.engine';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { DocumentsService } from '../documents/documents.service';
+import { DocumentType } from '../documents/document.entity';
+import { DeliveryIncident } from './delivery-incident.entity';
+import {
+  deriveOperationalStatus,
+  deriveOrderOperationalStatus,
+  operationalStatusForIncident,
+  operationalStatusFromLegacy,
+  incidentBlocksCompletion,
+  isDeliveryIncidentReason,
+  isDeliveryIncidentOutcome,
+  isDeliveryResolution,
+  DeliveryIncidentOutcome,
+  OperationalStatus,
+} from './operational-status';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { randomUUID } from 'crypto';
 import { resolveTripDriver, resolveTripDriverAssignment, resolveTripTrailer } from './driver-assignment';
@@ -73,6 +88,8 @@ export class TripsService {
     private pricingEngine: PricingEngine,
     private costEngine: CostEngine,
     private actionLogs: ActionLogsService,
+    @Optional() private documentsService?: DocumentsService,
+    @Optional() @InjectRepository(DeliveryIncident) private incidentsRepo?: Repository<DeliveryIncident>,
   ) {}
 
   findAll(status?: string, truckId?: string) {
@@ -186,6 +203,13 @@ export class TripsService {
       if (operational.includes(String((trip as any).status)) && derivedStage) {
         (trip as any).status = derivedStage;
       }
+      // The canonical code is the only badge the driver app and TMS render.
+      // It is derived from the stops, so a cached legacy trip flag can never
+      // make the phone say "driving" at an unloading address.
+      (trip as any).operationalStatus = deriveOperationalStatus(
+        ((trip as any).stops || []) as any[],
+        (trip as any).status,
+      );
       for (const stop of ((trip as any).stops || []) as any[]) {
         stop.type = normalizeStopType(stop.type, stop.sequence);
         stop.status = normalizeStopStatus(stop.status);
@@ -259,7 +283,7 @@ export class TripsService {
   async getStatusHistory(tripId: string) {
     const logs = await this.actionLogs.getLogsForEntity('Trip', tripId);
     return logs
-      .filter((l: any) => ['STATUS_CHANGED', 'POD_SAVED', 'ISSUE_REPORTED', 'DELAY_REPORTED'].includes(l.action))
+      .filter((l: any) => ['STATUS_CHANGED', 'POD_SAVED', 'ISSUE_REPORTED', 'DELAY_REPORTED', 'DELIVERY_INCIDENT_REPORTED', 'DELIVERY_INCIDENT_RESOLVED'].includes(l.action))
       .map((l: any) => ({
         id: l.id,
         action: l.action,
@@ -273,6 +297,286 @@ export class TripsService {
         orderId: l.details?.orderId ?? null,
         notes: l.details?.notes ?? l.details?.description ?? null,
       }));
+  }
+
+  private incidentRepo() {
+    return this.incidentsRepo || this.repo.manager.getRepository(DeliveryIncident);
+  }
+
+  private async decorateIncident(incident: DeliveryIncident) {
+    const ids = (incident.photoIds || []).filter(Boolean).map(String);
+    let photos: any[] = [];
+    if (ids.length > 0) {
+      const docs = (await this.repo.manager.find('Document', {
+        where: { id: In(ids) },
+        relations: ['trip', 'order'],
+      })) as any[];
+      photos = docs.map((doc) => ({
+        id: doc.id,
+        fileName: doc.fileName || doc.originalFilename || null,
+        url: this.documentsService?.generateSignedUrl(doc, 3600) || doc.fileUrl || null,
+      }));
+    }
+    // Evidence is only useful when dispatch can identify the exact stop and
+    // order it belongs to. These are read-only projections, not copies of the
+    // operational state.
+    const stop = incident.stopId
+      ? await this.repo.manager.findOne('Stop', { where: { id: incident.stopId } }) as any
+      : null;
+    const order = incident.orderId
+      ? await this.repo.manager.findOne('Order', { where: { id: incident.orderId }, relations: ['client'] }) as any
+      : null;
+    const resolver = incident.resolvedByUserId
+      ? await this.repo.manager.findOne('User', { where: { id: incident.resolvedByUserId } }) as any
+      : null;
+    const driver = incident.driverUserId
+      ? await this.repo.manager.findOne('User', { where: { id: incident.driverUserId } }) as any
+      : null;
+    let resolutionHistory: any[] = [];
+    try {
+      const logs = await this.actionLogs.getLogsForEntity('Trip', incident.tripId);
+      resolutionHistory = logs
+        .filter((log: any) => log.action === 'DELIVERY_INCIDENT_RESOLVED'
+          && String(log.details?.incidentId || '') === String(incident.id))
+        .map((log: any) => ({
+          id: log.id,
+          resolutionCode: log.details?.resolutionCode || null,
+          resolutionNotes: log.details?.resolutionNotes || null,
+          at: log.createdAt,
+          actorName: log.user?.name || log.user?.email || null,
+        }));
+    } catch {
+      resolutionHistory = [];
+    }
+    return {
+      ...incident,
+      photos,
+      stop: stop ? { id: stop.id, sequence: stop.sequence, type: stop.type, city: stop.city, address: stop.address } : null,
+      order: order ? { id: order.id, orderNumber: order.orderNumber, clientName: order.client?.name || null } : null,
+      resolvedBy: resolver ? { id: resolver.id, name: resolver.name || resolver.email || null } : null,
+      driver: driver ? { id: driver.id, name: driver.name || driver.email || null } : null,
+      resolutionHistory,
+    };
+  }
+
+  /** Delivery incidents are scoped to the trip, never to a caller-supplied id. */
+  async getDeliveryIncidents(tripId: string, user: any) {
+    const trip = await this.findOne(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+    assertActorMayOperateTrip(trip, user);
+    const incidents = await this.incidentRepo().find({
+      where: { tripId },
+      order: { createdAt: 'DESC' },
+    });
+    return Promise.all(incidents.map((incident) => this.decorateIncident(incident)));
+  }
+
+  async reportDeliveryIncident(tripId: string, user: any, data: any) {
+    const trip = await this.findOne(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+    assertActorMayOperateTrip(trip, user);
+
+    // The driver's own words are the reason. A category is optional and only
+    // used for indexing; it is never invented on the driver's behalf.
+    const reasonRequested = String(data?.reasonCode || 'OTHER').toUpperCase();
+    const reasonCode = isDeliveryIncidentReason(reasonRequested) ? reasonRequested : 'OTHER';
+    const outcome = String(data?.outcome || 'FULL_REJECTION').toUpperCase();
+    if (!isDeliveryIncidentOutcome(outcome)) {
+      throw new BadRequestException('Unknown delivery incident outcome');
+    }
+    const description = String(data?.reason || data?.description || '').trim();
+    if (description.length < 3) throw new BadRequestException('The rejection reason is required');
+    if (description.length > 4000) throw new BadRequestException('The rejection reason is too long');
+
+    const stopId = data?.stopId ? String(data.stopId) : null;
+    const stop = stopId
+      ? ((trip as any).stops || []).find((s: any) => String(s.id) === stopId)
+      : ((trip as any).stops || [])
+          .filter((s: any) => normalizeStopType(s.type, s.sequence) === 'delivery')
+          .sort((a: any, b: any) => Number(b.sequence) - Number(a.sequence))[0];
+    if (!stop) throw new BadRequestException('Delivery stop not found');
+    if (normalizeStopType(stop.type, stop.sequence) !== 'delivery') {
+      throw new BadRequestException('Delivery incidents can only be reported at a delivery stop');
+    }
+    const stopStatus = normalizeStopStatus(stop.status);
+    if (!['arrived', 'unloading', 'completed'].includes(stopStatus)) {
+      throw new ConflictException('Report a delivery incident after arriving at the delivery stop');
+    }
+
+    const clientRequestId = data?.clientRequestId ? String(data.clientRequestId).slice(0, 128) : null;
+    if (clientRequestId) {
+      const existing = await this.incidentRepo().findOne({ where: { tripId, clientRequestId } });
+      if (existing) return this.decorateIncident(existing);
+    }
+
+    const photoIds = [...new Set((Array.isArray(data?.photoIds) ? data.photoIds : []).map(String).filter(Boolean))];
+    if (photoIds.length > 12) throw new BadRequestException('A maximum of 12 photographs is allowed');
+    if (photoIds.length > 0) {
+      const docs = (await this.repo.manager.find('Document', {
+        where: { id: In(photoIds) },
+        relations: ['trip'],
+      })) as any[];
+      if (docs.length !== photoIds.length) throw new BadRequestException('One or more photographs were not found');
+      if (docs.some((doc) => String(doc.trip?.id || '') !== String(tripId))) {
+        throw new ForbiddenException('A photograph does not belong to this trip');
+      }
+    }
+
+    const explicitOrder = data?.orderId ? String(data.orderId) : null;
+    const orderId = explicitOrder || this.orderIdsForStop(stop, trip)[0] || null;
+    if (explicitOrder && !((trip as any).orders || []).some((o: any) => String(o.id) === explicitOrder)) {
+      throw new ForbiddenException('Order does not belong to this trip');
+    }
+
+    const operationalStatus = operationalStatusForIncident(outcome as DeliveryIncidentOutcome);
+    const incident = this.incidentRepo().create({
+      companyId: (trip as any).company?.id || user?.companyId || null,
+      tripId,
+      orderId,
+      stopId: stop.id,
+      driverUserId: user?.id || null,
+      reasonCode,
+      outcome,
+      affectedPallets: data?.affectedPallets !== undefined && data?.affectedPallets !== null && data?.affectedPallets !== ''
+        ? Math.max(0, Number(data.affectedPallets) || 0)
+        : null,
+      affectedQuantity: data?.affectedQuantity !== undefined && data?.affectedQuantity !== null && data?.affectedQuantity !== ''
+        ? Math.max(0, Number(data.affectedQuantity) || 0)
+        : null,
+      quantityUnit: data?.quantityUnit ? String(data.quantityUnit).slice(0, 24) : null,
+      description,
+      driverNotes: data?.notes ? String(data.notes).trim().slice(0, 4000) : null,
+      customerExplanation: data?.customerExplanation ? String(data.customerExplanation) : null,
+      customerName: data?.customerName ? String(data.customerName).slice(0, 255) : null,
+      signatureRefused: Boolean(data?.signatureRefused),
+      photoIds: photoIds as string[],
+      clientRequestId,
+      status: 'OPEN',
+      latitude: Number.isFinite(Number(data?.latitude)) ? Number(data.latitude) : null,
+      longitude: Number.isFinite(Number(data?.longitude)) ? Number(data.longitude) : null,
+    } as any) as unknown as DeliveryIncident;
+    const saved = (await this.incidentRepo().save(incident)) as unknown as DeliveryIncident;
+
+    await this.repo.update(tripId, {
+      operationalStatus,
+      deliveryOutcome: outcome,
+      hasOpenIncident: true,
+    });
+    if (orderId) {
+      await this.repo.manager.update('Order', { id: orderId }, {
+        operationalStatus,
+        deliveryOutcome: outcome,
+        hasOpenIncident: true,
+      });
+    }
+
+    const source = resolveStatusSource(user);
+    await this.actionLogs.logAction('Trip', tripId, 'DELIVERY_INCIDENT_REPORTED', user, {
+      incidentId: saved.id,
+      reasonCode,
+      outcome,
+      description,
+      driverNotes: saved.driverNotes,
+      affectedPallets: saved.affectedPallets,
+      affectedQuantity: saved.affectedQuantity,
+      quantityUnit: saved.quantityUnit,
+      customerExplanation: saved.customerExplanation,
+      customerName: saved.customerName,
+      signatureRefused: saved.signatureRefused,
+      photoIds,
+      stopId: stop.id,
+      orderId,
+      operationalStatus,
+      source,
+    }, undefined, source);
+
+    try {
+      await this.notificationsService.create({
+        type: 'trip',
+        title: 'Delivery issue reported',
+        message: `A delivery issue was reported for trip ${trip.tripNumber || tripId}. Dispatch review is required.`,
+        relatedId: tripId,
+      });
+    } catch (e) {
+      console.warn('Delivery incident notification failed:', e);
+    }
+
+    this.chatGateway?.broadcastOperationalUpdate?.({
+      tripId,
+      operationalStatus,
+      deliveryOutcome: outcome,
+      hasOpenIncident: true,
+      incidentId: saved.id,
+      stopId: stop.id,
+      event: 'DELIVERY_INCIDENT_REPORTED',
+    });
+
+    return this.decorateIncident(saved);
+  }
+
+  async resolveDeliveryIncident(tripId: string, incidentId: string, user: any, data: any) {
+    if (isDriverActor(user)) throw new ForbiddenException('Only a dispatcher can resolve a delivery incident');
+    const trip = await this.findOne(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+    const incident = await this.incidentRepo().findOne({ where: { id: incidentId, tripId } });
+    if (!incident) throw new NotFoundException('Delivery incident not found');
+    const userCompany = user?.companyId || user?.company?.id;
+    if (userCompany && incident.companyId && String(userCompany) !== String(incident.companyId)) {
+      throw new ForbiddenException('Incident does not belong to this company');
+    }
+    const resolutionCode = String(data?.resolutionCode || '').trim().toUpperCase();
+    const resolutionNotes = String(data?.resolutionNotes || '').trim();
+    if (!isDeliveryResolution(resolutionCode)) throw new BadRequestException('Unknown resolution');
+    if (!resolutionNotes) throw new BadRequestException('Resolution instructions are required');
+    if (incident.status === 'RESOLVED') return this.decorateIncident(incident);
+    incident.status = 'RESOLVED';
+    incident.resolutionCode = resolutionCode.slice(0, 64);
+    incident.resolutionNotes = resolutionNotes || null;
+    incident.resolvedByUserId = user?.id || null;
+    incident.resolvedAt = new Date();
+    const saved = await this.incidentRepo().save(incident);
+
+    const otherOpen = await this.incidentRepo().count({ where: { tripId, status: 'OPEN' } });
+    let operationalStatus = (trip as any).operationalStatus || 'DELIVERY_EXCEPTION';
+    if (otherOpen === 0) {
+      // Resolving the rejection clears the blocking outcome, but it does not
+      // complete the delivery. The stop/trip lifecycle decides what work comes
+      // next (unloading, redelivery, return), so dispatch cannot mark goods as
+      // delivered just by closing the incident.
+      const stops = ((await this.findOne(tripId)) as any)?.stops || [];
+      const legacy = (trip as any).status;
+      operationalStatus = deriveOperationalStatus(stops, legacy);
+      const patch: any = { hasOpenIncident: false, operationalStatus };
+      await this.repo.update(tripId, patch);
+      if (incident.orderId) {
+        await this.repo.manager.update('Order', { id: incident.orderId }, {
+          hasOpenIncident: false,
+          operationalStatus: deriveOrderOperationalStatus(
+            String((((trip as any).stops || []).find((s: any) => String(s.id) === String(incident.stopId))?.type) || 'delivery'),
+            String((((trip as any).stops || []).find((s: any) => String(s.id) === String(incident.stopId))?.status) || 'unloading'),
+          ),
+        });
+      }
+    }
+
+    await this.actionLogs.logAction('Trip', tripId, 'DELIVERY_INCIDENT_RESOLVED', user, {
+      incidentId,
+      resolutionCode: saved.resolutionCode,
+      resolutionNotes: saved.resolutionNotes,
+      driverOriginalDescription: saved.description,
+      photoIds: saved.photoIds,
+      source: 'tms',
+    }, undefined, 'tms');
+
+    this.chatGateway?.broadcastOperationalUpdate?.({
+      tripId,
+      operationalStatus,
+      incidentId,
+      deliveryOutcome: saved.outcome,
+      hasOpenIncident: otherOpen > 0,
+      event: 'DELIVERY_INCIDENT_RESOLVED',
+    });
+    return this.decorateIncident(saved);
   }
 
   async reportIssue(tripId: string, user: any, data: { category: string; description: string; stopId?: string; photoUrls?: string[] }) {
@@ -298,45 +602,136 @@ export class TripsService {
     return { success: true, message: 'Delay reported successfully' };
   }
 
+  /** Open full/partial rejection prevents any silent completion. */
+  private async openBlockingIncident(tripId: string): Promise<DeliveryIncident | null> {
+    if (!this.incidentsRepo) return null;
+    return this.incidentsRepo.findOne({
+      where: {
+        tripId,
+        status: 'OPEN',
+        outcome: In(['FULL_REJECTION', 'PARTIAL_REJECTION']),
+      },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  private async podDocumentsFor(tripId: string): Promise<any[]> {
+    try {
+      const docs = await this.repo.manager.find('Document', {
+        where: { trip: { id: tripId } },
+        relations: ['trip', 'order'],
+      }) as any[];
+      return docs.filter((d) => String(d.documentType || d.type || '').toLowerCase() === 'pod');
+    } catch {
+      return [];
+    }
+  }
+
+  private orderIdsForStop(stop: any, trip: any, explicitOrderId?: string): string[] {
+    const ids = new Set<string>();
+    for (const task of stop?.tasks || []) {
+      if (task?.order?.id) ids.add(String(task.order.id));
+    }
+    if (ids.size === 0 && explicitOrderId) ids.add(String(explicitOrderId));
+    if (ids.size === 0 && (trip?.orders || []).length === 1) ids.add(String(trip.orders[0].id));
+    return [...ids];
+  }
+
   async savePod(tripId: string, user: any, data: { orderId?: string; stopId?: string; recipientName: string; signatureBase64?: string; photoUrls?: string[]; notes?: string }) {
     const trip = await this.findOne(tripId);
     if (!trip) throw new NotFoundException('Trip not found');
     assertActorMayOperateTrip(trip, user);
     const at = new Date();
 
-    if (data.orderId) {
-      await this.repo.manager.update('Order', { id: data.orderId }, { status: 'delivered' });
-    }
-
-    const stops = (await this.repo.manager.find('Stop', {
-      where: { trip: { id: tripId } },
-    })) as any[];
+    const stops = ((trip as any).stops || []) as any[];
     const target = data.stopId
       ? stops.find((s) => s.id === data.stopId)
-      : stops.find((s) => s.type === 'delivery' && s.status !== 'completed');
+      : stops.filter((s) => normalizeStopType(s.type, s.sequence) === 'delivery' && s.status !== 'completed')
+          .sort((a, b) => Number(a.sequence) - Number(b.sequence))[0];
+    if (!target) throw new BadRequestException('Delivery stop not found');
+    if (normalizeStopType(target.type, target.sequence) !== 'delivery') {
+      throw new BadRequestException('POD can only be submitted for a delivery stop');
+    }
+    if (target.status === 'completed') return this.findOne(tripId);
 
-    if (target && target.status !== 'completed') {
-      await this.repo.manager.update('Stop', { id: target.id }, { status: 'completed', completedAt: at });
-      const refreshed = stops.map((s) => (s.id === target.id ? { ...s, status: 'completed' } : s));
-      const derived = deriveTripStatus(refreshed);
-      await this.repo.update(
-        tripId,
-        derived === 'completed' ? { status: derived, actualArrival: at } : { status: derived },
-      );
+    const blocking = await this.openBlockingIncident(tripId);
+    if (blocking) {
+      throw new ConflictException('Delivery is rejected. The dispatcher must resolve the incident before completion.');
+    }
+    if (String(target.status) !== 'unloading') {
+      throw new ConflictException('Start unloading before submitting the POD');
+    }
+
+    // Save the signature as POD evidence when the driver did not already upload
+    // a POD photo/document. A failed save must never complete the trip.
+    let existingPod = await this.podDocumentsFor(tripId);
+    if (existingPod.length === 0) {
+      if (!data.signatureBase64 && !(data.photoUrls || []).length) {
+        throw new BadRequestException('POD evidence is required before delivery can be completed');
+      }
+      try {
+        const docRepo = this.repo.manager.getRepository('Document');
+        const orderId = this.orderIdsForStop(target, trip, data.orderId)[0] || null;
+        const doc = docRepo.create({
+          trip: { id: tripId },
+          order: orderId ? { id: orderId } : null,
+          documentType: DocumentType.POD,
+          type: 'POD',
+          fileName: `POD_${trip.tripNumber || tripId}.png`,
+          fileUrl: data.signatureBase64 || (data.photoUrls || [])[0] || null,
+          notes: data.notes || `POD — ${data.recipientName}`,
+          uploadedBy: user?.id ? { id: user.id } : null,
+        } as any);
+        await docRepo.save(doc);
+        existingPod = [doc];
+      } catch (e: any) {
+        throw new BadRequestException(`POD could not be saved: ${e?.message || 'unknown error'}`);
+      }
+    }
+    if (trip.podRequired !== false && existingPod.length === 0) {
+      throw new BadRequestException('A POD is required before delivery can be completed');
+    }
+
+    await this.repo.manager.update('Stop', { id: target.id }, { status: 'completed', completedAt: at });
+    const refreshed = stops.map((s) => (s.id === target.id ? { ...s, status: 'completed' } : s));
+    const derived = deriveTripStatus(refreshed);
+    const operational = deriveOperationalStatus(refreshed, derived);
+    const tripPatch: any = { operationalStatus: operational };
+    if (derived && derived !== trip.status) tripPatch.status = derived;
+    if (derived === 'completed' && !trip.actualArrival) tripPatch.actualArrival = at;
+    await this.repo.update(tripId, tripPatch);
+
+    const orderIds = this.orderIdsForStop(target, trip, data.orderId);
+    for (const orderId of orderIds) {
+      const orderPatch: any = { operationalStatus: 'COMPLETED' };
+      // Completion is the only point where the commercial fulfilment status
+      // becomes delivered. Unloading and arrival leave it in transit.
+      if (derived === 'completed' || refreshed.filter((s) => normalizeStopType(s.type, s.sequence) === 'delivery').every((s) => s.status === 'completed')) {
+        orderPatch.status = 'delivered';
+      }
+      await this.repo.manager.update('Order', { id: orderId }, orderPatch);
     }
 
     const source = resolveStatusSource(user);
     await this.actionLogs.logAction('Trip', tripId, 'POD_SAVED', user, {
       recipientName: data.recipientName,
       orderId: data.orderId,
-      stopId: target?.id || data.stopId,
+      stopId: target.id,
       notes: data.notes,
-      previousStatus: target?.status ?? null,
-      newStatus: target ? 'completed' : null,
+      previousStatus: target.status,
+      newStatus: 'completed',
+      operationalStatus: operational,
       source,
       scope: 'stop',
     }, undefined, source);
-    return { success: true, message: 'POD saved successfully' };
+    this.chatGateway?.broadcastOperationalUpdate?.({
+      tripId,
+      operationalStatus: operational,
+      status: derived,
+      stopId: target.id,
+      event: 'POD_SUBMITTED',
+    });
+    return { success: true, message: 'POD saved successfully', operationalStatus: operational };
   }
 
   async onModuleInit() {
@@ -344,6 +739,47 @@ export class TripsService {
       await this.repo.query(`
         ALTER TABLE "stops" ADD COLUMN IF NOT EXISTS "loadingStartedAt" timestamp;
         ALTER TABLE "stops" ADD COLUMN IF NOT EXISTS "unloadingStartedAt" timestamp;
+        ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "operationalStatus" varchar(40) NOT NULL DEFAULT 'PLANNING';
+        ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "deliveryOutcome" varchar(40);
+        ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "hasOpenIncident" boolean NOT NULL DEFAULT false;
+        ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "podRequired" boolean NOT NULL DEFAULT true;
+        ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "operationalStatus" varchar(40) NOT NULL DEFAULT 'PLANNING';
+        ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deliveryOutcome" varchar(40);
+        ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "hasOpenIncident" boolean NOT NULL DEFAULT false;
+        CREATE TABLE IF NOT EXISTS "delivery_incidents" (
+          "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          "companyId" uuid,
+          "tripId" uuid NOT NULL,
+          "orderId" uuid,
+          "stopId" uuid,
+          "driverUserId" uuid,
+          "reasonCode" varchar(64) NOT NULL,
+          "outcome" varchar(40) NOT NULL,
+          "affectedPallets" int,
+          "affectedQuantity" decimal(12,3),
+          "quantityUnit" varchar(24),
+          "description" text NOT NULL,
+          "driverNotes" text,
+          "customerExplanation" text,
+          "customerName" varchar(255),
+          "signatureRefused" boolean NOT NULL DEFAULT false,
+          "photoIds" text,
+          "clientRequestId" varchar(128),
+          "status" varchar(24) NOT NULL DEFAULT 'OPEN',
+          "resolutionCode" varchar(64),
+          "resolutionNotes" text,
+          "resolvedByUserId" uuid,
+          "resolvedAt" timestamptz,
+          "latitude" decimal(10,7),
+          "longitude" decimal(10,7),
+          "createdAt" timestamptz NOT NULL DEFAULT now(),
+          "updatedAt" timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "IDX_delivery_incident_request"
+          ON "delivery_incidents" ("tripId", "clientRequestId")
+          WHERE "clientRequestId" IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS "IDX_delivery_incident_trip" ON "delivery_incidents" ("tripId");
+        ALTER TABLE "delivery_incidents" ADD COLUMN IF NOT EXISTS "driverNotes" text;
       `);
     } catch (e: any) {
       console.warn(`Failed to auto-migrate stop milestones: ${e?.message}`);
@@ -366,6 +802,16 @@ export class TripsService {
         }
       }
       if (repaired > 0) console.log(`Trip statuses re-derived from stops: ${repaired}`);
+
+      // Additive backfill for existing production trips. The legacy status is
+      // preserved; only the new canonical column is populated.
+      const all = await this.repo.find({ relations: ['stops'] });
+      for (const trip of all) {
+        const operational = deriveOperationalStatus((trip as any).stops || [], trip.status);
+        if (trip.operationalStatus !== operational) {
+          await this.repo.update(trip.id, { operationalStatus: operational });
+        }
+      }
     } catch (e: any) {
       console.warn(`Trip status reconciliation skipped: ${e?.message}`);
     }
@@ -595,6 +1041,10 @@ export class TripsService {
       }
     }
 
+    if (updateData.status) {
+      updateData.operationalStatus = operationalStatusFromLegacy(updateData.status);
+    }
+
     // 1. Generate Tracking Token & Dispatch Fields on Dispatch
     if (dto.status === 'dispatched') {
       if (!existing.trackingToken) {
@@ -624,12 +1074,30 @@ export class TripsService {
       if (['started', 'in_transit'].includes(String(updateData.status)) && !existing.actualDeparture) {
         await this.repo.update(id, { actualDeparture: new Date() });
       }
+      const opStatus = updateData.operationalStatus;
+      if (['driver_accepted', 'started', 'in_transit', 'cancelled'].includes(String(updateData.status))) {
+        for (const order of (existing as any).orders || []) {
+          if (order?.id) {
+            await this.repo.manager.update('Order', { id: order.id }, {
+              operationalStatus: opStatus,
+              ...(updateData.status === 'cancelled' ? { status: 'cancelled' } : {}),
+            });
+          }
+        }
+      }
       await this.actionLogs.logAction('Trip', id, 'STATUS_CHANGED', user, {
         previousStatus: existing.status,
         newStatus: updateData.status,
+        operationalStatus: opStatus,
         source,
         scope: 'trip',
       }, undefined, source);
+      this.chatGateway?.broadcastOperationalUpdate?.({
+        tripId: id,
+        operationalStatus: opStatus,
+        status: updateData.status,
+        event: 'TRIP_STATUS_CHANGED',
+      });
     }
 
     // 2. Real financial recalculation (CostEngine + PricingEngine)
@@ -821,46 +1289,58 @@ export class TripsService {
     if (previous === next) return this.findOne(trip.id);
     assertStopTransition(stopType, previous, next);
 
+    // Completion is gated by the configured proof requirement and by any open
+    // full/partial rejection. Validate before writing so a failed proof upload
+    // can never leave a completed stop behind.
+    if (stopType === 'delivery' && next === 'completed') {
+      const blocking = await this.openBlockingIncident(trip.id);
+      if (blocking) {
+        throw new ConflictException('Delivery is rejected. The dispatcher must resolve the incident before completion.');
+      }
+      if (trip.podRequired !== false) {
+        const podDocs = await this.podDocumentsFor(trip.id);
+        if (podDocs.length === 0) {
+          throw new ConflictException('A POD is required before the delivery can be completed');
+        }
+      }
+    }
+
     const at = new Date();
     Object.assign(stop, { status: next }, timestampsForStop(next, at));
     await this.repo.manager.save('Stop', stop);
 
+    const orderIds = new Set<string>(this.orderIdsForStop(stop, trip));
+    if (orderIds.size === 0) {
+      try {
+        const tripOrders = await this.repo.manager.getRepository(Order).find({
+          where: { trip: { id: trip.id } },
+          select: ['id'],
+        });
+        if (tripOrders.length === 1) orderIds.add(String(tripOrders[0].id));
+      } catch (e: any) {
+        console.warn(`Order linkage lookup skipped: ${e?.message}`);
+      }
+    }
     const orderStatus = deriveOrderStatusForStop(stopType, next);
-    if (orderStatus) {
-      const orderIds = new Set<string>(
-        (stop.tasks || []).map((t: any) => t?.order?.id).filter(Boolean),
-      );
-      // Split trips link orders to a stop through its tasks. A trip that was
-      // never split carries exactly one order on the trip itself; updating that
-      // order keeps the TMS fulfilment state honest without guessing when a
-      // multi-order trip has no task links.
-      if (orderIds.size === 0) {
-        try {
-          const tripOrders = await this.repo.manager.getRepository(Order).find({
-            where: { trip: { id: trip.id } },
-            select: ['id'],
-          });
-          if (tripOrders.length === 1) orderIds.add(String(tripOrders[0].id));
-        } catch (e: any) {
-          console.warn(`Order linkage lookup skipped: ${e?.message}`);
-        }
-      }
-      for (const orderId of orderIds) {
-        await this.repo.manager.update('Order', { id: orderId }, { status: orderStatus });
-      }
+    const orderOperational = deriveOrderOperationalStatus(stopType, next);
+    for (const orderId of orderIds) {
+      const patch: any = { operationalStatus: orderOperational };
+      if (orderStatus) patch.status = orderStatus;
+      await this.repo.manager.update('Order', { id: orderId }, patch);
     }
 
     const stops = (await this.repo.manager.find('Stop', {
       where: { trip: { id: trip.id } },
     })) as any[];
     const derived = deriveTripStatus(stops);
-    const tripPatch: any = {};
+    const operationalStatus = deriveOperationalStatus(stops, derived);
+    const tripPatch: any = { operationalStatus };
     if (derived && derived !== trip.status) tripPatch.status = derived;
     if (stopType === 'pickup' && next === 'completed' && !trip.actualDeparture) {
       tripPatch.actualDeparture = at;
     }
     if (derived === 'completed' && !trip.actualArrival) tripPatch.actualArrival = at;
-    if (Object.keys(tripPatch).length > 0) await this.repo.update(trip.id, tripPatch);
+    await this.repo.update(trip.id, tripPatch);
 
     const source = resolveStatusSource(user);
     await this.actionLogs.logAction('Trip', trip.id, 'STATUS_CHANGED', user, {
@@ -870,9 +1350,19 @@ export class TripsService {
       previousStatus: previous,
       newStatus: next,
       tripStatus: derived,
+      operationalStatus,
       orderStatus,
+      orderOperational,
       source,
     }, undefined, source);
+
+    this.chatGateway?.broadcastOperationalUpdate?.({
+      tripId: trip.id,
+      operationalStatus,
+      status: derived,
+      stopId: stop.id,
+      event: 'STOP_STATUS_CHANGED',
+    });
 
     return this.findOne(trip.id);
   }

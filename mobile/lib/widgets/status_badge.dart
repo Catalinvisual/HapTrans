@@ -31,7 +31,7 @@ class StatusBadge extends StatelessWidget {
     String? audit,
     bool compact = false,
   }) {
-    final status = (trip['status'] ?? 'planning').toString();
+    final status = (trip['operationalStatus'] ?? trip['status'] ?? 'PLANNING').toString();
     return StatusBadge(
       label: tripStatusLabel(status, locale),
       status: status,

@@ -164,7 +164,7 @@ void main() {
     expect(tripStatusLabel('driving', 'ro'), 'În drum spre descărcare');
     expect(tripStatusLabel('unloading', 'ro'), 'În curs de descărcare');
     expect(tripStatusLabel('completed', 'ro'), 'Finalizată');
-    expect(tripStatusLabel('unloading', 'en'), 'Unloading in progress');
+    expect(tripStatusLabel('unloading', 'en'), 'Unloading');
     expect(tripStatusLabel('assigned', 'de'), 'Zugewiesen — wartet auf Annahme');
     expect(tripStatusLabel('unloading', 'pl'), 'Rozładunek trwa');
     // Unknown legacy values are humanised, not printed as raw enums.

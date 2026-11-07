@@ -18,6 +18,7 @@ import DetailDrawer from '../components/ui/DetailDrawer';
 import type { TabDef } from '../components/ui/DetailDrawer';
 import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
+import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
@@ -31,9 +32,14 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import toast from 'react-hot-toast';
 
-const TRIP_STATUSES = ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed', 'closed', 'cancelled'];
-const TRIP_ACTIVE = ['assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
-const TRIP_PLANNING = ['planning', 'planned'];
+const TRIP_STATUSES = [
+  'PLANNING', 'ACCEPTED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING',
+  'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING', 'COMPLETED',
+  'DELAYED', 'EXCEPTION', 'CANCELLED', 'DELIVERY_REJECTED', 'PARTIALLY_REJECTED',
+  'DELIVERY_EXCEPTION', 'DELIVERY_ACCEPTED_WITH_REMARKS',
+];
+const TRIP_ACTIVE = ['EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING'];
+const TRIP_PLANNING = ['PLANNING', 'ACCEPTED'];
 
 const tStops = (trip: any) => (trip.stops ? [...trip.stops].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0)) : []);
 const tPickup = (trip: any) => { const s = tStops(trip); return s.find((x: any) => x.type === 'pickup') || s[0]; };
@@ -107,6 +113,11 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   }, [t]);
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
+  useEffect(() => {
+    const refresh = () => fetchTrips();
+    window.addEventListener('hapcargo:operational-update', refresh);
+    return () => window.removeEventListener('hapcargo:operational-update', refresh);
+  }, [fetchTrips]);
 
 
 
@@ -127,7 +138,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     { value: 'all', label: t('all_statuses', 'All statuses') },
     { value: 'active', label: t('filter_active_trips', 'Active (in progress)') },
     { value: 'planning', label: t('filter_planning', 'Planning / planned') },
-    ...TRIP_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) })),
+    ...TRIP_STATUSES.map(s => ({ value: s, label: t(`operational_${s}`, s.replace(/_/g, ' ')) })),
   ], [t]);
 
   const base = useMemo(() => embeddedClientId ? trips.filter(tr => tr.orders?.some((o: any) => o.client?.id === embeddedClientId) || tr.client?.id === embeddedClientId) : trips, [trips, embeddedClientId]);
@@ -136,9 +147,10 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     return base.filter(tr => {
       if (!matchesSearch(search, tr.tripNumber, tr.truck?.plateNumber, tDriverName(tr), tPickup(tr)?.city, tDropoff(tr)?.city, tr.orders?.map((o: any) => o.orderNumber || o.referenceNumber).join(' '))) return false;
       if (filters.status !== 'all') {
-        if (filters.status === 'active' && !TRIP_ACTIVE.includes(tr.status)) return false;
-        if (filters.status === 'planning' && !TRIP_PLANNING.includes(tr.status)) return false;
-        if (filters.status !== 'active' && filters.status !== 'planning' && tr.status !== filters.status) return false;
+        const op = operationalStatusForDisplay(tr);
+        if (filters.status === 'active' && !TRIP_ACTIVE.includes(op)) return false;
+        if (filters.status === 'planning' && !TRIP_PLANNING.includes(op)) return false;
+        if (filters.status !== 'active' && filters.status !== 'planning' && op !== filters.status) return false;
       }
       if (filters.truck !== 'all' && tr.truck?.id !== filters.truck) return false;
       if (filters.driver !== 'all' && tr.driver?.id !== filters.driver) return false;
@@ -172,16 +184,16 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     pallets: filtered.reduce((s, tr) => s + tPallets(tr), 0),
   }), [filtered]);
 
-  const activeCount = base.filter(tr => TRIP_ACTIVE.includes(tr.status)).length;
-  const planningCount = base.filter(tr => TRIP_PLANNING.includes(tr.status)).length;
-  const completedCount = base.filter(tr => ['completed', 'closed'].includes(tr.status)).length;
+  const activeCount = base.filter(tr => TRIP_ACTIVE.includes(operationalStatusForDisplay(tr))).length;
+  const planningCount = base.filter(tr => TRIP_PLANNING.includes(operationalStatusForDisplay(tr))).length;
+  const completedCount = base.filter(tr => operationalStatusForDisplay(tr) === 'COMPLETED').length;
 
   const kpiActiveKey = `${filters.status}_${filters.truck}_${filters.driver}`;
   const kpis = [
     { key: 'total', label: t('kpi_total_trips', 'Total trips'), value: base.length, icon: Truck, active: kpiActiveKey === 'all_all_all' && !search, onClick: () => setFilters({ status: 'all', truck: 'all', driver: 'all', dateFrom: '', dateTo: '' }) },
     { key: 'active', label: t('kpi_active', 'Active'), value: activeCount, color: '#6366f1', icon: Activity, active: filters.status === 'active', onClick: () => setFilters(f => ({ ...f, status: 'active' })) },
     { key: 'planning', label: t('kpi_planning', 'Planning'), value: planningCount, color: '#f59e0b', icon: Calendar, active: filters.status === 'planning', onClick: () => setFilters(f => ({ ...f, status: 'planning' })) },
-    { key: 'completed', label: t('kpi_completed', 'Completed'), value: completedCount, color: '#22c55e', icon: CheckIcon, active: ['completed', 'closed'].includes(filters.status) && filters.status !== 'all', onClick: () => setFilters(f => ({ ...f, status: 'completed' })) },
+    { key: 'completed', label: t('kpi_completed', 'Completed'), value: completedCount, color: '#22c55e', icon: CheckIcon, active: filters.status === 'COMPLETED', onClick: () => setFilters(f => ({ ...f, status: 'COMPLETED' })) },
     { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: fmtMoney(totals.revenue), color: '#f97316', icon: Banknote },
     { key: 'profit', label: t('kpi_profit', 'Profit'), value: fmtMoney(totals.profit), color: totals.profit >= 0 ? '#22c55e' : '#ef4444', icon: Wallet },
   ];
@@ -327,7 +339,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
       const p = tProfit(tr);
       return <span className={`font-bold text-[12px] whitespace-nowrap ${p >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(p) ? '—' : fmtMoney(p)}</span>;
     } },
-    { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[96px]', render: tr => <StatusBadge type="trip" status={tr.status} label={t(`status_${tr.status}`, tr.status.replace(/_/g, ' ')) as string} /> },
+    { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[140px]', render: tr => <StatusBadge type="trip" status={operationalStatusForDisplay(tr)} label={t(operationalStatusKey(tr), operationalStatusForDisplay(tr)) as string} /> },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', sticky: 'right', width: '110px', render: tr => (
       <div className="flex items-center justify-end gap-0.5">
         {tr.status === 'planning' && (
@@ -605,7 +617,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
     { key: 'overview', label: t('tab_overview', 'Overview'), content: (
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <StatusBadge type="trip" status={trip.status} label={t(`status_${trip.status}`, trip.status.replace(/_/g, ' ')) as string} size="md" />
+          <StatusBadge type="trip" status={operationalStatusForDisplay(trip)} label={t(operationalStatusKey(trip), operationalStatusForDisplay(trip)) as string} size="md" />
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-surface/40 rounded-xl p-3 border border-border">

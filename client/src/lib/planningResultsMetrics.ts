@@ -3,6 +3,7 @@
 
 import { humanName } from './driverName';
 import { FUEL_FACTORS, getTruckFuelProfile } from './truckFuel';
+import { operationalStatusForDisplay } from './operationalI18n';
 
 export { FUEL_FACTORS };
 
@@ -405,7 +406,7 @@ export function buildTripMetrics(trip: any) {
     id: String(trip?.id || ''),
     raw: trip,
     tripNumber: trip?.tripNumber || '',
-    status: String(trip?.status || ''),
+    status: operationalStatusForDisplay(trip),
     truckId: truck?.id || '',
     driverId: driverAssignment.entity?.id || '',
     truckPlate,

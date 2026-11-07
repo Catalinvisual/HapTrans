@@ -156,4 +156,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   broadcastTripUpdate(tripId: string, status: string, driverUserId?: string, isDriver: boolean = false) {
     this.server.emit('tripUpdated', { tripId, status, driverUserId, isDriver });
   }
+
+  /**
+   * One real-time event for every operational transition and incident. The TMS
+   * listens to this event and reloads the affected row; incident payloads are
+   * deliberately limited to non-sensitive identifiers and codes.
+   */
+  broadcastOperationalUpdate(data: {
+    tripId: string;
+    operationalStatus: string;
+    status?: string;
+    stopId?: string;
+    incidentId?: string;
+    deliveryOutcome?: string | null;
+    hasOpenIncident?: boolean;
+    event: string;
+  }) {
+    const payload = { ...data, at: new Date().toISOString() };
+    this.server.emit('tripStatusUpdate', payload);
+    this.server.emit('tripUpdated', payload);
+    if (data.incidentId || data.event.includes('INCIDENT')) {
+      this.server.emit('deliveryIncident', payload);
+    }
+  }
 }

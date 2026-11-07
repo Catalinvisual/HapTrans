@@ -188,6 +188,10 @@ export const STATUS_TONE_ASSIGNMENTS: Record<string, StatusToneName> = {
   pending: 'neutral',
   at_pickup: 'arrived',
   at_delivery: 'arrived',
+  arrived_at_pickup: 'arrived',
+  arrived_at_delivery: 'arrived',
+  en_route_to_pickup: 'progress',
+  en_route_to_delivery: 'progress',
   driver_arrived: 'arrived',
 
   // Loading
@@ -231,6 +235,10 @@ export const STATUS_TONE_ASSIGNMENTS: Record<string, StatusToneName> = {
   exception: 'exception',
   problem: 'exception',
   incident: 'exception',
+  delivery_exception: 'exception',
+  delivery_rejected: 'rejected',
+  partially_rejected: 'rejected',
+  delivery_accepted_with_remarks: 'loaded',
 
   // Rejected / cancelled
   cancelled: 'cancelled',
