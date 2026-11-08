@@ -2,6 +2,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { planningResources } from './planningI18n';
+import { planningConsolidationResources } from './planningConsolidationI18n';
 import { planningResultsResources } from './planningResultsResources';
 import { planningUpgradeResources } from './planningUpgradeI18n';
 import { planningRouteResources } from './planningRouteI18n';
@@ -11201,6 +11202,9 @@ resources.en = {
   }
 };
 
+for (const lng of Object.keys(planningConsolidationResources)) {
+  Object.assign((resources as any)[lng].translation, planningConsolidationResources[lng].translation);
+}
 for (const lng of Object.keys(planningResources)) {
   const bundle = planningResources[lng];
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };

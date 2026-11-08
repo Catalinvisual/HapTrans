@@ -16,6 +16,8 @@ import { cargoForOrder } from './consolidation-cargo';
 export interface InsertionLeg {
   distanceKm: number;
   durationMin: number;
+  /** Routing provider that produced the leg, when the caller knows it. */
+  provider?: string | null;
 }
 
 export interface InsertionStop {
@@ -36,6 +38,7 @@ export interface InsertionStop {
   timeUntil?: string | null;
   serviceDurationMinutes?: number | null;
   tasks?: any[];
+  sequence?: number;
 }
 
 export interface InsertionOrder {
@@ -57,6 +60,11 @@ export interface InsertionContext {
   maxDailyDrivingMin?: number;
   /** 10h extension is allowed twice a week but must be reported. */
   maxExtendedDrivingMin?: number;
+  /**
+   * Stops whose window was already missed before any insertion. Their miss is
+   * a pre-existing condition and must not reject every insertion position.
+   */
+  preExistingMissedKeys?: Set<string>;
 }
 
 export interface InsertionBlocker {
@@ -84,7 +92,23 @@ export interface InsertionSequenceStop {
   windowStart: string | null;
   windowEnd: string | null;
   plannedArrival: string | null;
+  plannedDeparture: string | null;
   waitingMin: number;
+  serviceMin: number;
+  windowStatus: 'met' | 'missed' | 'unverified';
+}
+
+export interface InsertionDriverHours {
+  status: 'verified' | 'unverified' | 'exceeded';
+  /** The model is an internal planning estimate, never a tachograph verdict. */
+  methodology: 'eu_561_2006_planning_model';
+  drivingMin: number | null;
+  elapsedMin: number | null;
+  dailyDrivingMin: number[];
+  breakMinutes: number;
+  dailyRestMinutes: number;
+  dailyLimitMin: number;
+  dutyDays: number;
 }
 
 export interface InsertionOption {
@@ -92,6 +116,8 @@ export interface InsertionOption {
   deliveryIndex: number;
   sequence: InsertionSequenceStop[];
   stopOrder: string[];
+  /** Concrete stop objects in the proposed order; reused by the caller. */
+  orderedStops: InsertionStop[];
   distanceKm: number | null;
   drivingMin: number | null;
   waitingMin: number | null;
@@ -102,13 +128,7 @@ export interface InsertionOption {
   capacityBefore: { pallets: number; weightKg: number; ldm: number; volume: number };
   capacityAfter: { pallets: number; weightKg: number; ldm: number; volume: number };
   capacityCapacity: KnownTruckCapacity;
-  driverHours: {
-    status: 'verified' | 'unverified' | 'exceeded';
-    drivingMin: number | null;
-    elapsedMin: number | null;
-    breakMinutes: number;
-    dailyLimitMin: number;
-  };
+  driverHours: InsertionDriverHours;
   blockers: InsertionBlocker[];
   warnings: InsertionWarning[];
   explanation: string;
@@ -128,10 +148,12 @@ export interface InsertionEvaluation {
 const DEFAULT_SERVICE_MIN = 30;
 const BREAK_AFTER_DRIVING_MIN = 270;
 const BREAK_MIN = 45;
-const SHIFT_WARN_MIN = 13 * 60;
+const DAILY_REST_MIN = 11 * 60;
+const DAILY_DRIVING_LIMIT_MIN = 9 * 60;
+const DEFAULT_DAILY_DRIVING_MIN = DAILY_DRIVING_LIMIT_MIN;
+const DEFAULT_EXTENDED_DRIVING_MIN = 10 * 60;
+/** EU 561/2006: 13h regular daily duty, 15h when the 10h extension is used. */
 const SHIFT_MAX_MIN = 15 * 60;
-const DEFAULT_DAILY_DRIVING_MIN = 540;
-const DEFAULT_EXTENDED_DRIVING_MIN = 600;
 
 const num = (value: any): number | null => {
   const parsed = Number(value);
@@ -217,14 +239,17 @@ function ledgerStop(stop: InsertionStop, sequence: number): CargoLedgerStop {
   } as CargoLedgerStop;
 }
 
-interface RouteTotalsInternal {
+export interface RouteTotalsInternal {
   status: 'verified' | 'unverified';
   distanceKm: number | null;
   drivingMin: number | null;
-  legs: Array<{ distanceKm: number; durationMin: number } | null>;
+  legs: Array<{ distanceKm: number; durationMin: number; provider?: string | null } | null>;
 }
 
-function routeTotals(stops: InsertionStop[], leg: InsertionContext['leg']): RouteTotalsInternal {
+export function computeRouteTotals(
+  stops: InsertionStop[],
+  leg: InsertionContext['leg'],
+): RouteTotalsInternal {
   const legs: Array<InsertionLeg | null> = [];
   let verified = true;
   for (let index = 1; index < stops.length; index += 1) {
@@ -238,7 +263,11 @@ function routeTotals(stops: InsertionStop[], leg: InsertionContext['leg']): Rout
       legs.push(null);
       continue;
     }
-    legs.push({ distanceKm: Number(resolved.distanceKm), durationMin: Number(resolved.durationMin) });
+    legs.push({
+      distanceKm: Number(resolved.distanceKm),
+      durationMin: Number(resolved.durationMin),
+      provider: resolved.provider ?? null,
+    });
   }
   if (!verified) {
     return { status: 'unverified', distanceKm: null, drivingMin: null, legs };
@@ -251,62 +280,145 @@ function routeTotals(stops: InsertionStop[], leg: InsertionContext['leg']): Rout
   };
 }
 
-interface ScheduleResult {
+export interface ScheduleResult {
   status: 'verified' | 'unverified';
   arrivals: Array<Date | null>;
+  departures: Array<Date | null>;
+  waiting: number[];
   waitingMin: number;
   breakMin: number;
+  dailyRestMin: number;
   totalMin: number | null;
+  /** Modelled driving minutes per duty day; index 0 is the departure day. */
+  dailyDrivingMin: number[];
   missed: Array<{ index: number; arrival: Date; windowEnd: Date }>;
 }
 
-function schedule(stops: InsertionStop[], route: RouteTotalsInternal, ctx: InsertionContext, serviceMin: number): ScheduleResult {
+/**
+ * EU 561/2006 planning model: at most 9h of driving per duty day (the 10h
+ * extension is never assumed), a 45 minute break after 4.5h of continuous
+ * driving and 11h of daily rest between duty days.
+ *
+ * This is an internal planning estimate for the proposed schedule. It is not a
+ * tachograph compliance verdict and must never be presented as recorded
+ * driver activity.
+ */
+function schedule(
+  stops: InsertionStop[],
+  route: RouteTotalsInternal,
+  departure: Date | null,
+  serviceMin: number,
+): ScheduleResult {
   const empty: ScheduleResult = {
-    status: 'unverified', arrivals: stops.map(() => null), waitingMin: 0, breakMin: 0, totalMin: null, missed: [],
+    status: 'unverified',
+    arrivals: stops.map(() => null),
+    departures: stops.map(() => null),
+    waiting: stops.map(() => 0),
+    waitingMin: 0,
+    breakMin: 0,
+    dailyRestMin: 0,
+    totalMin: null,
+    dailyDrivingMin: [],
+    missed: [],
   };
-  if (!ctx.departure || route.status !== 'verified') return empty;
-  let current = ctx.departure.getTime();
+  if (!departure || route.status !== 'verified') return empty;
+
+  let current = departure.getTime();
+  let dutyStart = current;
+  let dayDriving = 0;
   let drivingSinceBreak = 0;
   let waitingMin = 0;
   let breakMin = 0;
+  let dailyRestMin = 0;
+  const dailyDrivingMin: number[] = [0];
   const arrivals: Array<Date | null> = [];
+  const departures: Array<Date | null> = [];
+  const waiting: number[] = [];
   const missed: Array<{ index: number; arrival: Date; windowEnd: Date }> = [];
+
   arrivals.push(new Date(current));
+  departures.push(new Date(current));
+  waiting.push(0);
+
+  const restDay = () => {
+    current += DAILY_REST_MIN * 60000;
+    dailyRestMin += DAILY_REST_MIN;
+    dutyStart = current;
+    dayDriving = 0;
+    drivingSinceBreak = 0;
+    dailyDrivingMin.push(0);
+  };
+
   for (let index = 1; index < stops.length; index += 1) {
-    const item = route.legs[index - 1];
-    const legMin = item?.durationMin || 0;
-    drivingSinceBreak += legMin;
-    current += legMin * 60000;
-    if (drivingSinceBreak >= BREAK_AFTER_DRIVING_MIN) {
-      current += BREAK_MIN * 60000;
-      breakMin += BREAK_MIN;
-      waitingMin += BREAK_MIN;
-      drivingSinceBreak = 0;
+    let remaining = route.legs[index - 1]?.durationMin || 0;
+    let guard = 0;
+    while (remaining > 0.01 && guard < 60) {
+      guard += 1;
+      const shiftLeft = SHIFT_MAX_MIN - (current - dutyStart) / 60000;
+      const driveLeft = DAILY_DRIVING_LIMIT_MIN - dayDriving;
+      if (shiftLeft <= 0.01 || driveLeft <= 0.01) {
+        restDay();
+        continue;
+      }
+      const chunk = Math.min(remaining, shiftLeft, driveLeft);
+      current += chunk * 60000;
+      remaining -= chunk;
+      dayDriving += chunk;
+      drivingSinceBreak += chunk;
+      dailyDrivingMin[dailyDrivingMin.length - 1] = round(dayDriving);
+      if (drivingSinceBreak >= BREAK_AFTER_DRIVING_MIN) {
+        current += BREAK_MIN * 60000;
+        breakMin += BREAK_MIN;
+        waitingMin += BREAK_MIN;
+        drivingSinceBreak = 0;
+      }
     }
+
     const stop = stops[index];
     const arrival = new Date(current);
     const start = windowStart(stop);
-    if (start && arrival.getTime() < start.getTime()) {
-      const wait = (start.getTime() - arrival.getTime()) / 60000;
+    const wait = start && arrival.getTime() < start.getTime()
+      ? (start.getTime() - arrival.getTime()) / 60000
+      : 0;
+    if (wait > 0) {
       waitingMin += wait;
-      current = start.getTime();
+      current = start!.getTime();
     }
     const arrivalAfterWait = new Date(current);
     const end = windowEnd(stop);
     if (end && arrivalAfterWait.getTime() > end.getTime()) {
       missed.push({ index, arrival: arrivalAfterWait, windowEnd: end });
     }
+    const service = Number(stop.serviceDurationMinutes) || serviceMin;
     arrivals.push(arrivalAfterWait);
-    current += (Number(stop.serviceDurationMinutes) || serviceMin) * 60000;
+    departures.push(new Date(current + service * 60000));
+    waiting.push(round(wait));
+    current += service * 60000;
   }
+
   return {
     status: 'verified',
     arrivals,
+    departures,
+    waiting,
     waitingMin: round(waitingMin),
     breakMin,
-    totalMin: round((current - ctx.departure.getTime()) / 60000),
+    dailyRestMin,
+    totalMin: round((current - departure.getTime()) / 60000),
+    dailyDrivingMin,
     missed,
   };
+}
+
+/** Schedule one stop list from a departure time, resolving its road legs. */
+export function scheduleForStops(
+  stops: InsertionStop[],
+  leg: InsertionContext['leg'],
+  departure: Date | null,
+  serviceMinutes: number = DEFAULT_SERVICE_MIN,
+): ScheduleResult & { route: RouteTotalsInternal } {
+  const route = computeRouteTotals(stops, leg);
+  return { ...schedule(stops, route, departure, serviceMinutes), route };
 }
 
 function capacityCode(violation: CapacityViolation): InsertionBlocker {
@@ -324,11 +436,12 @@ function evaluateCandidate(
   deliveryIndex: number,
   ctx: InsertionContext,
   baseline: { route: RouteTotalsInternal; ledgerPeak: { pallets: number; weightKg: number; ldm: number; volume: number } },
+  newKeys: Set<string>,
 ): InsertionOption {
   const serviceMin = ctx.serviceMinutes || DEFAULT_SERVICE_MIN;
-  const route = routeTotals(sequenceStops, ctx.leg);
+  const route = computeRouteTotals(sequenceStops, ctx.leg);
   const ledger = buildCargoLedger(sequenceStops.map((stop, index) => ledgerStop(stop, index + 1)), ctx.capacity);
-  const plan = schedule(sequenceStops, route, ctx, serviceMin);
+  const plan = schedule(sequenceStops, route, ctx.departure, serviceMin);
   const orderNumber = ctx.order.orderNumber || ctx.order.id;
 
   const blockers: InsertionBlocker[] = [];
@@ -359,13 +472,24 @@ function evaluateCandidate(
 
   for (const miss of plan.missed) {
     const stop = sequenceStops[miss.index];
-    blockers.push({
-      level: 'blocking',
-      code: 'STOP_WINDOW_MISSED',
-      stopKey: stopKey(stop, `stop-${miss.index + 1}`),
-      params: { city: stop.city, arrival: miss.arrival.toISOString(), windowEnd: miss.windowEnd.toISOString() },
-      message: `Arrival at ${stop.city || 'stop ' + (miss.index + 1)} would be ${miss.arrival.toISOString()}, after the window closes at ${miss.windowEnd.toISOString()}.`,
-    });
+    const key = stopKey(stop, `stop-${miss.index + 1}`);
+    const preExisting = ctx.preExistingMissedKeys?.has(key) === true;
+    const entry = {
+      code: preExisting ? 'PRE_EXISTING_WINDOW_MISS' : 'STOP_WINDOW_MISSED',
+      stopKey: key,
+      params: {
+        city: stop.city,
+        arrival: miss.arrival.toISOString(),
+        windowEnd: miss.windowEnd.toISOString(),
+        delayMin: Math.round((miss.arrival.getTime() - miss.windowEnd.getTime()) / 60000),
+        preExisting,
+      },
+      message: preExisting
+        ? `${stop.city || 'Stop ' + (miss.index + 1)} was already outside its window before this insertion; the new stop does not cause the delay.`
+        : `Arrival at ${stop.city || 'stop ' + (miss.index + 1)} would be ${miss.arrival.toISOString()}, after the window closes at ${miss.windowEnd.toISOString()}.`,
+    };
+    if (preExisting) warnings.push({ level: 'warning', ...entry });
+    else blockers.push({ level: 'blocking', ...entry });
   }
 
   if (route.status !== 'verified') {
@@ -379,44 +503,11 @@ function evaluateCandidate(
   const dailyLimit = ctx.maxDailyDrivingMin ?? DEFAULT_DAILY_DRIVING_MIN;
   const extendedLimit = ctx.maxExtendedDrivingMin ?? DEFAULT_EXTENDED_DRIVING_MIN;
   const drivingMin = route.drivingMin;
-  if (drivingMin != null && drivingMin > extendedLimit) {
-    blockers.push({
-      level: 'blocking',
-      code: 'DRIVER_DAILY_DRIVING_EXCEEDED',
-      params: { drivingMin, limit: extendedLimit },
-      message: `The route needs ${round(drivingMin / 60, 1)}h of driving, above the ${round(extendedLimit / 60, 0)}h absolute daily limit.`,
-    });
-  } else if (drivingMin != null && drivingMin > dailyLimit) {
-    warnings.push({
-      level: 'warning',
-      code: 'DRIVER_EXTENDED_DRIVING',
-      params: { drivingMin, limit: dailyLimit },
-      message: `Driving time is ${round(drivingMin / 60, 1)}h, above the 9h daily limit; the 10h extension is allowed only twice a week and must be confirmed against tachograph data.`,
-    });
-  }
-  if (plan.breakMin > 0) {
-    warnings.push({
-      level: 'warning',
-      code: 'DRIVER_BREAK_INSERTED',
-      params: { breakMin: plan.breakMin },
-      message: `A ${BREAK_MIN} minute break is required after 4.5h of continuous driving and is included in the schedule.`,
-    });
-  }
-  if (plan.totalMin != null && plan.totalMin > SHIFT_MAX_MIN) {
-    blockers.push({
-      level: 'blocking',
-      code: 'DRIVER_SHIFT_EXCEEDED',
-      params: { totalMin: plan.totalMin },
-      message: `The duty would last ${round(plan.totalMin / 60, 1)}h, beyond the 15h maximum including breaks.`,
-    });
-  } else if (plan.totalMin != null && plan.totalMin > SHIFT_WARN_MIN) {
-    warnings.push({
-      level: 'warning',
-      code: 'DRIVER_SHIFT_LONG',
-      params: { totalMin: plan.totalMin },
-      message: `The duty would last ${round(plan.totalMin / 60, 1)}h, above the normal 13h working day.`,
-    });
-  }
+  // A long leg is split into duty days by the schedule below, so total driving
+  // time is never a shift violation on its own. Driver-hour compliance against
+  // recorded tachograph data remains unverified and is reported by the caller.
+  void extendedLimit;
+
   if (plan.status === 'unverified') {
     warnings.push({
       level: 'warning',
@@ -433,17 +524,27 @@ function evaluateCandidate(
     : null;
   const addedWaitingMin = plan.status === 'verified' ? plan.waitingMin : null;
 
-  const sequence = sequenceStops.map((stop, index) => ({
-    sequence: index + 1,
-    key: stopKey(stop, `position-${index + 1}`),
-    type: String(stop.type || '').toLowerCase(),
-    city: stop.city || null,
-    orderId: stop.orderId || null,
-    windowStart: windowStart(stop)?.toISOString() || null,
-    windowEnd: windowEnd(stop)?.toISOString() || null,
-    plannedArrival: plan.arrivals[index]?.toISOString() || null,
-    waitingMin: 0,
-  }));
+  const sequence = sequenceStops.map((stop, index) => {
+    const key = stopKey(stop, `position-${index + 1}`);
+    const arrival = plan.arrivals[index] || null;
+    const end = windowEnd(stop);
+    return {
+      sequence: index + 1,
+      key,
+      type: String(stop.type || '').toLowerCase(),
+      city: stop.city || null,
+      orderId: stop.orderId || null,
+      windowStart: windowStart(stop)?.toISOString() || null,
+      windowEnd: end?.toISOString() || null,
+      plannedArrival: arrival?.toISOString() || null,
+      plannedDeparture: plan.departures[index]?.toISOString() || null,
+      waitingMin: plan.waiting[index] || 0,
+      serviceMin: Number(stop.serviceDurationMinutes) || serviceMin,
+      windowStatus: !arrival || !end
+        ? 'unverified'
+        : arrival.getTime() > end.getTime() ? 'missed' : 'met',
+    } as InsertionSequenceStop;
+  });
 
   const pickupStop = sequenceStops[pickupIndex];
   const deliveryStop = sequenceStops[deliveryIndex];
@@ -456,12 +557,15 @@ function evaluateCandidate(
   if (addedDistanceKm != null) {
     explanationParts.push(`It adds ${addedDistanceKm} km and ${addedDrivingMin} minutes of driving to the current route.`);
   }
+  if (plan.dailyRestMin > 0) {
+    explanationParts.push(`The schedule needs ${plan.dailyDrivingMin.length} duty day(s) with ${round(plan.dailyRestMin / 60, 1)}h of daily rest.`);
+  }
   if (blockers.length) {
-    explanationParts.push(`This position is rejected: ${blockers.map((blocker) => blocker.code).join(', ')}.`);
+    explanationParts.push(`This position is rejected: ${[...new Set(blockers.map((blocker) => blocker.code))].join(', ')}.`);
   } else if (warnings.length) {
-    explanationParts.push(`It is feasible with ${warnings.length} warning(s): ${warnings.map((warning) => warning.code).join(', ')}.`);
+    explanationParts.push(`It is feasible with ${warnings.length} warning(s): ${[...new Set(warnings.map((warning) => warning.code))].join(', ')}.`);
   } else {
-    explanationParts.push('It satisfies capacity at every stop, the time windows and the driver working-time limits.');
+    explanationParts.push('It satisfies capacity at every stop, the time windows and the modelled driver working-time limits.');
   }
 
   return {
@@ -469,6 +573,7 @@ function evaluateCandidate(
     deliveryIndex,
     sequence,
     stopOrder: sequenceStops.map((stop, index) => stopKey(stop, `position-${index + 1}`)),
+    orderedStops: sequenceStops,
     distanceKm: route.distanceKm,
     drivingMin: route.drivingMin,
     waitingMin: plan.status === 'verified' ? plan.waitingMin : null,
@@ -480,11 +585,15 @@ function evaluateCandidate(
     capacityAfter: peak,
     capacityCapacity: ctx.capacity,
     driverHours: {
-      status: drivingMin == null ? 'unverified' : drivingMin > dailyLimit ? 'exceeded' : 'verified',
+      status: drivingMin == null ? 'unverified' : 'verified',
+      methodology: 'eu_561_2006_planning_model',
       drivingMin,
       elapsedMin: plan.totalMin,
+      dailyDrivingMin: plan.dailyDrivingMin,
       breakMinutes: plan.breakMin,
+      dailyRestMinutes: plan.dailyRestMin,
       dailyLimitMin: dailyLimit,
+      dutyDays: plan.dailyDrivingMin.length,
     },
     blockers,
     warnings,
@@ -563,7 +672,7 @@ export function evaluateInsertion(ctx: InsertionContext): InsertionEvaluation {
     };
   }
 
-  const baselineRoute = routeTotals(existing, ctx.leg);
+  const baselineRoute = computeRouteTotals(existing, ctx.leg);
   const baselineLedger = buildCargoLedger(existing.map((stop, index) => ledgerStop(stop, index + 1)), ctx.capacity);
   const baseline = {
     route: baselineRoute,
@@ -580,6 +689,7 @@ export function evaluateInsertion(ctx: InsertionContext): InsertionEvaluation {
   const pickupAt = additions.indexOf(pickup);
   const deliveryAt = additions.indexOf(delivery);
   const middle = additions.slice(pickupAt + 1, deliveryAt);
+  const newKeys = new Set(additions.map((stop, index) => stopKey(stop, `new-${index}`)));
 
   const options: InsertionOption[] = [];
   for (let p = 0; p <= existing.length; p += 1) {
@@ -587,7 +697,7 @@ export function evaluateInsertion(ctx: InsertionContext): InsertionEvaluation {
       const sequence = existing.slice();
       sequence.splice(p, 0, pickup, ...middle);
       sequence.splice(d, 0, delivery);
-      options.push(evaluateCandidate(sequence, p, d, ctx, baseline));
+      options.push(evaluateCandidate(sequence, p, d, ctx, baseline, newKeys));
     }
   }
 

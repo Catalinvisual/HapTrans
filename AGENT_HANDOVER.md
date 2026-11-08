@@ -1,133 +1,140 @@
 # HapCargo — agent handover
 
-Last updated at commit `9ccc196` (+ the commit that adds this file).
+Last updated with the commit `fix(planning): find the best consolidation insertion and wire the wizard`
+(previous HEAD: `2940881`).
 
 ## Git
 
 - Work on `main` only. No branches.
-- HEAD before this file: **`9ccc196`** `feat(planning): expose per-leg route provenance in the preflight`
-- Previous: `c786256` `feat(planning): return one canonical consolidation verdict`
-- `588d5af` `fix(planning): align delivery completion, equipment checks and status labels`
-- Working tree is clean apart from untracked `planning-*.png` verification screenshots.
+- History of this slice: `2940881` (append-cost diagnosis) → this commit (insertion search + wizard).
+- Working tree keeps the untracked `planning-*.png` verification screenshots; they are user files and must stay.
 
-## Production deployment identities (verified, not assumed)
+## What this commit changes
 
-| Service | Live commit | How it was verified |
-|---|---|---|
-| API | **`c786256`**, deployment `6f2a0cab-c614-4619-bba0-cf4e29990fd7`, booted 2026-11-08T11:07:59Z | `GET https://haptrans-production.up.railway.app/api/routing-public/deployment` |
-| TMS | **`c786256`** | served document meta `hapcargo-build content="c7862567df3fc6b9620873c50e50f02468a5b1b6"` |
-| Website | unknown | no public URL is derivable from the repo; not verified |
+### 1. Smart Consolidation now searches insertion positions (the 2,657 km defect)
 
-`9ccc196` **is deployed**: the API later reported `9ccc1966b53dc3cc90479137e04f1a953b992a56`
-and the live preflight now returns `route.legs` / `route.baselineLegs`. There is no Railway CLI,
-token or project config in this environment, so any further deployment must be triggered from the
-Railway dashboard by the developer (service → `server/` root → Dockerfile → Redeploy).
+The defect was **not** HERE/ORS routing and **not** `incrementalRoute()`: `preflightConsolidation`
+appended the candidate order to the tail of the existing itinerary (Berlin → Eindhoven 654 km +
+Eindhoven → Brașov 2,003 km = 2,657 km) and presented that append cost as `addedKm`.
 
-TMS still serves `c786256`; nothing client-side changed since, so this is expected.
+- New `server/src/planning/consolidation-proposal.ts` (`buildConsolidationProposal`) assembles the
+  proposal: it delegates to the existing `evaluateInsertion` position search
+  (`server/src/planning/stop-insertion.ts`), so **every** pickup/delivery position pair is evaluated
+  against pickup-before-delivery, per-order dependencies, cargo on board, capacity, time windows and
+  driver time. The cheapest **feasible** position wins — not the first or last one.
+- `preflightConsolidation` (`planning.service.ts`) now builds the proposal first and derives the
+  cargo ledger, per-leg route and stop sequence from the **chosen** sequence. `consolidationCapacity`
+  was split so `consolidationCapacityForSequence()` accepts an already-decided sequence
+  (`consolidation-cargo.ts`, `prepareLedgerStops()` exported).
+- Road legs are resolved once per stop pair by the new private `resolveLegResolver()` and shared by
+  the insertion search and `routeForStops()`, so the proposal and the totals cannot disagree, and no
+  leg is routed twice.
+- Multi-day driving is modelled (`stop-insertion.ts`): 9 h driving per duty day, 45 min break after
+  4.5 h continuous driving, 11 h daily rest. A long international trip is therefore no longer
+  reported as a shift violation; `driverHours.methodology = 'eu_561_2006_planning_model'` and the
+  preflight still reports tachograph-based availability as `unverified`.
+- Pre-existing window misses (already missed before the insertion) are reported as
+  `PRE_EXISTING_WINDOW_MISS` warnings, so they cannot reject every insertion position. A position
+  that pushes an existing delivery past a *met* window is still a hard `STOP_WINDOW_MISSED` blocker.
+- The preflight response now also returns `insertion` (recommended + alternatives with their own
+  `addedDistanceKm`/`stopOrder`), `schedule`, `equipment` (truck/trailer fields with
+  compatible/incompatible/unverified per requirement) and `driverHours.scheduleModel`.
+- Blockers/warnings are deduplicated by code + order + stop + field before the verdict, so one
+  overload is never counted twice.
+- Missing placement (`infeasible`/`unverified`) returns `route.status = 'unverified'`, `null`
+  proposed/added distance and an empty leg list — never a baseline figure relabelled as a proposal.
 
-## Implemented and verified
+### 2. Smart Consolidation wizard
 
-- **Canonical consolidation verdict** (`server/src/planning/consolidation-feasibility.ts`, `.spec.ts`):
-  `deriveConsolidationVerdict(blockers, warnings)` returns
-  `{ status: 'blocked'|'warning'|'unverified'|'feasible', overrideable, hardBlockers, warnings, unverified, codes }`
-  with precedence `blocked > unverified > warning > feasible`. `EQUIPMENT_MISSING` is proven
-  incompatibility; `EQUIPMENT_UNVERIFIED`, `*_UNVERIFIED`, `*_INCOMPLETE`, `STOP_COORDINATES_MISSING`,
-  `TRUCK_CAPACITY_INCOMPLETE`, `ROUTE_UNVERIFIED`, `TIME_WINDOW_UNVERIFIED`, `GPS_STALE` are data gaps.
-- **Preflight now returns `feasibility`** (`planning.service.ts`, `preflightConsolidation`). Verified live:
+`client/src/components/ConsolidationWizard.tsx` replaces the inline modal in `PlanningPage.tsx`
+(lines 4360–4641 of that file were replaced by one component call). It renders, exclusively from the
+backend payload:
 
-```json
-"feasibility": { "status": "unverified", "overrideable": true, "hardBlockers": 0,
-  "warnings": 0, "unverified": 1,
-  "codes": { "blocking": [], "warning": [], "unverified": ["EQUIPMENT_UNVERIFIED"] } }
-```
+- canonical verdict header (`feasibility.status`, hard blockers, warnings, unverified counts, codes);
+- selectable recommended/alternative insertion sequences with per-stop number, type, order, city,
+  arrival, departure, ETA delta, window status and new/existing marker;
+- route provenance: baseline/proposed/added distance and driving time, provider, verified status;
+- schedule: waiting, breaks, daily rest, duty days + explicit "not tachograph" note;
+- cargo before/after and per-dimension usage against the recorded limits (`—` when a limit is null);
+- truck/trailer identity and dimensions with Fleet deep-link, plus per-requirement equipment verdicts;
+- driver-hours block that shows `unverified` instead of inventing availability;
+- every conflict with level, code, message, raw params and jump-to-order action;
+- a required override reason when the verdict is `warning`/`unverified`, with the backend error shown
+  inline; confirm is disabled until the reason is non-empty and the verdict is not `blocked`.
 
-- **Per-leg route provenance** (`9ccc196`, not deployed): `route.legs[]` and
-  `route.baselineLegs[]` with `from`, `to`, `distanceKm`, `durationMin`, `provider`.
-- **Per-service Docker** (no root-level Railway config): `server/Dockerfile`, `client/Dockerfile`
-  + `client/nginx.conf` (SPA fallback, no-cache `index.html`/`sw.js`, `${PORT}` template, build-id
-  passed through from `RAILWAY_GIT_COMMIT_SHA`), `web/Dockerfile`, each with `.dockerignore` and
-  `railway.json` (`builder: DOCKERFILE`).
+`PlanningPage` no longer calls `insertion-preview` separately: the preflight already evaluates every
+position, so there is one source of truth and one routing round-trip fewer.
 
-## Established production facts (do not re-derive)
+### 3. Audited override and safe confirmation (`assignOrders`)
 
-- `TRUCK_OVERLAP` for AR 67X WT / TRP-2026-0005 / ORD-2024007 on 2026-11-08 is **genuine**:
-  committed interval `2026-11-07T14:51Z → 2026-11-08T14:03Z` (Soest → Pobiedziska driving),
-  overlap **423 min**. It must stay a hard blocker.
-- Trailer `VL61TWZ` is `frigo` with **no internal height**, so Mega is **UNVERIFIED**, not
-  incompatible. External height (400) must never be used as proof.
-- The false Stop-5 `CARGO_LEDGER_INVALID` is gone (pickup-before-delivery fix in `8d07ac2`).
+- `BLOCKED` can never be overridden; the verdict and `overrideable` are recomputed server-side.
+- A soft outcome requires `override.reason` (non-empty) **and** acknowledgement of every current soft
+  code; otherwise `OVERRIDE_REQUIRED` / `OVERRIDE_CODES_MISMATCH` / `OVERRIDE_NOT_ALLOWED` is
+  returned with the codes and verdict.
+- The audit record is stored in the existing `planning_actions` table (`action = 'assignment_override'`,
+  `beforeState` = verdict + codes, `afterState` = reason, accepted codes, trip/order/truck/trailer,
+  `decidedBy` from the JWT, `decidedAt`). **No schema change, no migration.** If the audit row cannot
+  be written the assignment is refused (`OVERRIDE_AUDIT_FAILED`).
+- `dto.preview` (verdict + added distance + reviewed sequence) is compared with the revalidated
+  proposal. A changed verdict, a distance drift > 0.5 km or an unknown stop set returns
+  `PROPOSAL_CHANGED` with the fresh preflight; the wizard then re-renders it and requires another
+  confirmation. Confirming the recommended sequence, an alternative, or a permutation of the same
+  stops is accepted.
+- The confirmed `stopOrder` is validated for pickup-before-delivery (`STOP_ORDER_INVALID`).
 
-## Open defect: implausible incremental distance
+## Verified in this slice
 
-Live preflight for the case above:
+- `cd server && npx tsc --noEmit` → **0**
+- `cd server && npx jest src/planning` → **15 suites / 106 tests pass**
+- `cd client && npx tsc --noEmit` → **0**
+- `cd client && npm run build` → **0** (PWA generated, 101 precache entries)
+- New regression suite `server/src/planning/consolidation-proposal.spec.ts` (14 tests) pins the exact
+  production scenario: baseline 2,152 km, the 1,673 km corridor insertion (Écully → Eindhoven → Soest
+  → Pobiedziska → Berlin → Brașov) is chosen, the 2,657 km tail append is **not**; plus window
+  precedence (a longer position wins when the shorter one breaks a window), pre-existing misses,
+  capacity infeasibility, missing provider leg, multi-day duty days, multiple orders and
+  pickup-before-delivery.
 
-```
-baselineKm = 2152   proposedKm = 4809   addedKm = 2657   provider = here
-```
+## Not yet verified / not done
 
-**Root cause confirmed** from the deployed per-leg provenance. The proposed itinerary is the
-existing route *with the candidate order appended at the tail*, not inserted into the corridor:
+- **No deployment**: this environment has no Railway CLI or token. `server/` and `client/` must be
+  redeployed from the Railway dashboard (Dockerfile builder) before the production TMS serves this.
+  Production still reports `9ccc196` for the API at the time of writing.
+- The new wizard has not been exercised in a browser against production data in this session
+  (`tsc` + `vite build` only). Its data contract is the preflight payload listed above.
+- Truck/trailer **overlap re-check** is still not part of `preflightConsolidation`; the genuine
+  423-minute overlap for `AR 67X WT` / `TRP-2026-0005` is produced by the availability checks
+  elsewhere and must stay a hard blocker.
+- `Conflicts: 1` Planning chip explanation + jump-to-stop (Priority 5) — untouched.
+- Calculation Results six tabs + Excel/CSV/PDF exports (Priority 7) — untouched.
+- Currency-mixing regression guard (PLN/EUR tolls) — untouched.
+- Partial allocation, rejected cargo with photos, cargo ledger UI (Priority 8) — untouched.
+- Driver lifecycle transitions, mobile APK (Priority 9) — untouched.
+- Tachograph activity view and notifications (Priorities 10–11) — untouched.
+- `provider_no_geometry` root cause and geometry persistence (Priority 6) — untouched.
+- Planning legend/raw status cleanup and Fleet deep-link verification (Priority 12) — untouched.
+- Website deployment identity (Priority 13) — untouched.
 
-```
-baseline legs: 1. Écully>Soest 927   2. Soest>Pobiedziska 915   3. Pobiedziska>Berlin 310
-proposed legs: …same three legs…   4. Berlin>Eindhoven 654   5. Eindhoven>Brașov 2003
-proposed seq : 1 pickup Écully · 2 delivery Soest · 3 pickup Pobiedziska · 4 delivery Berlin
-               5 pickup Eindhoven · 6 delivery Brașov
-```
+## Next highest-priority task
 
-The first three legs are byte-identical to the baseline (2152 km), so `incrementalRoute()` is
-correct and no leg is double-counted. The 2,657 km is the **real driving cost of appending**
-ORD-2024007's postings to the end of the trip: Berlin → Eindhoven (654 km) then
-Eindhoven → Brașov (2,003 km).
+Deploy this commit, then call
+`POST /api/planning/trips/af3e9176-baca-4258-9a1b-bf6e15769854/consolidation-preflight`
+with `{ orderIds: ["7db8a596-f560-4ae5-ba49-091951c6ef77"] }` and confirm:
 
-So the defect is not routing, arithmetic or provider — it is that `preflightConsolidation`
-proposes a **tail append** instead of the best insertion position, while
-the corridor already runs through Pobiedziska/Soest. The UI therefore reports an
-"incremental distance" that is technically the append cost but operationally misleading,
-and `addedKm` is silently presented as if it were the cost of the assignment.
+1. `route.addedDistanceKm << 2657` and `route.legs` differ from `route.baselineLegs` by insertion,
+   not by tail append;
+2. `insertion.recommended.stopOrder` matches `route.stops` order;
+3. the wizard renders that payload and confirmation stores an `assignment_override` row when the
+   verdict is `unverified` (trailer `VL61TWZ` has no internal height).
 
-Fix direction (not yet implemented): make preflight delegate to the existing
-`insertionPreview` position search (it already evaluates every insertion point) and return the
-cheapest feasible sequence with its own `addedKm`, or explicitly label the result as an
-append when no cheaper position is evaluated. Add a regression test asserting that inserting a
-stop between Soest and Pobiedziska does **not** produce a Berlin→Eindhoven→Brașov tail.
-
-## Next precise task
-
-1. Deploy `9ccc196` (dashboard) and confirm `GET …/routing-public/deployment` reports it.
-2. Call `POST /api/planning/trips/af3e9176-baca-4258-9a1b-bf6e15769854/consolidation-preflight`
-   with `{ orderIds: ["7db8a596-f560-4ae5-ba49-091951c6ef77"] }` and compare `route.legs` against
-   `route.baselineLegs`. The anomalous pair identifies reordering vs provider detour.
-3. Fix at source (`buildProposedStops` ordering, or reject/treat a leg as unverified), add a
-   regression test where baseline + two corridor stops must yield a modest `addedKm`, and never
-   relabel a full-route distance as incremental.
-4. Then build the Smart Consolidation preview UI (unbuilt): feasibility header, proposed sequence
-   with ETA deltas, route/schedule with verified-vs-unverified markers, cargo/capacity before/after,
-   equipment verdict, driver-hours availability (unavailable ≠ available), blocker/warning list with
-   jump-to-stop, existing-trip vs new-trip, audited override (`warning`/`unverified` only, revalidated
-   server-side at confirmation), confirm → persist → reload Planning/Trip/Order from the API.
-
-## Not implemented (honest status)
-
-Smart Consolidation preview UI · audited override endpoint · existing-vs-new trip decision ·
-confirmation/refresh wiring · `Conflicts: 1` explanation and jump-to-stop · `provider_no_geometry`
-root cause · six Calculation Results tabs and Excel/CSV/PDF exports · partial allocation (12 + 18
-pallets) and rejected cargo · driver lifecycle transitions · tachograph/distance contract ·
-notifications · Planning legend/label pass · mobile APK · website deployment.
-
-## Test status (last run)
-
-- `cd server && npx tsc --noEmit` → 0
-- `npx jest src/planning` → **14 suites / 93 tests pass**
-- `npm run build` (nest) → 0, `dist/main.js` present
-- `cd client && npx tsc --noEmit && npm run build` → 0 (earlier, unchanged since)
-- `cd web && npx tsc --noEmit && npm run build` → 0, 15 routes (earlier, unchanged since)
-- Docker images cannot be built locally: Docker engine pipe `dockerDesktopLinuxEngine` is absent.
+Then continue with Priority 5 (`Conflicts: 1` explanation) and Priority 7 (Calculation Results tabs),
+which are independent of the consolidation work.
 
 ## Rules that must survive this handover
 
 - Never reset/seed/truncate production data; `migrationsRun: false` stays.
 - Never fabricate dimensions, GPS, driver activity or route geometry; missing data is UNVERIFIED.
 - Never soften a genuine blocker to a warning to make an assignment possible.
+- One verdict, one source of truth: the frontend renders the backend `feasibility` verbatim.
 - Seven locales: ro, en, nl, de, fr, es, pl. Orange `#FF5A00`. Chat and Website CMS preserved.
 - Commit footer: `Generated with Codebuff 🤖` + `Co-Authored-By: Codebuff <noreply@codebuff.com>`.

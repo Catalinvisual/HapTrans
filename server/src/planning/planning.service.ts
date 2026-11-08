@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull, Not, Brackets } from 'typeorm';
 import { Order, OrderStatus } from '../orders/order.entity';
@@ -38,6 +38,7 @@ import { deriveConsolidationVerdict } from './consolidation-feasibility';
 import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
 import { buildRouteSchedule } from './route-schedule';
 import { evaluateInsertion } from './stop-insertion';
+import { buildConsolidationProposal } from './consolidation-proposal';
 import {
   consolidationCapacity,
   incrementalRoute,
@@ -1483,6 +1484,39 @@ export class PlanningService {
   }
 
   /**
+   * Resolve every ordered pair of stops once, so the insertion search can be
+   * synchronous and every candidate position reuses the same provider answer.
+   * A null entry means the provider had no road route for that pair.
+   */
+  private async resolveLegResolver(
+    stops: any[],
+    profile: any,
+  ): Promise<(from: any, to: any) => { distanceKm: number; durationMin: number; provider?: string | null } | null> {
+    const cache = new Map<string, { distanceKm: number; durationMin: number; provider?: string | null } | null>();
+    const keyOf = (from: any, to: any) =>
+      [from.latitude, from.longitude, to.latitude, to.longitude].map(Number).join(',');
+    for (const from of stops) {
+      for (const to of stops) {
+        if (from === to) continue;
+        const coordinates = [from.latitude, from.longitude, to.latitude, to.longitude].map(Number);
+        const key = coordinates.join(',');
+        if (cache.has(key)) continue;
+        if (coordinates.some((value) => !Number.isFinite(value))) {
+          cache.set(key, null);
+          continue;
+        }
+        const route = await this.routingService.calculateRoute(coordinates[0], coordinates[1], coordinates[2], coordinates[3], profile);
+        cache.set(key, route ? {
+          distanceKm: Number(route.distanceKm),
+          durationMin: Number(route.durationMin),
+          provider: (route as any).source || null,
+        } : null);
+      }
+    }
+    return (from: any, to: any) => cache.get(keyOf(from, to)) ?? null;
+  }
+
+  /**
    * One feasibility service for drag-and-drop and "Add order to trip".
    *
    * Hard blockers are never overrideable. Route figures are only returned when
@@ -1540,7 +1574,45 @@ export class PlanningService {
     const trailer = trip.trailer || truck?.trailer || null;
     const known = knownTruckCapacity(truck);
     const existingStops = [...((trip.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
-    const capacityCheck = consolidationCapacity(existingStops, (trip.orders || []) as any[], orders, known);
+
+    // Every insertion position is evaluated before anything is persisted, so
+    // the proposed itinerary is the cheapest *feasible* sequence rather than
+    // the existing route with the new order appended at the tail. The road legs
+    // are resolved once for every stop pair and reused by every candidate.
+    const legResolver = await this.resolveLegResolver(
+      [...existingStops, ...orders.flatMap((order) => ((order.stops || []) as any[]))],
+      this.truckRoutingProfile(trip),
+    );
+    const proposal = buildConsolidationProposal({
+      existingStops,
+      existingOrders: (trip.orders || []) as any[],
+      orders: orders as any[],
+      capacity: known,
+      departure: trip.plannedDeparture ? new Date(trip.plannedDeparture) : null,
+      leg: legResolver,
+      vehicleLabel: truck?.plateNumber || null,
+    });
+    const capacityCheck = proposal.cargo;
+    for (const entry of proposal.blockers) {
+      add(blockers, {
+        level: 'blocking',
+        code: entry.code,
+        orderId: entry.orderId || undefined,
+        resourceId: truck?.id,
+        params: { ...(entry.params || {}), ...(entry.stopKey ? { stopKey: entry.stopKey } : {}) },
+        message: entry.message,
+      });
+    }
+    for (const entry of proposal.warnings) {
+      add(warnings, {
+        level: 'warning',
+        code: entry.code,
+        orderId: entry.orderId || undefined,
+        resourceId: truck?.id,
+        params: { ...(entry.params || {}), ...(entry.stopKey ? { stopKey: entry.stopKey } : {}) },
+        message: entry.message,
+      });
+    }
     const dimensions = (value: any) => ({
       weight: Number(value?.weightKg || 0),
       pallets: Number(value?.pallets || 0),
@@ -1629,6 +1701,21 @@ export class PlanningService {
       });
     }
 
+    // Equipment is reported field by field with its verification state. A field
+    // that was never recorded stays null instead of being replaced by a generic
+    // vehicle value.
+    const equipmentChecks = orders.flatMap((order) => normalizeEquipmentRequirements(order.equipmentRequirements).map((req) => {
+      const assessment = truck ? assessEquipment(truck, trailer, req) : null;
+      return {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        requirement: req,
+        status: assessment ? (assessment.supported ? 'compatible' : assessment.verified ? 'incompatible' : 'unverified') : 'unverified',
+        equipment: assessment?.code || null,
+        reason: assessment?.reason || null,
+      };
+    }));
+
     const newStops = orders.flatMap((order) =>
       [...((order.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0)),
     );
@@ -1640,8 +1727,9 @@ export class PlanningService {
 
     // Compare the complete existing route with the complete proposed route.
     // The difference is the genuine incremental distance/time, never the whole
-    // trip distance and never a straight-line guess.
-    const routeCache = new Map<string, any>();
+    // trip distance and never a straight-line guess. Legs come from the same
+    // resolver the insertion search used, so the proposal and the totals can
+    // never disagree.
     const routeForStops = async (stops: any[]): Promise<RouteTotals & { legDistancesKm: number[] }> => {
       let distanceKm = 0;
       let durationMin = 0;
@@ -1658,16 +1746,11 @@ export class PlanningService {
         if (coordinates.some((value) => !Number.isFinite(value))) {
           return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [], legDistancesKm: [] };
         }
-        const key = coordinates.join(',');
-        let leg = routeCache.get(key);
-        if (leg === undefined) {
-          leg = await this.routingService.calculateRoute(coordinates[0], coordinates[1], coordinates[2], coordinates[3], this.truckRoutingProfile(trip));
-          routeCache.set(key, leg);
-        }
+        const leg = legResolver(from, to);
         if (!leg || !Number.isFinite(Number(leg.distanceKm)) || !Number.isFinite(Number(leg.durationMin))) {
           return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [], legDistancesKm: [] };
         }
-        provider = leg.source || provider;
+        provider = leg.provider || provider;
         distanceKm += Number(leg.distanceKm);
         durationMin += Number(leg.durationMin);
         legDurationsMin.push(Number(leg.durationMin));
@@ -1690,32 +1773,9 @@ export class PlanningService {
       });
     }
 
-    // Time windows are evaluated against the proposed arrival at each new stop.
-    const departure = trip.plannedDeparture ? new Date(trip.plannedDeparture) : null;
-    if (capacityCheck.newStopIds.size > 0) {
-      if (!departure || routeStatus !== 'verified') {
-        add(warnings, {
-          level: 'warning',
-          code: 'TIME_WINDOW_UNVERIFIED',
-          message: 'Requested time windows could not be verified because the planned departure or road duration is unavailable.',
-        });
-      } else {
-        capacityCheck.proposedStops.forEach((stop, index) => {
-          if (!capacityCheck.newStopIds.has(String(stop.id))) return;
-          const durationToStop = proposedRoute.legDurationsMin.slice(0, index).reduce((sum, minutes) => sum + minutes, 0);
-          const arrival = new Date(departure.getTime() + durationToStop * 60000);
-          const windowEnd = stopWindowEndDate(stop);
-          if (windowRisk(windowEnd, arrival)) {
-            add(warnings, {
-              level: 'warning',
-              code: 'TIME_WINDOW_AT_RISK',
-              params: { city: stop.city, arrival: arrival.toISOString(), windowEnd: windowEnd?.toISOString() },
-              message: `The requested window at ${stop.city || 'the new stop'} ends at ${windowEnd?.toISOString()}, but the proposed arrival is ${arrival.toISOString()}. Re-sequence the stop, change the window, or dispatch earlier.`,
-            });
-          }
-        });
-      }
-    }
+    // Time windows are evaluated inside the insertion search against the
+    // proposed arrival of the chosen sequence (including breaks and daily rest),
+    // so no separate departure+driving estimate can contradict it here.
 
     const recommendation = blockers.length
       ? 'BLOCKED'
@@ -1726,9 +1786,20 @@ export class PlanningService {
     // The verdict is decided here and rendered verbatim by the client, so a
     // warning can never be shown as verified compatibility and an unverified
     // dimension can never be shown as a confirmed mismatch.
+    // One overload must never be counted twice: the insertion search, the
+    // capacity ledger and the equipment checks can each report the same code.
+    const uniqueConflicts = (list: PlanningConflict[]) => list.filter((entry, index) => list.findIndex((other) =>
+      other.code === entry.code
+      && String((other as any).orderId || '') === String((entry as any).orderId || '')
+      && String((other.params as any)?.stopKey || '') === String((entry.params as any)?.stopKey || '')
+      && String((other.params as any)?.field || '') === String((entry.params as any)?.field || '')
+    ) === index);
+    const dedupedBlockers = uniqueConflicts(blockers);
+    const dedupedWarnings = uniqueConflicts(warnings);
+
     const feasibility = deriveConsolidationVerdict(
-      blockers as any[],
-      warnings as any[],
+      dedupedBlockers as any[],
+      dedupedWarnings as any[],
     );
 
     return {
@@ -1736,8 +1807,40 @@ export class PlanningService {
       orderIds,
       recommendation,
       feasibility,
-      blockers,
-      warnings,
+      blockers: dedupedBlockers,
+      warnings: dedupedWarnings,
+      insertion: proposal.insertion,
+      schedule: proposal.schedule,
+      equipment: {
+        truck: truck ? {
+          id: truck.id,
+          plateNumber: truck.plateNumber,
+          truckType: (truck as any).truckType || null,
+          bodyType: (truck as any).bodyType || null,
+          maxWeightKg: (truck as any).maxWeightKg ?? null,
+          axleCount: (truck as any).axleCount ?? null,
+          lengthCm: (truck as any).lengthCm ?? null,
+          widthCm: (truck as any).widthCm ?? null,
+          heightCm: (truck as any).heightCm ?? null,
+          emissionStandard: (truck as any).emissionStandard || null,
+        } : null,
+        trailer: trailer ? {
+          id: trailer.id,
+          plateNumber: trailer.plateNumber,
+          type: (trailer as any).type || null,
+          lengthCm: (trailer as any).lengthCm ?? null,
+          widthCm: (trailer as any).widthCm ?? null,
+          heightCm: (trailer as any).heightCm ?? null,
+          maxWeightKg: (trailer as any).maxWeightKg ?? null,
+          payloadCapacityWeight: (trailer as any).payloadCapacityWeight ?? null,
+          maxLdm: (trailer as any).maxLdm ?? null,
+          maxVolumeCbm: (trailer as any).maxVolumeCbm ?? null,
+          payloadCapacityPallets: (trailer as any).payloadCapacityPallets ?? null,
+          axleCount: (trailer as any).axleCount ?? null,
+          features: (trailer as any).features || [],
+        } : null,
+        requirements: equipmentChecks,
+      },
       cargo: {
         before: dimensions(capacityCheck.before.peak),
         after: dimensions(capacityCheck.after.peak),
@@ -1754,12 +1857,7 @@ export class PlanningService {
         proposedDistanceKm: proposedRoute.distanceKm,
         baselineDurationMin: baselineRoute.durationMin,
         proposedDurationMin: proposedRoute.durationMin,
-        stops: capacityCheck.proposedStops.map((stop, index) => ({
-          sequence: index + 1,
-          type: String(stop.type || '').toLowerCase(),
-          city: stop.city || null,
-          orderId: (stop as any).orderId || null,
-        })),
+        stops: proposal.sequence,
         // Per-leg distance and provider for the proposed itinerary, so an
         // implausible incremental figure can be traced to the stop pair that
         // caused it instead of being presented as one authoritative number.
@@ -1781,7 +1879,16 @@ export class PlanningService {
       },
       driverHours: {
         status: 'unverified',
-        message: 'Driver working-time availability requires tachograph data for this candidate.',
+        source: 'tachograph_unavailable',
+        message: 'Driver working-time availability requires tachograph data for this candidate. The schedule below is an internal EU 561/2006 planning model, not recorded driver activity.',
+        scheduleModel: {
+          status: proposal.schedule.status,
+          methodology: proposal.schedule.methodology,
+          dutyDays: proposal.schedule.dutyDays,
+          dailyDrivingMin: proposal.schedule.dailyDrivingMin,
+          breakMin: proposal.schedule.breakMin,
+          dailyRestMin: proposal.schedule.dailyRestMin,
+        },
       },
     };
   }
@@ -2094,6 +2201,114 @@ export class PlanningService {
       });
     }
 
+    // A warning or an unverified requirement may only proceed with an explicit,
+    // audited override. The verdict and its overrideability are recomputed above
+    // from the current data, so neither the reason nor the allowed codes can be
+    // supplied by the client.
+    const feasibility = (validation as any).feasibility || null;
+    const warningList: any[] = (validation as any).warnings || [];
+    const softCodes: string[] = Array.from(new Set<string>(
+      warningList
+        .filter((entry: any) => entry?.level !== 'blocking')
+        .map((entry: any) => String(entry?.code || ''))
+        .filter((code: string) => code.length > 0),
+    ));
+    const override = dto.override || null;
+    const overrideReason = String(override?.reason || '').trim();
+    const claimedCodes: string[] = Array.isArray(override?.codes) ? override.codes.map(String) : [];
+    const needsOverride = !!feasibility && softCodes.length > 0;
+
+    if (needsOverride) {
+      if (!overrideReason) {
+        throw new BadRequestException({
+          message: 'This assignment has warnings or unverified requirements. Confirm it with a written reason.',
+          code: 'OVERRIDE_REQUIRED',
+          codes: softCodes,
+          feasibility,
+        });
+      }
+      if (!feasibility.overrideable) {
+        throw new BadRequestException({
+          message: `A ${feasibility.status} proposal cannot be overridden.`,
+          code: 'OVERRIDE_NOT_ALLOWED',
+          codes: softCodes,
+          feasibility,
+        });
+      }
+      const unacknowledged = softCodes.filter((code) => !claimedCodes.includes(code));
+      if (unacknowledged.length) {
+        throw new BadRequestException({
+          message: `The override does not acknowledge every current warning: ${unacknowledged.join(', ')}.`,
+          code: 'OVERRIDE_CODES_MISMATCH',
+          codes: unacknowledged,
+        });
+      }
+    }
+
+    // The dispatcher may only confirm the proposal that is still valid: if a
+    // concurrent change moved the sequence, distance or verdict, the assignment
+    // is refused and the fresh proposal is returned for another review.
+    const reviewed = dto.preview || null;
+    if (tripIds.length && reviewed) {
+      const current = validation as any;
+      const currentSequence: string[] = current?.insertion?.recommended?.stopOrder || [];
+      const currentAdded = current?.route?.addedDistanceKm ?? null;
+      const reviewedSequence: string[] = Array.isArray(reviewed.stopOrder)
+        ? reviewed.stopOrder.map(String)
+        : [];
+      // A dispatcher may legitimately confirm the recommended sequence or one of
+      // the alternative positions that were previewed. Anything else - a new
+      // stop set, or a sequence that no longer exists - is a changed proposal.
+      const allowedSequences: string[][] = [
+        currentSequence,
+        ...((current?.insertion?.alternatives || []) as any[]).map((option: any) => (option?.stopOrder || []).map(String)),
+      ].filter((list) => list.length > 0);
+      const sameStops = (left: string[], right: string[]) =>
+        left.length === right.length
+        && [...left].sort().join('|') === [...right].sort().join('|');
+      const sequenceChanged = reviewedSequence.length > 0
+        && allowedSequences.length > 0
+        && !allowedSequences.some((list) => JSON.stringify(list) === JSON.stringify(reviewedSequence))
+        && !allowedSequences.some((list) => sameStops(list, reviewedSequence));
+      if (reviewedSequence.length > 0) {
+        // Pickup before delivery is a hard dependency: a requested sequence that
+        // violates it must never be persisted.
+        const lastDelivery = new Map<string, number>();
+        const firstPickup = new Map<string, number>();
+        reviewedSequence.forEach((key, index) => {
+          const [orderId, type] = key.split(':');
+          if (!orderId) return;
+          if (type === 'pickup' || type === 'load') {
+            if (!firstPickup.has(orderId)) firstPickup.set(orderId, index);
+          }
+          if (type === 'delivery' || type === 'dropoff' || type === 'unload') lastDelivery.set(orderId, index);
+        });
+        for (const [orderId, pickupIndex] of firstPickup) {
+          const deliveryIndex = lastDelivery.get(orderId);
+          if (deliveryIndex != null && deliveryIndex < pickupIndex) {
+            throw new BadRequestException({
+              message: `The confirmed sequence places a delivery of ${orderId} before its pickup.`,
+              code: 'STOP_ORDER_INVALID',
+              orderId,
+            });
+          }
+        }
+      }
+      const distanceChanged = reviewed.addedDistanceKm != null
+        && currentAdded != null
+        && Math.abs(Number(reviewed.addedDistanceKm) - Number(currentAdded)) > 0.5;
+      const verdictChanged = !!reviewed.feasibility
+        && !!current?.feasibility?.status
+        && String(reviewed.feasibility) !== String(current.feasibility.status);
+      if (sequenceChanged || distanceChanged || verdictChanged) {
+        throw new ConflictException({
+          message: 'The proposal changed since this preview was calculated. Review the new result before confirming.',
+          code: 'PROPOSAL_CHANGED',
+          preflight: current,
+        });
+      }
+    }
+
     trip.orders = [...(trip.orders || [])];
     const existingIds = new Set(trip.orders.map((o) => o.id));
     const newOrders = orders.filter((o) => !existingIds.has(o.id));
@@ -2121,6 +2336,49 @@ export class PlanningService {
       message: `${newOrders.length} order(s) added to trip ${trip.tripNumber}.`,
       companyId: companyId || undefined,
     });
+
+    // Append-only audit record for every accepted override. The user identity
+    // comes from the authenticated request, never from the body.
+    if (needsOverride) {
+      try {
+        await this.actionRepo.save(this.actionRepo.create({
+          company: companyId ? { id: companyId } : null,
+          user: user?.id ? { id: user.id } : null,
+          truckId: trip.truck?.id || null,
+          action: 'assignment_override',
+          beforeState: {
+            tripId: trip.id,
+            orderIds,
+            feasibility,
+            codes: softCodes,
+          },
+          afterState: {
+            decision: 'accepted',
+            reason: overrideReason,
+            acceptedCodes: claimedCodes,
+            feasibilityStatus: feasibility?.status || null,
+            tripId: trip.id,
+            tripNumber: trip.tripNumber || null,
+            orderIds,
+            truckId: trip.truck?.id || null,
+            trailerId: (trip as any).trailer?.id || (trip.truck as any)?.trailer?.id || null,
+            decidedBy: user?.id || null,
+            decidedAt: new Date().toISOString(),
+          },
+        } as any));
+      } catch (error) {
+        // An override without its audit record must never be silently accepted.
+        throw new BadRequestException({
+          message: `The override could not be audited and the assignment was cancelled: ${(error as Error).message}`,
+          code: 'OVERRIDE_AUDIT_FAILED',
+        });
+      }
+      await this.logTimeline('assignment_override', user, {
+        tripId: trip.id,
+        message: `Override accepted (${feasibility?.status}) for ${softCodes.join(', ')}: ${overrideReason}`,
+        companyId: companyId || undefined,
+      });
+    }
 
     await this.recordUndo(user, 'assign', {
       orders: undoSnapshots,

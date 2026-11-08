@@ -119,7 +119,7 @@ export function buildProposedStops(existingStops: any[], newOrders: any[]): Carg
  * one load at the first pickup and one unload at the last delivery, using the
  * assigned Orders' actual cargo. Existing task data is never overridden.
  */
-function ensureLegacyTasks(existingStops: any[], existingOrders: any[]): CargoLedgerStop[] {
+export function prepareLedgerStops(existingStops: any[], existingOrders: any[]): CargoLedgerStop[] {
   const stops = (existingStops || []).map((stop) => ({ ...stop, tasks: stop.tasks || [] }));
   const hasMovement = stops.some((stop) => (stop.tasks || []).some((task: any) => isLoadStop(task) || isUnloadStop(task)));
   if (hasMovement || stops.length === 0) return stops;
@@ -155,24 +155,17 @@ export interface ConsolidationCapacityResult {
   duplicateTaskKeys: string[];
 }
 
-/**
- * Capacity is checked on the cargo actually on board after every stop, not on
- * the sum of every Order ever assigned to the trip. This is what allows cargo
- * unloaded before a later pickup to free capacity correctly.
- */
-export function consolidationCapacity(
-  existingStops: any[],
-  existingOrders: any[],
-  newOrders: any[],
+function capacityResult(
+  ledgerStops: CargoLedgerStop[],
+  proposedStops: CargoLedgerStop[],
   capacity: KnownTruckCapacity,
 ): ConsolidationCapacityResult {
-  const ledgerStops = ensureLegacyTasks(existingStops, existingOrders);
-  const proposedStops = buildProposedStops(ledgerStops, newOrders);
   const before = buildCargoLedger(ledgerStops, capacity);
   const after = buildCargoLedger(proposedStops, capacity);
+  const existingIds = new Set(ledgerStops.map((stop) => String(stop.id)));
   const newStopIds = new Set<string>(
     proposedStops
-      .filter((stop) => (stop as any).orderId && !existingStops.some((existing) => existing.id === stop.id))
+      .filter((stop) => !existingIds.has(String(stop.id)))
       .map((stop) => String(stop.id)),
   );
   const seenTasks = new Set<string>();
@@ -192,6 +185,35 @@ export function consolidationCapacity(
     capacity,
   );
   return { before, after, proposedStops, violations, newStopIds, duplicateTaskKeys };
+}
+
+/**
+ * Capacity is checked on the cargo actually on board after every stop, not on
+ * the sum of every Order ever assigned to the trip. This is what allows cargo
+ * unloaded before a later pickup to free capacity correctly.
+ */
+export function consolidationCapacity(
+  existingStops: any[],
+  existingOrders: any[],
+  newOrders: any[],
+  capacity: KnownTruckCapacity,
+): ConsolidationCapacityResult {
+  const ledgerStops = prepareLedgerStops(existingStops, existingOrders);
+  return capacityResult(ledgerStops, buildProposedStops(ledgerStops, newOrders), capacity);
+}
+
+/**
+ * Capacity for an already-decided stop sequence (the best insertion position).
+ * The sequence is authoritative and is never re-ordered here.
+ */
+export function consolidationCapacityForSequence(
+  existingStops: any[],
+  existingOrders: any[],
+  proposedStops: CargoLedgerStop[],
+  capacity: KnownTruckCapacity,
+): ConsolidationCapacityResult {
+  const ledgerStops = prepareLedgerStops(existingStops, existingOrders);
+  return capacityResult(ledgerStops, proposedStops, capacity);
 }
 
 export interface RouteTotals {

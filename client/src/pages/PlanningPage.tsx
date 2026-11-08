@@ -38,6 +38,7 @@ import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
+import ConsolidationWizard from '../components/ConsolidationWizard';
 import { providerStatusMessage } from '../lib/providerStatus';
 import { statusTone } from '../lib/statusColors';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
@@ -2520,6 +2521,9 @@ export default function PlanningPage() {
     preflight?: any;
     insertion?: any;
     selectedInsertion?: { pickupIndex: number; deliveryIndex: number } | null;
+    overrideReason?: string;
+    overrideError?: string | null;
+    proposalChanged?: boolean;
   } | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
@@ -2961,24 +2965,18 @@ export default function PlanningPage() {
           cargo: null,
         };
       }
-      // Insertion positions are evaluated for a single order: the backend
-      // rejects a multi-order preview because each order needs its own
-      // sequence decision.
-      let insertion: any = null;
-      if (targetMode === 'existing' && candidate?.id && orderIds.length === 1) {
-        try {
-          insertion = await planningApi.previewInsertion(candidate.id, [orderIds[0]]);
-        } catch (err: any) {
-          insertion = {
-            status: 'unverified',
-            explanation: err.response?.data?.message || t('ins_loading', 'Evaluating every insertion position…'),
-            blockers: [],
-            candidates: [],
-            recommended: null,
-          };
-        }
-      }
-      setAssignmentReview(prev => prev ? { ...prev, loading: false, preflight, insertion } : prev);
+      // The preflight already evaluates every insertion position and returns the
+      // best feasible sequence, so no second routing preview is requested and
+      // there is only one source of truth for the proposal.
+      const insertion = preflight?.insertion || null;
+      setAssignmentReview(prev => prev ? {
+        ...prev,
+        loading: false,
+        preflight,
+        insertion,
+        proposalChanged: false,
+        overrideReason: '',
+      } : prev);
     } catch (err: any) {
       setAssignmentReview(prev => prev ? {
         ...prev,
@@ -3012,7 +3010,14 @@ export default function PlanningPage() {
     }
   };
 
-  const executeAssign = async (orderIds: string[], resourceId: string, tripId?: string | null, stopOrder?: string[]) => {
+  const executeAssign = async (
+    orderIds: string[],
+    resourceId: string,
+    tripId?: string | null,
+    stopOrder?: string[],
+    override?: { reason: string; codes: string[] },
+    preview?: { feasibility: string; addedDistanceKm: number | null; stopOrder: string[] },
+  ) => {
     setLoadingAction('assign');
     try {
       await api.post('/planning/assign', {
@@ -3021,6 +3026,8 @@ export default function PlanningPage() {
         date: selectedDate,
         ...(tripId ? { tripIds: [tripId] } : {}),
         ...(tripId && stopOrder?.length ? { stopOrder } : {}),
+        ...(override ? { override } : {}),
+        ...(preview ? { preview } : {}),
       });
       toast.success(t('jsx_assignedOk', 'Orders assigned'));
       setSelectedPoolOrderIds(new Set());
@@ -3028,10 +3035,67 @@ export default function PlanningPage() {
       setAssignmentReview(null);
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Assignment failed');
+      const data = err.response?.data || {};
+      // The backend revalidates at confirmation time. If the proposal moved, the
+      // dispatcher must see the fresh result before confirming again.
+      if (data.code === 'PROPOSAL_CHANGED' && data.preflight) {
+        setAssignmentReview(prev => prev ? {
+          ...prev,
+          loading: false,
+          preflight: data.preflight,
+          insertion: data.preflight.insertion || prev.insertion,
+          proposalChanged: true,
+          overrideReason: '',
+          selectedInsertion: null,
+        } : prev);
+        toast.error(t('cw_proposal_changed', 'The proposal changed. Review the new result and confirm again.'));
+        return;
+      }
+      if (['OVERRIDE_REQUIRED', 'OVERRIDE_CODES_MISMATCH', 'OVERRIDE_NOT_ALLOWED'].includes(data.code)) {
+        setAssignmentReview(prev => prev ? { ...prev, overrideError: data.message || data.code } : prev);
+        toast.error(data.message || t('cw_override', 'Override required'));
+        return;
+      }
+      toast.error(data.message || 'Assignment failed');
     } finally {
       setLoadingAction(null);
     }
+  };
+
+  /** Confirm the reviewed proposal exactly as the backend previewed it. */
+  const confirmAssignmentReview = () => {
+    if (!assignmentReview) return;
+    const insertion = assignmentReview.insertion || assignmentReview.preflight?.insertion || null;
+    const options = [insertion?.recommended, ...(insertion?.alternatives || [])].filter(Boolean);
+    const selectedOption: any = options.find((option: any) => assignmentReview.selectedInsertion
+      && option.pickupIndex === assignmentReview.selectedInsertion.pickupIndex
+      && option.deliveryIndex === assignmentReview.selectedInsertion.deliveryIndex) || options[0] || null;
+    const stopOrder: string[] | undefined = assignmentReview.mode === 'existing'
+      ? selectedOption?.stopOrder
+      : undefined;
+    const preflight = assignmentReview.preflight;
+    const softCodes: string[] = [...new Set(((preflight?.warnings || []) as any[])
+      .filter((entry: any) => entry.level !== 'blocking')
+      .map((entry: any) => String(entry.code))
+      .filter(Boolean))];
+    const override = softCodes.length
+      ? { reason: (assignmentReview.overrideReason || '').trim(), codes: softCodes }
+      : undefined;
+    const preview = preflight?.feasibility
+      ? {
+        feasibility: String(preflight.feasibility.status),
+        addedDistanceKm: preflight.route?.addedDistanceKm ?? null,
+        stopOrder: stopOrder || [],
+      }
+      : undefined;
+    executeAssign(
+      assignmentReview.orderIds,
+      assignmentReview.truckId,
+      assignmentReview.mode === 'existing' ? assignmentReview.tripId : null,
+      stopOrder,
+      override,
+      preview,
+    );
   };
 
   const handleConfirmPastDate = async () => {
@@ -4357,288 +4421,20 @@ export default function PlanningPage() {
           </div>
         </div>
       )}
-      {assignmentReview && (() => {
-        const preflight = assignmentReview.preflight;
-        const blockers = (preflight?.blockers || []).filter((c: any) => c.level === 'blocking');
-        const warnings = (preflight?.warnings || []).filter((c: any) => c.level !== 'blocking');
-        const blocked = blockers.length > 0 || !!assignmentReview.error;
-        const insertion = assignmentReview.insertion || null;
-        const insertionOptions: any[] = insertion
-          ? [insertion.recommended, ...(insertion.candidates || [])]
-            .filter(Boolean)
-            .filter((option: any, index: number, list: any[]) => list.findIndex((entry: any) =>
-              entry.pickupIndex === option.pickupIndex && entry.deliveryIndex === option.deliveryIndex) === index)
-          : [];
-        const selectedInsertion: any = insertionOptions.find((option: any) => assignmentReview.selectedInsertion
-          && option.pickupIndex === assignmentReview.selectedInsertion.pickupIndex
-          && option.deliveryIndex === assignmentReview.selectedInsertion.deliveryIndex) || insertionOptions[0] || null;
-        // An unverified or infeasible insertion can never be confirmed: the
-        // sequence would route stops whose road legs were never resolved.
-        const insertionBlocked = assignmentReview.mode === 'existing' && !!insertion && insertion.status !== 'feasible';
-        const recommendation = assignmentReview.error
-          ? 'BLOCKED'
-          : preflight?.recommendation || (blocked ? 'BLOCKED' : 'CREATE_NEW_TRIP');
-        const recLabel = recommendation === 'BLOCKED'
-          ? t('cons_blocked', 'Blocked')
-          : recommendation === 'MANUAL_REVIEW'
-            ? t('cons_manual', 'Manual review required')
-            : recommendation === 'ADD_TO_EXISTING_TRIP'
-              ? t('cons_add_existing', 'Add to existing trip')
-              : t('cons_create_new', 'Create a new trip');
-        const recTone = recommendation === 'BLOCKED'
-          ? 'border-red-500/40 bg-red-500/10 text-red-600'
-          : recommendation === 'MANUAL_REVIEW'
-            ? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
-            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700';
-        return (
-          <div
-            className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
-            onClick={() => !loadingAction && setAssignmentReview(null)}
-          >
-            <div
-              className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-start justify-between border-b border-border px-6 pt-5 pb-3 gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                    <TruckIcon className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base font-black text-text-primary">{t('cons_title', 'Smart consolidation')}</h3>
-                    <p className="text-xs text-text-secondary truncate">
-                      {assignmentReview.orderIds.length} {t('jsx_orders', 'orders')} · {t('cons_truck', 'Truck')} {resources.find((r: any) => String(r.id) === String(assignmentReview.truckId))?.plateNumber || '—'}
-                      {assignmentReview.tripNumber ? ` · ${assignmentReview.tripNumber}` : ''}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setAssignmentReview(null)}
-                  disabled={!!loadingAction}
-                  className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface shrink-0"
-                  aria-label={t('cons_cancel', 'Cancel')}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 space-y-4">
-              {assignmentReview.tripId && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => reviewAssignment(assignmentReview.orderIds, assignmentReview.truckId, 'existing')}
-                    disabled={assignmentReview.loading || !!loadingAction}
-                    className={`rounded-2xl border p-3 text-left transition-all ${assignmentReview.mode === 'existing' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-surface/30 hover:bg-surface/60'}`}
-                  >
-                    <span className="block text-xs font-black text-text-primary">{t('cons_add_existing', 'Add to existing trip')}</span>
-                    <span className="block text-[10px] text-text-secondary mt-0.5 truncate">{assignmentReview.tripNumber || t('cons_trip', 'Trip')}</span>
-                  </button>
-                  <button
-                    onClick={() => reviewAssignment(assignmentReview.orderIds, assignmentReview.truckId, 'new')}
-                    disabled={assignmentReview.loading || !!loadingAction}
-                    className={`rounded-2xl border p-3 text-left transition-all ${assignmentReview.mode === 'new' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-surface/30 hover:bg-surface/60'}`}
-                  >
-                    <span className="block text-xs font-black text-text-primary">{t('cons_create_new', 'Create a new trip')}</span>
-                    <span className="block text-[10px] text-text-secondary mt-0.5">{t('cons_new_hint', 'Independent trip on the same truck')}</span>
-                  </button>
-                </div>
-              )}
-
-              {assignmentReview.loading ? (
-                <div className="py-10 flex flex-col items-center gap-3 text-text-secondary">
-                  <Loader2 className="w-7 h-7 animate-spin text-primary" />
-                  <p className="text-xs font-bold">{t('cons_checking', 'Checking capacity, time windows and road route…')}</p>
-                </div>
-              ) : (
-                <>
-                  <div className={`rounded-2xl border p-3.5 flex items-start gap-3 ${recTone}`}>
-                    {recommendation === 'BLOCKED' ? <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />}
-                    <div className="min-w-0">
-                      <p className="text-xs font-black uppercase tracking-wide">{recLabel}</p>
-                      <p className="text-[11px] mt-0.5 opacity-90">
-                        {blocked
-                          ? t('cons_hard_blocker', 'A hard blocker prevents this assignment.')
-                          : warnings.length
-                            ? t('cons_override', 'Review the warnings before confirming.')
-                            : t('cons_no_blockers', 'No blocking or warning conditions were found.')}
-                      </p>
-                    </div>
-                  </div>
-
-                  {preflight?.cargo && (
-                    <div className="rounded-2xl border border-border bg-surface/30 p-3 space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-text-secondary">{t('cons_capacity', 'Capacity')}</p>
-                      <div className="grid grid-cols-2 gap-2 text-[11px]">
-                        <div><span className="text-text-secondary">{t('cons_before', 'Before')}</span><b className="block text-text-primary">{fmtNumber(preflight.cargo.before?.weight || 0)} kg · {preflight.cargo.before?.pallets || 0} p</b></div>
-                        <div><span className="text-text-secondary">{t('cons_after', 'After')}</span><b className="block text-text-primary">{fmtNumber(preflight.cargo.after?.weight || 0)} kg · {preflight.cargo.after?.pallets || 0} p</b></div>
-                      </div>
-                      <p className="text-[10px] text-text-muted">
-                        {t('cons_limit', 'Vehicle limit')}: {fmtNumber(preflight.cargo.capacity?.maxWeightKg || 0)} kg · {preflight.cargo.capacity?.maxPallets || 0} p · {fmtNumber(preflight.cargo.capacity?.maxLdm || 0, 1)} LDM
-                      </p>
-                    </div>
-                  )}
-
-                  {preflight?.route && (
-                    <div className="rounded-2xl border border-border bg-surface/30 p-3">
-                      <div className="flex items-center justify-between gap-2 text-[11px]">
-                        <span className="font-bold text-text-primary">{preflight.route.status === 'verified' ? t('cons_route_verified', 'Road route verified') : t('cons_route_unverified', 'Route could not be verified')}</span>
-                        {preflight.route.status === 'verified' && (
-                          <span className="text-text-secondary">{t('cons_distance', 'Additional distance')}: <b className="text-text-primary">{fmtNumber(preflight.route.addedDistanceKm || 0, 0)} km</b> · {t('cons_duration', 'Additional time')}: <b className="text-text-primary">{fmtNumber(preflight.route.addedDurationMin || 0, 0)} min</b></span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {assignmentReview.mode === 'existing' && insertion && (
-                    <div className="rounded-2xl border border-border bg-surface/30 p-3 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-text-secondary">{t('ins_title', 'Insertion preview')}</p>
-                        <span className="text-[10px] text-text-muted">{insertion.orderNumber || ''}</span>
-                      </div>
-                      {insertionBlocked ? (
-                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-800 dark:text-amber-300">
-                          <b>
-                            {insertion.status === 'infeasible'
-                              ? t('ins_none', 'No feasible insertion position.')
-                              : t('ins_unverified', 'Route unverified — this sequence cannot be confirmed')}
-                          </b>
-                          {insertion.explanation && <p className="mt-0.5 opacity-90">{insertion.explanation}</p>}
-                        </div>
-                      ) : (
-                        <>
-                          <div className="space-y-1.5">
-                            {insertionOptions.map((option: any, optionIndex: number) => {
-                              const optionBlocked = (option.blockers || []).length > 0;
-                              const selected = selectedInsertion === option;
-                              return (
-                                <button
-                                  key={`${option.pickupIndex}-${option.deliveryIndex}`}
-                                  type="button"
-                                  disabled={optionBlocked}
-                                  onClick={() => setAssignmentReview(prev => prev ? {
-                                    ...prev,
-                                    selectedInsertion: { pickupIndex: option.pickupIndex, deliveryIndex: option.deliveryIndex },
-                                  } : prev)}
-                                  className={`w-full rounded-xl border p-2 text-left transition-all ${selected ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-card hover:bg-surface/60'} ${optionBlocked ? 'cursor-not-allowed opacity-60' : ''}`}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[10px] font-black text-text-primary">
-                                      {optionIndex === 0 ? t('ins_recommended', 'Recommended sequence') : t('ins_alternative', 'Alternative sequence')}
-                                      {selected && <span className="ml-1 rounded bg-primary/15 px-1 text-[8px] uppercase text-primary">{t('ins_selected', 'Selected')}</span>}
-                                    </span>
-                                    <span className="text-[10px] text-text-secondary">
-                                      {option.addedDistanceKm != null
-                                        ? `+${fmtNumber(option.addedDistanceKm, 0)} km · +${fmtNumber(option.addedDrivingMin, 0)} min`
-                                        : t('ins_unverified', 'Route unverified — this sequence cannot be confirmed')}
-                                    </span>
-                                  </div>
-                                  <div className="mt-1 space-y-0.5">
-                                    {(option.sequence || []).map((stop: any) => (
-                                      <div key={stop.key} className="flex items-center gap-1.5 text-[10px]">
-                                        <span className="w-4 text-right font-mono text-text-muted">{stop.sequence}</span>
-                                        <span className={`rounded px-1 text-[8px] font-black uppercase ${['pickup', 'load'].includes(String(stop.type)) ? 'bg-emerald-500/15 text-emerald-700' : 'bg-sky-500/15 text-sky-700'}`}>{stop.type}</span>
-                                        <span className="truncate text-text-primary">{stop.city || '—'}</span>
-                                        {stop.plannedArrival && (
-                                          <span className="ml-auto shrink-0 text-text-muted">
-                                            {new Date(stop.plannedArrival).toLocaleString()}
-                                          </span>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                  {optionBlocked && (
-                                    <p className="mt-1 text-[9px] font-bold text-red-600">
-                                      {t('ins_blocked', 'Not selectable — blocked')}: {(option.blockers || []).map((b: any) => b.code).join(', ')}
-                                    </p>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {selectedInsertion && (
-                            <div className="grid grid-cols-2 gap-2 text-[10px] text-text-secondary">
-                              <span>{t('ins_waiting', 'Customer waiting')}: <b className="text-text-primary">{fmtNumber(selectedInsertion.waitingMin || 0, 0)} min</b></span>
-                              <span>{t('ins_capacity_after', 'Load after insertion')}: <b className="text-text-primary">{selectedInsertion.capacityAfter?.pallets || 0} p · {fmtNumber(selectedInsertion.capacityAfter?.weightKg || 0, 0)} kg</b></span>
-                              <span>{t('ins_driver', 'Driver hours')}: <b className="text-text-primary">{(selectedInsertion.driverHours?.status || 'unverified')} · {fmtNumber(selectedInsertion.driverHours?.drivingMin || 0, 0)} min</b></span>
-                              <span>{t('ins_added_distance', 'Added distance')}: <b className="text-text-primary">{selectedInsertion.addedDistanceKm != null ? `${fmtNumber(selectedInsertion.addedDistanceKm, 0)} km` : '—'}</b></span>
-                            </div>
-                          )}
-                          {selectedInsertion?.explanation && (
-                            <p className="text-[10px] text-text-secondary"><b className="text-text-primary">{t('ins_why', 'Why this sequence')}:</b> {selectedInsertion.explanation}</p>
-                          )}
-                          <p className="text-[9px] text-text-muted">{t('ins_confirm_hint', 'The confirmed sequence is applied when you confirm the assignment.')}</p>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {blockers.length > 0 && (
-                    <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-3 space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-red-600">{t('cons_blockers', 'Blockers')}</p>
-                      {blockers.map((c: any) => (
-                        <div key={c.id || c.code} className="text-[11px] text-red-700 dark:text-red-300">
-                          <div className="flex items-start gap-1.5">
-                            <span className="shrink-0 rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">{t('cons_level_hard', 'Hard blocker')}</span>
-                            {c.code && <code className="shrink-0 rounded bg-red-500/10 px-1 py-0.5 text-[9px] font-bold">{c.code}</code>}
-                            <span>{c.message}</span>
-                          </div>
-                          {c.params && Object.keys(c.params).length > 0 && (
-                            <p className="mt-0.5 pl-1 font-mono text-[9px] opacity-80">
-                              {Object.entries(c.params).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`).join(' · ')}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => window.location.assign(buildTruckDimensionsEditUrl(assignmentReview.truckId, '/planning'))}
-                        className="mt-1 inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-white/60 px-2.5 py-1.5 text-[10px] font-black text-red-700 hover:bg-white dark:bg-transparent dark:text-red-300"
-                      >
-                        {t('cons_open_fleet', 'Open selected truck in Fleet')}
-                      </button>
-                    </div>
-                  )}
-                  {warnings.length > 0 && (
-                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">{t('cons_warnings', 'Warnings')}</p>
-                      {warnings.map((c: any) => (
-                        <p key={c.id || c.code} className="text-[11px] text-amber-800 dark:text-amber-300">
-                          <span className="mr-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide">
-                            {String(c.code || '').includes('UNVERIFIED') ? t('cons_level_unverified', 'Unverified') : t('cons_level_soft', 'Soft warning')}
-                          </span>
-                          {c.code ? <code className="mr-1 rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-bold">{c.code}</code> : null}
-                          {c.message}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-
-              </div>
-
-              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-3">
-                <button onClick={() => setAssignmentReview(null)} disabled={!!loadingAction} className="btn-secondary text-xs py-2 px-4 font-bold">
-                  {t('cons_cancel', 'Cancel')}
-                </button>
-                <button
-                  onClick={() => executeAssign(
-                    assignmentReview.orderIds,
-                    assignmentReview.truckId,
-                    assignmentReview.mode === 'existing' ? assignmentReview.tripId : null,
-                    assignmentReview.mode === 'existing' ? selectedInsertion?.stopOrder : undefined,
-                  )}
-                  disabled={assignmentReview.loading || blocked || insertionBlocked || !!loadingAction || !!assignmentReview.error || (!!selectedInsertion && (selectedInsertion.blockers || []).length > 0)}
-                  className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5 shadow-md shadow-primary/20 disabled:opacity-50"
-                >
-                  {loadingAction === 'assign' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {t('cons_confirm', 'Confirm assignment')}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {assignmentReview && (
+        <ConsolidationWizard
+          review={assignmentReview}
+          resources={resources}
+          busy={!!loadingAction}
+          onClose={() => setAssignmentReview(null)}
+          onMode={(mode: 'existing' | 'new') => reviewAssignment(assignmentReview.orderIds, assignmentReview.truckId, mode)}
+          onSelectOption={(selection: { pickupIndex: number; deliveryIndex: number }) => setAssignmentReview((prev: any) => prev ? { ...prev, selectedInsertion: selection } : prev)}
+          onOverrideReason={(value: string) => setAssignmentReview((prev: any) => prev ? { ...prev, overrideReason: value, overrideError: null } : prev)}
+          onConfirm={confirmAssignmentReview}
+          onOpenTruck={(truckId: string) => window.location.assign(buildTruckDimensionsEditUrl(truckId, '/planning'))}
+          onJumpToOrder={(orderId: string | null) => { setAssignmentReview(null); if (orderId) setSelectedOrderId(orderId); }}
+        />
+      )}
       {assignOrderModal && (
         <div
           className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
