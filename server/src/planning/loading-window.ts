@@ -26,6 +26,8 @@ const toDate = (value: unknown): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+import { resolveStopAppointment } from './stop-appointment';
+
 const LOAD_STOP_TYPES = ['pickup', 'load'];
 const UNLOAD_STOP_TYPES = ['delivery', 'dropoff', 'unload'];
 
@@ -37,28 +39,25 @@ export function isUnloadStopType(value: unknown): boolean {
   return UNLOAD_STOP_TYPES.includes(String(value || '').toLowerCase());
 }
 
-/** The end of a stop's time window, from the explicit field or date + time. */
+/**
+ * The end of a stop's time window. A missing maximum is never turned into
+ * 23:59: one entered endpoint is a fixed appointment, so the end equals the
+ * start. The operational zone conversion happens exactly once, in
+ * `resolveStopAppointment`.
+ */
 export function stopWindowEnd(stop: any): Date | null {
   if (!stop) return null;
   const explicit = toDate(stop.timeWindowMax) || toDate(stop.timeWindowTo);
   if (explicit) return explicit;
-  if (stop.dateFrom) {
-    const value = toDate(`${String(stop.dateFrom).slice(0, 10)}T${stop.timeUntil || '23:59'}:00`);
-    if (value) return value;
-  }
-  return null;
+  return resolveStopAppointment(stop).end;
 }
 
-/** The start of a stop's time window. */
+/** The start of a stop's time window, in the operational time zone. */
 export function stopWindowStart(stop: any): Date | null {
   if (!stop) return null;
   const explicit = toDate(stop.timeWindowMin) || toDate(stop.timeWindowFrom);
   if (explicit) return explicit;
-  if (stop.dateFrom) {
-    const value = toDate(`${String(stop.dateFrom).slice(0, 10)}T${stop.timeFrom || '00:00'}:00`);
-    if (value) return value;
-  }
-  return null;
+  return resolveStopAppointment(stop).start;
 }
 
 /**

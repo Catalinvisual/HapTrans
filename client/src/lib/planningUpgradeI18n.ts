@@ -829,3 +829,82 @@ export const planningUpgradeResources = {
   es: { translation: es },
   pl: { translation: pl },
 };
+
+// Appointment semantics (fixed appointment / flexible window / unscheduled).
+// Kept in one place so all seven locales carry exactly the same keys.
+const appointmentLabels: Record<string, Record<string, string>> = {
+  en: {
+    tw_fixed: 'Fixed appointment',
+    tw_fixed_hint: 'One date/time entered. The stop is an exact appointment, not a flexible window.',
+    tw_window: 'Flexible window',
+    tw_window_hint: 'Both endpoints entered. The exact interval is kept; it is not expanded.',
+    tw_unscheduled: 'Unscheduled — no appointment set',
+    tw_unscheduled_hint: 'Add a date to schedule this stop. No window is invented for it.',
+    tw_invalid: 'The maximum cannot be earlier than the minimum.',
+    tw_invalid_hint: 'Correct the times: values are never swapped automatically.',
+  },
+  ro: {
+    tw_fixed: 'Programare fixă',
+    tw_fixed_hint: 'O singură dată/oră introdusă. Oprirea este o programare exactă, nu o fereastră flexibilă.',
+    tw_window: 'Fereastră flexibilă',
+    tw_window_hint: 'Ambele capete introduse. Intervalul exact este păstrat, nu este extins.',
+    tw_unscheduled: 'Neplanificat — nicio programare setată',
+    tw_unscheduled_hint: 'Adăugați o dată pentru a programa oprirea. Nu se inventează nicio fereastră.',
+    tw_invalid: 'Maximul nu poate fi mai devreme decât minimul.',
+    tw_invalid_hint: 'Corectați orele: valorile nu sunt interschimbate automat.',
+  },
+  nl: {
+    tw_fixed: 'Vaste afspraak',
+    tw_fixed_hint: 'Eén datum/tijd ingevuld. De stop is een exacte afspraak, geen flexibel tijdvenster.',
+    tw_window: 'Flexibel tijdvenster',
+    tw_window_hint: 'Beide uitersten ingevuld. Het exacte interval blijft behouden en wordt niet verruimd.',
+    tw_unscheduled: 'Niet gepland — geen afspraak ingesteld',
+    tw_unscheduled_hint: 'Voeg een datum toe om deze stop te plannen. Er wordt geen venster verzonnen.',
+    tw_invalid: 'Het maximum kan niet eerder zijn dan het minimum.',
+    tw_invalid_hint: 'Corrigeer de tijden: waarden worden nooit automatisch omgewisseld.',
+  },
+  de: {
+    tw_fixed: 'Fester Termin',
+    tw_fixed_hint: 'Ein Datum/eine Uhrzeit eingegeben. Der Stopp ist ein exakter Termin, kein flexibles Zeitfenster.',
+    tw_window: 'Flexibles Zeitfenster',
+    tw_window_hint: 'Beide Grenzen eingegeben. Das genaue Intervall bleibt erhalten und wird nicht erweitert.',
+    tw_unscheduled: 'Ungeplant — kein Termin gesetzt',
+    tw_unscheduled_hint: 'Datum hinzufügen, um diesen Stopp zu planen. Es wird kein Fenster erfunden.',
+    tw_invalid: 'Das Maximum darf nicht vor dem Minimum liegen.',
+    tw_invalid_hint: 'Zeiten korrigieren: Werte werden nie automatisch getauscht.',
+  },
+  fr: {
+    tw_fixed: 'Rendez-vous fixe',
+    tw_fixed_hint: 'Une seule date/heure saisie. L’arrêt est un rendez-vous exact, pas une plage flexible.',
+    tw_window: 'Plage flexible',
+    tw_window_hint: 'Les deux bornes sont saisies. L’intervalle exact est conservé et n’est pas élargi.',
+    tw_unscheduled: 'Non planifié — aucun rendez-vous défini',
+    tw_unscheduled_hint: 'Ajoutez une date pour planifier cet arrêt. Aucune plage n’est inventée.',
+    tw_invalid: 'Le maximum ne peut pas être antérieur au minimum.',
+    tw_invalid_hint: 'Corrigez les heures : les valeurs ne sont jamais inversées automatiquement.',
+  },
+  es: {
+    tw_fixed: 'Cita fija',
+    tw_fixed_hint: 'Solo se introdujo una fecha/hora. La parada es una cita exacta, no una ventana flexible.',
+    tw_window: 'Ventana flexible',
+    tw_window_hint: 'Se introdujeron ambos extremos. El intervalo exacto se mantiene y no se amplía.',
+    tw_unscheduled: 'Sin programar — sin cita definida',
+    tw_unscheduled_hint: 'Añada una fecha para programar esta parada. No se inventa ninguna ventana.',
+    tw_invalid: 'El máximo no puede ser anterior al mínimo.',
+    tw_invalid_hint: 'Corrija las horas: los valores nunca se intercambian automáticamente.',
+  },
+  pl: {
+    tw_fixed: 'Stały termin',
+    tw_fixed_hint: 'Wprowadzono jedną datę/godzinę. Postój jest dokładnym terminem, a nie elastycznym oknem.',
+    tw_window: 'Elastyczne okno',
+    tw_window_hint: 'Wprowadzono oba końce. Dokładny przedział jest zachowany i nie jest rozszerzany.',
+    tw_unscheduled: 'Niezaplanowane — brak terminu',
+    tw_unscheduled_hint: 'Dodaj datę, aby zaplanować ten postój. Żadne okno nie jest wymyślane.',
+    tw_invalid: 'Maksimum nie może być wcześniejsze niż minimum.',
+    tw_invalid_hint: 'Popraw godziny: wartości nigdy nie są zamieniane automatycznie.',
+  },
+};
+
+for (const [locale, labels] of Object.entries(appointmentLabels)) {
+  Object.assign((planningUpgradeResources as any)[locale].translation, labels);
+}

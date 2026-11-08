@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import { statusBadgeClass } from '../lib/statusColors';
+import { OPERATIONAL_TIME_ZONE } from '../lib/stopAppointment';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import DeliveryIncidentsPanel from '../components/DeliveryIncidentsPanel';
 import CargoAllocationsPanel from '../components/CargoAllocationsPanel';
@@ -174,8 +175,11 @@ export default function TripDetailsPage() {
     const to = stop.timeWindowMax;
     if (!from) return summaryText(i18n.language, 'not_planned');
     const date = formatDate(from);
-    const start = new Date(from).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
-    const end = to ? new Date(to).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : null;
+    const start = new Date(from).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit', timeZone: OPERATIONAL_TIME_ZONE });
+    // A fixed appointment has start === end; show one time instead of `08:00–08:00`.
+    const end = to && new Date(to).getTime() !== new Date(from).getTime()
+      ? new Date(to).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit', timeZone: OPERATIONAL_TIME_ZONE })
+      : null;
     return `${date} · ${start}${end ? `–${end}` : ''}`;
   };
   const cargoTotals = (trip.orders || []).reduce((acc: any, order: any) => {

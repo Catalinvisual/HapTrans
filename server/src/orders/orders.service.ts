@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
+import { validateStopAppointment } from '../planning/stop-appointment';
 
 /**
  * The reference stored on a stop belongs to that stop's own direction.
@@ -214,6 +215,7 @@ export class OrdersService implements OnModuleInit {
     try {
       // 1. Validate
       this.validationEngine.validateOrder(dto);
+      this.assertStopAppointments(dto.stops);
 
       // Determine order number
       const nextRef = await this.getNextInternalReference();
@@ -451,8 +453,28 @@ export class OrdersService implements OnModuleInit {
     }
   }
 
+  /**
+   * A maximum earlier than its minimum is rejected, never swapped: silently
+   * normalising it would change the customer's appointment into something they
+   * never entered.
+   */
+  private assertStopAppointments(stops: any): void {
+    if (!Array.isArray(stops)) return;
+    for (const stop of stops) {
+      const error = validateStopAppointment(stop);
+      if (error) {
+        throw new BadRequestException({
+          message: error,
+          code: 'STOP_WINDOW_INVALID',
+          stop: { type: stop?.type || null, sequence: stop?.sequence ?? null, city: stop?.city || null },
+        });
+      }
+    }
+  }
+
   async update(id: string, dto: any, user?: any) {
     try {
+      this.assertStopAppointments(dto.stops);
       // Helper: safely parse a number, returns null on empty/NaN
       const safeNum = (v: any): number | null => {
         if (v === null || v === undefined || v === '') return null;

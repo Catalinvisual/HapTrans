@@ -9,6 +9,7 @@ import { ValidationEngine } from './validation.engine';
 import { OptimizationEngine } from './optimization.engine';
 import { OrderStopType } from '../orders/order-stop.entity';
 import { normalizeStopStatus } from '../trips/trip-progress';
+import { resolveStopAppointment } from '../planning/stop-appointment';
 
 @Injectable()
 export class PlanningEngine {
@@ -85,13 +86,12 @@ export class PlanningEngine {
         const addressKey = os.address.toLowerCase().trim();
         let tripStop = addressToStopMap.get(addressKey);
 
-        const dateTime = (date: any, time: any, fallback: string) => {
-          if (!date) return null;
-          const parsed = new Date(`${String(date).slice(0, 10)}T${time || fallback}:00`);
-          return Number.isNaN(parsed.getTime()) ? null : parsed;
-        };
-        const requestedStart = dateTime(os.dateFrom, os.timeFrom, '00:00');
-        const requestedEnd = dateTime(os.dateTo || os.dateFrom, os.timeUntil, '23:59');
+        // One appointment model for every consumer: a single entered endpoint
+        // is an exact appointment, never an expanded 00:00–23:59 window, and the
+        // wall clock is converted in the operational zone exactly once.
+        const requested = resolveStopAppointment(os);
+        const requestedStart = requested.start;
+        const requestedEnd = requested.end;
 
         if (!tripStop) {
           const newStopPayload: any = {

@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
 import CompanyAutocomplete from '../CompanyAutocomplete';
 import CustomDatePicker from '../CustomDatePicker';
+import AppointmentSemantics from '../AppointmentSemantics';
+import { summariseAppointment } from '../../lib/stopAppointment';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrCargoSection from './AdrCargoSection';
@@ -777,6 +779,18 @@ export default function OrderWizard({
       toast.error(t('dropoff_date_required', 'Data de livrare este obligatorie.'));
       return;
     }
+    // A maximum earlier than its minimum is rejected here and on the server;
+    // it is never swapped or expanded into an apparently valid window.
+    const appointmentChecks = [
+      { label: t('jsx_pickupDetails', 'Pickup'), value: summariseAppointment({ dateFrom: pickup.scheduledDate, timeFrom: pickup.scheduledTime, dateTo: pickup.dateTo, timeUntil: pickup.timeUntil }) },
+      ...extraStops.map((s, i) => ({ label: `${t('stop_intermediate', 'Oprire intermediară')} ${i + 1}`, value: summariseAppointment({ dateFrom: s.scheduledDate, timeFrom: s.scheduledTime, dateTo: s.dateTo, timeUntil: s.timeUntil }) })),
+      { label: t('jsx_deliveryDetail', 'Delivery'), value: summariseAppointment({ dateFrom: dropoff.scheduledDate, timeFrom: dropoff.scheduledTime, dateTo: dropoff.dateTo, timeUntil: dropoff.timeUntil }) },
+    ];
+    const invalidAppointment = appointmentChecks.find((entry) => entry.value.kind === 'invalid');
+    if (invalidAppointment) {
+      toast.error(`${invalidAppointment.label}: ${t('tw_invalid', 'The maximum cannot be earlier than the minimum.')}`);
+      return;
+    }
     if (isSameLocation(pickup, dropoff)) {
       toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
       return;
@@ -1344,6 +1358,12 @@ export default function OrderWizard({
                         })}
                       />
                     </div>
+                    <AppointmentSemantics
+                      dateFrom={pickup.scheduledDate}
+                      timeFrom={pickup.scheduledTime}
+                      dateTo={pickup.dateTo}
+                      timeUntil={pickup.timeUntil}
+                    />
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_referencePO")}</label>
                       <input type="text" value={pickup.reference} onChange={e => setPickup({
@@ -1392,6 +1412,12 @@ export default function OrderWizard({
                       <CustomDatePicker label={t('stop_date_min', 'Stop Time Window (Min)')} dateValue={stop.scheduledDate} timeValue={stop.scheduledTime || ''} onDateChange={v => handleExtraStopChange(i, { scheduledDate: v })} onTimeChange={v => handleExtraStopChange(i, { scheduledTime: v })} />
                       <CustomDatePicker label={t('stop_date_max', 'Stop Time Window (Max)')} dateValue={stop.dateTo} timeValue={stop.timeUntil || ''} onDateChange={v => handleExtraStopChange(i, { dateTo: v })} onTimeChange={v => handleExtraStopChange(i, { timeUntil: v })} />
                     </div>
+                    <AppointmentSemantics
+                      dateFrom={stop.scheduledDate}
+                      timeFrom={stop.scheduledTime}
+                      dateTo={stop.dateTo}
+                      timeUntil={stop.timeUntil}
+                    />
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_referencePO")}</label>
                       <input type="text" value={stop.reference} onChange={e => handleExtraStopChange(i, { reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder={t('stop_ref_placeholder', 'e.g. Reference / Instructions')} />
@@ -1503,6 +1529,12 @@ export default function OrderWizard({
                         })}
                       />
                     </div>
+                    <AppointmentSemantics
+                      dateFrom={dropoff.scheduledDate}
+                      timeFrom={dropoff.scheduledTime}
+                      dateTo={dropoff.dateTo}
+                      timeUntil={dropoff.timeUntil}
+                    />
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_referenceUnl")}</label>
                       <input type="text" value={dropoff.reference} onChange={e => setDropoff({

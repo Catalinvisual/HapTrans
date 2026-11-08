@@ -24,6 +24,7 @@ import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
 import { operationalStatusForDisplay, operationalStatusKey } from '../../lib/operationalI18n';
+import { describeWallClockAppointment } from '../../lib/stopAppointment';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/settingsStore';
 import { generateOrderPdf } from '../../lib/pdfGenerator';
@@ -390,10 +391,23 @@ export default function OrderDetailDrawer({
                   <div className="text-[11px] text-text-secondary mt-1">
                     {[s.address, s.city, s.country].filter(Boolean).join(', ')}
                   </div>
-                  <div className="text-[11px] font-semibold text-text-primary mt-1.5">
-                    {s.dateFrom || '—'}
-                    {s.timeFrom ? ` ${s.timeFrom}` : ''}
-                    {s.dateTo ? ` → ${s.dateTo}${s.timeUntil ? ` ${s.timeUntil}` : ''}` : ''}
+                  <div className="text-[11px] font-semibold text-text-primary mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span>{describeWallClockAppointment(s).label || '—'}</span>
+                    {(() => {
+                      const kind = describeWallClockAppointment(s).kind;
+                      if (kind === 'invalid') {
+                        return <span className="text-[9px] font-bold uppercase text-red-600">{t('tw_invalid', 'Invalid window')}</span>;
+                      }
+                      return (
+                        <span className="text-[9px] font-bold uppercase text-text-muted">
+                          {kind === 'fixed'
+                            ? t('tw_fixed', 'Fixed appointment')
+                            : kind === 'window'
+                            ? t('tw_window', 'Flexible window')
+                            : t('tw_unscheduled', 'Unscheduled')}
+                        </span>
+                      );
+                    })()}
                   </div>
                   {s.contactPerson && (
                     <div className="text-[11px] text-text-secondary mt-0.5 flex items-center gap-1">

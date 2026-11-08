@@ -14,6 +14,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { statusBadgeClass as statusBadgeFromLib } from '../lib/statusColors';
 import { planningApi } from '../lib/planningApi';
+import { OPERATIONAL_TIME_ZONE } from '../lib/stopAppointment';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import OrderWizard from '../components/orders/OrderWizard';
@@ -26,6 +27,7 @@ function fmtDate(d: string | Date | null | undefined) {
   if (isNaN(date.getTime())) return '—';
   return date.toLocaleString([], {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: OPERATIONAL_TIME_ZONE,
   });
 }
 
@@ -33,14 +35,14 @@ function fmtTime(d: string | Date | null | undefined) {
   if (!d) return '—';
   const date = typeof d === 'string' ? new Date(d) : d;
   if (isNaN(date.getTime())) return '—';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: OPERATIONAL_TIME_ZONE });
 }
 
 function fmtDay(d: string | Date | null | undefined) {
   if (!d) return '—';
   const date = typeof d === 'string' ? new Date(d) : d;
   if (isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: OPERATIONAL_TIME_ZONE });
 }
 
 function formatStopWindow(start: string | Date | null | undefined, end: string | Date | null | undefined) {
@@ -51,6 +53,8 @@ function formatStopWindow(start: string | Date | null | undefined, end: string |
   if (endDate && isNaN(endDate.getTime())) return '—';
   if (!startDate) return fmtTime(endDate);
   if (!endDate) return fmtTime(startDate);
+  // Fixed appointment: one exact instant, so print one time.
+  if (startDate.getTime() === endDate.getTime()) return fmtTime(startDate);
   const sameDay = startDate.toDateString() === endDate.toDateString();
   return sameDay
     ? `${fmtTime(startDate)} – ${fmtTime(endDate)}`

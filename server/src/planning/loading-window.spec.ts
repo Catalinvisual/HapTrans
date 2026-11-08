@@ -1,4 +1,8 @@
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
+import { operationalTimeZone, wallClockToInstant } from '../common/operational-time';
+
+// Order stops hold an operational-zone wall clock, not a server-zone Date.
+const at = (date: string, time: string) => wallClockToInstant(date, time, operationalTimeZone())!;
 
 describe('loading window assessment', () => {
   const order = {
@@ -12,19 +16,19 @@ describe('loading window assessment', () => {
 
   it('uses the pickup stop window, never the delivery window', () => {
     const window = orderPickupWindow(order);
-    expect(window.end?.toISOString()).toBe(new Date('2026-11-07T10:00:00').toISOString());
+    expect(window.end?.toISOString()).toBe(at('2026-11-07', '10:00').toISOString());
   });
 
   it('does not warn when the arrival is inside the window', () => {
     const window = orderPickupWindow(order);
-    const result = assessLoadingWindow(new Date('2026-11-07T08:30:00'), window.end);
+    const result = assessLoadingWindow(at('2026-11-07', '08:30'), window.end);
     expect(result.status).toBe('ok');
     expect(result.lateMinutes).toBe(0);
   });
 
   it('warns when the arrival is after the window closes', () => {
     const window = orderPickupWindow(order);
-    const result = assessLoadingWindow(new Date('2026-11-07T12:15:00'), window.end);
+    const result = assessLoadingWindow(at('2026-11-07', '12:15'), window.end);
     expect(result.status).toBe('late');
     expect(result.lateMinutes).toBe(135);
   });

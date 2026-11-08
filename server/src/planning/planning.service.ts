@@ -65,7 +65,19 @@ import {
   normalizeEquipmentRequirements,
 } from './assignment-capacity';
 import { assessEquipment } from './equipment-capability';
-import { assessCandidateAvailability, tripOccupancyFromTimeline } from './truck-availability';
+import {
+  assessCandidateAvailability,
+  assessTruckSchedule,
+  buildTripOccupancy,
+  committedBounds,
+  committedOverlap,
+  tripCommittedSpan,
+  DEFAULT_TURNAROUND_MIN,
+  smallestCommittedGapMinutes,
+  tripOccupancyFromTimeline,
+} from './truck-availability';
+import { appointmentBounds, resolveStopAppointment } from './stop-appointment';
+import { operationalTimeZone, wallClockToInstant } from '../common/operational-time';
 import {
   missingVehicleRestrictions,
   resolveRouteRestrictionsState,
@@ -199,30 +211,42 @@ export class PlanningService {
       : [{}];
   }
 
+  /**
+   * One appointment model for every consumer. A single entered endpoint is an
+   * exact appointment (start === end); a missing maximum never becomes 23:59;
+   * an order with no endpoint stays unscheduled.
+   */
   private getStopDate(os: any): Date | null {
-    if (!os?.dateFrom) return null;
-    const d = new Date(`${os.dateFrom}T${os.timeFrom || '00:00'}:00`);
-    return isNaN(d.getTime()) ? null : d;
+    return resolveStopAppointment(os).start;
   }
 
   private getStopDateEnd(os: any): Date | null {
-    if (!os?.dateFrom) return null;
-    const d = new Date(`${os.dateFrom}T${os.timeUntil || '23:59'}:00`);
-    return isNaN(d.getTime()) ? null : d;
+    return resolveStopAppointment(os).end;
   }
 
   private orderWindow(order: any): { start: Date | null; end: Date | null } {
     let start: Date | null = null;
     let end: Date | null = null;
     for (const os of order.stops || []) {
-      const s = this.getStopDate(os);
-      const e = this.getStopDateEnd(os);
-      if (s && (!start || s < start)) start = s;
-      if (e && (!end || e > end)) end = e;
+      const appointment = resolveStopAppointment(os);
+      if (appointment.start && (!start || appointment.start < start)) start = appointment.start;
+      if (appointment.end && (!end || appointment.end > end)) end = appointment.end;
     }
     if (!start && !end) return { start: null, end: null };
     if (!end) end = start;
     return { start, end };
+  }
+
+  /**
+   * Operation interval of one order. A fixed appointment has zero duration, so
+   * the handling time is added once here — the appointment itself stays exact.
+   */
+  private orderOperationWindow(order: any): { start: Date; end: Date } | null {
+    const { start, end } = this.orderWindow(order);
+    if (!start && !end) return null;
+    const from = (start || end) as Date;
+    const to = (end || start) as Date;
+    return { start: from, end: new Date(Math.max(to.getTime(), from.getTime() + 30 * 60000)) };
   }
 
   private deriveDeparture(orders: Order[]): Date | null {
@@ -543,8 +567,8 @@ export class PlanningService {
     const companyId = user?.companyId || null;
     const fromStr = (q.from as string) || dayStr(new Date());
     const toStr = (q.to as string) || fromStr;
-    const from = new Date(`${fromStr}T00:00:00`);
-    const to = new Date(`${toStr}T23:59:59.999`);
+    const from = wallClockToInstant(fromStr, '00:00', operationalTimeZone()) || new Date(`${fromStr}T00:00:00`);
+    const to = wallClockToInstant(toStr, '23:59', operationalTimeZone()) || new Date(`${toStr}T23:59:59.999`);
     const search = (q.search || '').toString().trim();
     const hasLimit = q.limit !== undefined && q.limit !== '' && q.limit !== 'all';
     const limit = hasLimit ? Math.max(1, Number(q.limit)) : null;
@@ -655,6 +679,25 @@ export class PlanningService {
       .where('trip.status IN (:...activeStatuses)', { activeStatuses: ACTIVE_TRIP_STATUSES })
       .andWhere(this.companyBracket(companyId, 'trip.companyId'))
       .getMany();
+
+    // Occupancy is derived from the real schedule of every active trip, not
+    // only from the trips visible in the selected range. Without its route plan
+    // a trip falls back to its stop estimates, so the latest plan is attached
+    // here for the conflict engine.
+    const resourceTripIds = resourceTrips.map((trip: any) => trip.id).filter(Boolean);
+    if (resourceTripIds.length > 0) {
+      const resourcePlans = await this.routePlanRepo.find({
+        where: { tripId: In(resourceTripIds) },
+        order: { version: 'DESC' },
+      });
+      const attachedPlans = new Set<string>();
+      for (const plan of resourcePlans) {
+        if (!plan.tripId || attachedPlans.has(plan.tripId)) continue;
+        attachedPlans.add(plan.tripId);
+        const owner = resourceTrips.find((candidate: any) => candidate.id === plan.tripId);
+        if (owner && !(owner as any).routePlan) (owner as any).routePlan = plan;
+      }
+    }
 
     // Attach the latest route plan so the Results table can use authoritative
     // route driving/waiting/service totals and empty kilometres instead of
@@ -1223,12 +1266,88 @@ export class PlanningService {
       for (let j = i + 1; j < activePeers.length; j++) {
         const a = activePeers[i];
         const b = activePeers[j];
-        if (!tripOverlaps(a, b)) continue;
-        const ia = tripInterval(a);
-        const ib = tripInterval(b);
-        if (!ia || !ib) continue;
-        const overlap = overlapInterval(ia, ib);
-        const period = periodLabel(overlap.start, overlap.end);
+        // Operational occupancy, never the broad order calendar range. Two
+        // consecutive trips on one truck are a valid schedule; only driving or
+        // service intervals can genuinely overlap, and a gap below the
+        // turnaround minimum is its own, separate blocker.
+        // A trailer travels with its trip for the trip's whole planned span, so
+        // its double-booking check stays on that span and is independent of the
+        // stop-level occupancy used for the truck. Trips without stop-level
+        // data must still surface a genuine trailer conflict.
+        const trailerIdOf = (trip: any) => trip?.trailer?.id || trip?.trailerId || trip?.truck?.trailer?.id || null;
+        const tripSpanOf = (trip: any) => {
+          const start = trip?.plannedDeparture ? new Date(trip.plannedDeparture).getTime() : NaN;
+          const end = trip?.plannedArrival ? new Date(trip.plannedArrival).getTime() : NaN;
+          return Number.isFinite(start) && Number.isFinite(end) && end > start ? { start, end } : null;
+        };
+        const trailerAId = trailerIdOf(a);
+        const trailerBId = trailerIdOf(b);
+        const spanA = tripSpanOf(a);
+        const spanB = tripSpanOf(b);
+        if (
+          trailerAId && trailerBId && String(trailerAId) === String(trailerBId)
+          && spanA && spanB && spanA.start < spanB.end && spanB.start < spanA.end
+          && !seenPairs.has(`trailer:${pairKey(a, b)}`)
+        ) {
+          seenPairs.add(`trailer:${pairKey(a, b)}`);
+          const overlapFrom = Math.max(spanA.start, spanB.start);
+          const overlapTo = Math.min(spanA.end, spanB.end);
+          const trlObj = trailersById[trailerAId] || a.trailer || b.trailer || a.truck?.trailer;
+          const trlPlate = trlObj?.plateNumber || trailerAId;
+          add({
+            level: 'blocking', code: 'TRAILER_OVERLAP', tripId: a.id, resourceId: trailerAId,
+            params: {
+              trailerId: trailerAId, trailerPlate: trlPlate, tripA: a.tripNumber || a.id, tripB: b.tripNumber || b.id,
+              tripAId: a.id, tripBId: b.id,
+              overlapStart: new Date(overlapFrom).toISOString(), overlapEnd: new Date(overlapTo).toISOString(),
+              overlapMinutes: Math.round((overlapTo - overlapFrom) / 60000),
+              reason: 'the trailer is committed to the other trip for its whole planned span',
+              resolution: `Reassign trailer ${trlPlate} on trip ${a.tripNumber || a.id} or trip ${b.tripNumber || b.id}.`,
+            },
+            message: `Trailer ${trlPlate} is double-booked between trip ${a.tripNumber || a.id} and trip ${b.tripNumber || b.id}.`,
+          });
+        }
+
+        const occupancyA = buildTripOccupancy(a);
+        const occupancyB = buildTripOccupancy(b);
+        // Cross-trip comparison uses the trip span: planned departure (the truck
+        // leaves) to the last committed interval. A broad `plannedArrival` never
+        // blocks the truck; a trip without any schedule falls back to its planned
+        // span and is reported as unverified below.
+        const aBounds = tripCommittedSpan(a, occupancyA);
+        const bBounds = tripCommittedSpan(b, occupancyB);
+        if (!aBounds || !bBounds) continue;
+        const committedHit = committedOverlap(occupancyA, occupancyB);
+        const spanOverlapStart = Math.max(aBounds.start, bBounds.start);
+        const spanOverlapEnd = Math.min(aBounds.end, bBounds.end);
+        const overlap = spanOverlapEnd > spanOverlapStart
+          ? {
+              start: spanOverlapStart,
+              end: spanOverlapEnd,
+              a: (committedHit?.a as any) || { start: aBounds.start, end: aBounds.end, kind: 'planned' as const, city: null },
+            }
+          : null;
+        const gapMinutes = overlap
+          ? null
+          : Math.max(0, Math.round((spanOverlapStart - spanOverlapEnd) / 60000));
+        const turnaroundBlocked = !overlap && gapMinutes !== null && gapMinutes < DEFAULT_TURNAROUND_MIN;
+        const unverified = !aBounds.verified ? a : !bBounds.verified ? b : null;
+        if (unverified) {
+          add({
+            level: 'warning', code: 'TRUCK_AVAILABILITY_UNVERIFIED',
+            tripId: unverified.id, resourceId: a.truck?.id || a.truckId || b.truck?.id || b.truckId,
+            params: { trip: unverified.tripNumber || unverified.id },
+            message: `Trip ${unverified.tripNumber || unverified.id} has no stop-level schedule, so its truck occupancy is a planned-span estimate and must be confirmed.`,
+          });
+        }
+        if (!overlap && !turnaroundBlocked) continue;
+        const period = overlap
+          ? periodLabel(overlap.start, overlap.end)
+          : periodLabel(Math.min(aBounds.start, bBounds.start), Math.max(aBounds.end, bBounds.end));
+        const overlapStart = new Date(overlap ? overlap.start : aBounds.end).toISOString();
+        const overlapEnd = new Date(overlap ? overlap.end : aBounds.end).toISOString();
+        const overlapMinutes = overlap ? Math.round((overlap.end - overlap.start) / 60000) : 0;
+        const overlapCity = overlap ? overlap.a.city : null;
         const truckA = a.truck?.id || a.truckId;
         const truckB = b.truck?.id || b.truckId;
         const trailerA = a.trailer?.id || a.trailerId || a.truck?.trailer?.id;
@@ -1237,14 +1356,28 @@ export class PlanningService {
         if (truckA && truckB && String(truckA) === String(truckB) && !seenPairs.has(`truck:${pairKey(a, b)}`)) {
           seenPairs.add(`truck:${pairKey(a, b)}`);
           const plate = resourcesById[truckA]?.plateNumber || a.truck?.plateNumber || truckA;
-          add({
-            level: 'blocking', code: 'TRUCK_OVERLAP', tripId: a.id, resourceId: truckA,
-            params: { truckId: truckA, plateNumber: plate, tripA: a.tripNumber || a.id, tripB: b.tripNumber || b.id, tripAId: a.id, tripBId: b.id, overlapStart: new Date(overlap.start).toISOString(), overlapEnd: new Date(overlap.end).toISOString(), resolution: `Reassign truck ${plate} on trip ${a.tripNumber || a.id} or trip ${b.tripNumber || b.id}.` },
-            message: `Truck ${plate} is double-booked between trip ${a.tripNumber || a.id} and trip ${b.tripNumber || b.id} (${period}).`,
-          });
+          if (overlap) {
+            add({
+              level: 'blocking', code: 'TRUCK_OVERLAP', tripId: a.id, resourceId: truckA,
+              params: {
+                truckId: truckA, plateNumber: plate, tripA: a.tripNumber || a.id, tripB: b.tripNumber || b.id, tripAId: a.id, tripBId: b.id,
+                overlapStart, overlapEnd, overlapMinutes, city: overlapCity,
+                busyStart: new Date(overlap.a.start).toISOString(), busyEnd: new Date(overlap.a.end).toISOString(),
+                reason: overlap.a.kind === 'service' ? 'loading/unloading' : 'driving',
+                resolution: `Move the overlapping activity after ${overlapEnd} or use another truck.`,
+              },
+              message: `Truck ${plate} is double-booked between trip ${a.tripNumber || a.id} and trip ${b.tripNumber || b.id}: ${overlapCity || 'the route'} is occupied for ${overlapMinutes} min (${period}).`,
+            });
+          } else {
+            add({
+              level: 'blocking', code: 'TRUCK_TURNAROUND_INSUFFICIENT', tripId: a.id, resourceId: truckA,
+              params: { truckId: truckA, plateNumber: plate, tripA: a.tripNumber || a.id, tripB: b.tripNumber || b.id, gapMinutes, requiredMinutes: DEFAULT_TURNAROUND_MIN, resolution: `Start the later trip at least ${Math.max(0, DEFAULT_TURNAROUND_MIN - (gapMinutes || 0))} min later.` },
+              message: `Only ${gapMinutes} min separate trip ${a.tripNumber || a.id} and trip ${b.tripNumber || b.id} on truck ${plate}; ${DEFAULT_TURNAROUND_MIN} min of turnaround is required.`,
+            });
+          }
         }
 
-        if (trailerA && trailerB && String(trailerA) === String(trailerB) && !seenPairs.has(`trailer:${pairKey(a, b)}`)) {
+        if (overlap && trailerA && trailerB && String(trailerA) === String(trailerB) && !seenPairs.has(`trailer:${pairKey(a, b)}`)) {
           seenPairs.add(`trailer:${pairKey(a, b)}`);
           const trlObj = trailersById[trailerA] || a.trailer || b.trailer || a.truck?.trailer;
           const trlPlate = trlObj?.plateNumber || trailerA;
@@ -1257,7 +1390,7 @@ export class PlanningService {
 
         const driverA = resolveTripDriver(a)?.entity?.id;
         const driverB = resolveTripDriver(b)?.entity?.id;
-        if (driverA && driverB && String(driverA) === String(driverB) && !seenPairs.has(`driver:${pairKey(a, b)}`)) {
+        if (overlap && driverA && driverB && String(driverA) === String(driverB) && !seenPairs.has(`driver:${pairKey(a, b)}`)) {
           seenPairs.add(`driver:${pairKey(a, b)}`);
           const driverName = driversById[driverA]?.user?.name || driversById[driverA]?.name || driverA;
           add({
@@ -1376,9 +1509,12 @@ export class PlanningService {
       const dayEnd = new Date(`${date}T23:59:59.999`);
       // The candidate window is the order's own operation window. A whole
       // calendar day is only a fallback and cannot prove an overlap.
+      // The candidate operation window comes from the order appointments. A
+      // fixed appointment is an exact instant, so its handling time is added
+      // once here instead of expanding the appointment into a calendar day.
       const windows = orders
-        .map((o) => this.orderWindow(o))
-        .filter((w): w is { start: Date; end: Date } => !!w.start && !!w.end);
+        .map((o) => this.orderOperationWindow(o))
+        .filter((w): w is { start: Date; end: Date } => !!w);
       const windowVerified = windows.length > 0 && windows.length === orders.length;
       const candidateStart = windowVerified
         ? new Date(Math.min(...windows.map((w) => w.start.getTime())))
@@ -1749,34 +1885,118 @@ export class PlanningService {
     const activeDriver: any = (trip as any).driver || (trip.truck as any)?.driver || null;
     const activeDriverId = activeDriver?.id || null;
     const activeTrailerId = (trip as any).trailer?.id || (trip.truck as any)?.trailer?.id || null;
-    if (plannedStart && plannedFinish) {
-      const proposedInterval = { start: plannedStart.getTime(), end: plannedFinish.getTime() };
+    // Occupancy comes from the trip's own schedule (route timeline, then stop
+    // estimates), never from a broad order calendar range. A trip whose schedule
+    // cannot be verified is reported as unverified, not as free.
+    const proposedOccupancy = buildTripOccupancy(trip);
+    const proposedBounds = tripCommittedSpan(trip, proposedOccupancy);
+    if (!proposedBounds) {
+      add(warnings, {
+        level: 'warning',
+        code: 'TRUCK_AVAILABILITY_UNVERIFIED',
+        tripId,
+        resourceId: truck?.id,
+        message: 'This trip has no verifiable operational schedule, so truck availability cannot be confirmed. Recalculate the trip schedule before confirming.',
+      });
+    }
+    if (proposedBounds) {
       const otherTrips = await this.tripRepo.find({
         where: { id: Not(tripId) },
         relations: ['truck', 'trailer', 'driver', 'driver.user', 'stops'],
       });
       for (const other of otherTrips) {
         if (!isActiveTrip(other)) continue;
-        const interval = tripInterval(other);
-        if (!interval) continue;
-        const overlap = overlapInterval(proposedInterval, interval);
-        const overlapMinutes = Math.round((overlap.end - overlap.start) / 60000);
-        if (!Number.isFinite(overlapMinutes) || overlapMinutes <= 0) continue;
         const otherRef = (other as any).tripNumber || other.id;
-        const overlapStart = new Date(overlap.start).toISOString();
-        const overlapEnd = new Date(overlap.end).toISOString();
-        if (truck && other.truck && String(other.truck.id) === String(truck.id)) {
-          add(blockers, {
-            level: 'blocking',
-            code: 'TRUCK_OVERLAP',
+        const otherOccupancy = buildTripOccupancy(other);
+        const otherBounds = tripCommittedSpan(other, otherOccupancy);
+        if (!otherBounds) {
+          add(warnings, {
+            level: 'warning',
+            code: 'TRUCK_AVAILABILITY_UNVERIFIED',
             tripId,
-            resourceId: truck.id,
-            params: { plateNumber: truck.plateNumber, trip: otherRef, tripId: other.id, overlapStart, overlapEnd, overlapMinutes },
-            message: `Truck ${truck.plateNumber || ''} is already committed to trip ${otherRef} (${overlapMinutes} min overlap). Release that commitment before confirming.`,
+            resourceId: truck?.id,
+            params: { trip: otherRef, tripId: other.id },
+            message: `The truck may still be committed to trip ${otherRef}, but that trip has no verifiable schedule. Availability cannot be confirmed.`,
+          });
+          continue;
+        }
+
+        // Only committed driving/service intervals can conflict. Two consecutive
+        // trips are a valid schedule when the turnaround fits in the gap.
+        const committedHit = committedOverlap(proposedOccupancy, otherOccupancy);
+        const spanOverlapStart = Math.max(proposedBounds.start, otherBounds.start);
+        const spanOverlapEnd = Math.min(proposedBounds.end, otherBounds.end);
+        const occupancyOverlap = spanOverlapEnd > spanOverlapStart
+          ? {
+              start: spanOverlapStart,
+              end: spanOverlapEnd,
+              a: (committedHit?.a as any) || { start: proposedBounds.start, end: proposedBounds.end, kind: 'planned' as const, city: null },
+            }
+          : null;
+        const gapMinutes = occupancyOverlap
+          ? null
+          : Math.max(0, Math.round((spanOverlapStart - spanOverlapEnd) / 60000));
+        const turnaroundBlocked = gapMinutes !== null && gapMinutes < DEFAULT_TURNAROUND_MIN;
+        if (!occupancyOverlap && !turnaroundBlocked) continue;
+        if (!otherBounds.verified) {
+          add(warnings, {
+            level: 'warning',
+            code: 'TRUCK_AVAILABILITY_UNVERIFIED',
+            tripId,
+            resourceId: truck?.id,
+            params: { trip: otherRef, tripId: other.id },
+            message: `Trip ${otherRef} has no stop-level schedule, so its occupancy against this trip is a planned-span estimate and must be confirmed.`,
           });
         }
+
+        const overlapStart = new Date(occupancyOverlap ? occupancyOverlap.start : otherBounds.end).toISOString();
+        const overlapEnd = new Date(occupancyOverlap ? occupancyOverlap.end : otherBounds.end).toISOString();
+        const overlapMinutes = occupancyOverlap
+          ? Math.round((occupancyOverlap.end - occupancyOverlap.start) / 60000)
+          : 0;
+        if (truck && other.truck && String(other.truck.id) === String(truck.id)) {
+          if (occupancyOverlap) {
+            add(blockers, {
+              level: 'blocking',
+              code: 'TRUCK_OVERLAP',
+              tripId,
+              resourceId: truck.id,
+              params: {
+                plateNumber: truck.plateNumber,
+                trip: otherRef,
+                tripId: other.id,
+                overlapStart,
+                overlapEnd,
+                overlapMinutes,
+                city: occupancyOverlap.a.city,
+                busyStart: new Date(occupancyOverlap.a.start).toISOString(),
+                busyEnd: new Date(occupancyOverlap.a.end).toISOString(),
+                reason: occupancyOverlap.a.kind === 'service' ? 'loading/unloading' : 'driving',
+                resolution: `Move this activity after ${overlapEnd} or use another truck.`,
+              },
+              message: `Truck ${truck.plateNumber || ''} is already committed to trip ${otherRef}: ${occupancyOverlap.a.city || 'the route'} is occupied from ${overlapStart} to ${overlapEnd} (${overlapMinutes} min overlap).`,
+            });
+          } else {
+            add(blockers, {
+              level: 'blocking',
+              code: 'TRUCK_TURNAROUND_INSUFFICIENT',
+              tripId,
+              resourceId: truck.id,
+              params: {
+                plateNumber: truck.plateNumber,
+                trip: otherRef,
+                tripId: other.id,
+                gapMinutes,
+                requiredMinutes: DEFAULT_TURNAROUND_MIN,
+                busyEnd: overlapEnd,
+                resolution: `Start this trip at least ${Math.max(0, DEFAULT_TURNAROUND_MIN - (gapMinutes || 0))} min later.`,
+              },
+              message: `Only ${gapMinutes} min separate this trip from trip ${otherRef}; ${DEFAULT_TURNAROUND_MIN} min of turnaround and preparation is required. Start later or reassign the truck.`,
+            });
+          }
+        }
         const otherTrailer: any = (other as any).trailer || (other.truck as any)?.trailer || null;
-        if (activeTrailerId && otherTrailer && String(otherTrailer.id) === String(activeTrailerId)) {
+        if (occupancyOverlap && activeTrailerId && otherTrailer && String(otherTrailer.id) === String(activeTrailerId)) {
           add(blockers, {
             level: 'blocking',
             code: 'TRAILER_OVERLAP',
@@ -1787,7 +2007,7 @@ export class PlanningService {
           });
         }
         const otherDriverId = ((other as any).driver || (other.truck as any)?.driver)?.id || null;
-        if (activeDriverId && otherDriverId && String(otherDriverId) === String(activeDriverId)) {
+        if (occupancyOverlap && activeDriverId && otherDriverId && String(otherDriverId) === String(activeDriverId)) {
           add(blockers, {
             level: 'blocking',
             code: 'DRIVER_OVERLAP',
@@ -3076,11 +3296,20 @@ export class PlanningService {
     return trip;
   }
 
+  /**
+   * Handling time at a stop. A time window is an appointment, not the duration
+   * of the work, so its width is no longer used as service time: that made a
+   * four-hour delivery window occupy the truck for four hours per stop and every
+   * downstream ETA drifted.
+   */
   private stopServiceMinutes(stop: Stop): number {
-    const min = stop.timeWindowMax && stop.timeWindowMin
-      ? (stop.timeWindowMax.getTime() - stop.timeWindowMin.getTime()) / 60000
-      : 30;
-    return Math.max(0, Math.round(min));
+    const started = (stop as any).loadingStartedAt || (stop as any).unloadingStartedAt || (stop as any).ata;
+    const completed = (stop as any).completedAt;
+    if (started && completed) {
+      const measured = (new Date(completed).getTime() - new Date(started).getTime()) / 60000;
+      if (Number.isFinite(measured) && measured >= 0) return Math.round(measured);
+    }
+    return 30;
   }
 
   private estimateTravel(lat1: number | null, lng1: number | null, lat2: number | null, lng2: number | null): number {
@@ -4454,26 +4683,32 @@ export class PlanningService {
 
   private parseLocalDateTime(date: string | null | undefined, time: string | null | undefined): Date | null {
     if (!date) return null;
-    const day = String(date).slice(0, 10);
-    const clock = String(time || '00:00').slice(0, 5);
-    const parsed = new Date(`${day}T${clock}:00`);
-    return isNaN(parsed.getTime()) ? null : parsed;
+    // The wall clock is operational-zone local time; converting it as server
+    // time is what silently stored 08:00 as 08:00Z.
+    return wallClockToInstant(
+      String(date).slice(0, 10),
+      String(time || '00:00').slice(0, 5),
+      operationalTimeZone(),
+    );
   }
 
   /**
-   * Builds a stop's planned window without UTC date-shifting. If the end clock
-   * is before the start clock, the window is treated as crossing midnight.
+   * Builds a stop's planned window from the canonical appointment model, in the
+   * operational time zone. A fixed appointment yields start === end: the old
+   * code shifted any end <= start by 24h, which turned a single entered time
+   * into a next-day window.
    */
   private resolveStopWindow(stop: any, fallbackDate: string) {
     const scheduledDate = stop.dateFrom ? String(stop.dateFrom).slice(0, 10) : fallbackDate;
-    let start = stop.timeWindowMin ? new Date(stop.timeWindowMin) : this.parseLocalDateTime(scheduledDate, stop.timeFrom);
-    let end = stop.timeWindowMax ? new Date(stop.timeWindowMax) : this.parseLocalDateTime(scheduledDate, stop.timeUntil || '23:59');
-    if (start && isNaN(start.getTime())) start = null;
-    if (end && isNaN(end.getTime())) end = null;
-    if (start && end && end.getTime() <= start.getTime()) {
-      end = new Date(end.getTime() + 24 * 60 * 60000);
-    }
-    return { scheduledDate, start, end };
+    const appointment = resolveStopAppointment({ ...stop, dateFrom: stop.dateFrom || fallbackDate });
+    const start = stop.timeWindowMin ? new Date(stop.timeWindowMin) : appointment.start;
+    const end = stop.timeWindowMax ? new Date(stop.timeWindowMax) : appointment.end;
+    return {
+      scheduledDate,
+      start: start && !isNaN(start.getTime()) ? start : null,
+      end: end && !isNaN(end.getTime()) ? end : null,
+      fixed: appointment.isFixedAppointment && !stop.timeWindowMax,
+    };
   }
 
   /** Stops the planner must route for this trip, covering every attached Order. */
@@ -5370,8 +5605,14 @@ export class PlanningService {
       shipment.pickupLatitude = pickupStop.latitude;
       shipment.pickupLongitude = pickupStop.longitude;
       shipment.pickupDate = pickupStop.dateFrom;
-      shipment.pickupTimeWindowStart = pickupStop.timeFrom ? new Date(`${pickupStop.dateFrom}T${pickupStop.timeFrom}`) : undefined as any;
-      shipment.pickupTimeWindowEnd = pickupStop.timeUntil ? new Date(`${pickupStop.dateTo || pickupStop.dateFrom}T${pickupStop.timeUntil}`) : undefined as any;
+      // A single entered endpoint is a fixed appointment: start === end, never a
+      // day-long window. Both values are converted once, in the operational zone.
+      const pickupWindowStart = wallClockToInstant(pickupStop.dateFrom, pickupStop.timeFrom, operationalTimeZone());
+      const pickupWindowEnd = pickupStop.timeUntil
+        ? wallClockToInstant(pickupStop.dateTo || pickupStop.dateFrom, pickupStop.timeUntil, operationalTimeZone())
+        : pickupWindowStart;
+      shipment.pickupTimeWindowStart = (pickupWindowStart || undefined) as any;
+      shipment.pickupTimeWindowEnd = (pickupWindowEnd || undefined) as any;
       shipment.pickupTimeWindowSoft = false;
       shipment.pickupDurationMinutes = 30;
       shipment.deliveryLocationId = deliveryStop.clientLocation?.id;
@@ -5382,8 +5623,12 @@ export class PlanningService {
       shipment.deliveryLatitude = deliveryStop.latitude;
       shipment.deliveryLongitude = deliveryStop.longitude;
       shipment.deliveryDate = deliveryStop.dateFrom;
-      shipment.deliveryTimeWindowStart = deliveryStop.timeFrom ? new Date(`${deliveryStop.dateFrom}T${deliveryStop.timeFrom}`) : undefined as any;
-      shipment.deliveryTimeWindowEnd = deliveryStop.timeUntil ? new Date(`${deliveryStop.dateTo || deliveryStop.dateFrom}T${deliveryStop.timeUntil}`) : undefined as any;
+      const deliveryWindowStart = wallClockToInstant(deliveryStop.dateFrom, deliveryStop.timeFrom, operationalTimeZone());
+      const deliveryWindowEnd = deliveryStop.timeUntil
+        ? wallClockToInstant(deliveryStop.dateTo || deliveryStop.dateFrom, deliveryStop.timeUntil, operationalTimeZone())
+        : deliveryWindowStart;
+      shipment.deliveryTimeWindowStart = (deliveryWindowStart || undefined) as any;
+      shipment.deliveryTimeWindowEnd = (deliveryWindowEnd || undefined) as any;
       shipment.deliveryTimeWindowSoft = false;
       shipment.deliveryDurationMinutes = 30;
       shipment.pallets = cargo.pallets;

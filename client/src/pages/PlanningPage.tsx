@@ -42,6 +42,16 @@ import ConsolidationWizard from '../components/ConsolidationWizard';
 import { providerStatusMessage } from '../lib/providerStatus';
 import { statusTone } from '../lib/statusColors';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
+import {
+  layoutTimelineTrips,
+  TIMELINE_CARD_HEIGHT,
+  TIMELINE_LANE_GAP,
+  TIMELINE_LANE_HEIGHT,
+  timelineCardTop,
+  timelineRowHeight,
+  tripTimePosition,
+} from '../lib/timelineLayout';
+import { OPERATIONAL_TIME_ZONE } from '../lib/stopAppointment';
 import SplitTripModal from '../components/planning/SplitTripModal';
 import CombineTripsModal from '../components/planning/CombineTripsModal';
 import PlanningExportModal from '../components/planning/PlanningExportModal';
@@ -119,17 +129,19 @@ const parseDay = (s: string) => {
   return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1);
 };
 
+// Trip stop timestamps are UTC instants; render them in the operational zone so
+// 08:00 entered is 08:00 displayed, whatever the browser zone is.
 function fmtTime(d: any) {
   if (!d) return '—';
   const x = new Date(d);
   if (isNaN(x.getTime())) return '—';
-  return x.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return x.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: OPERATIONAL_TIME_ZONE });
 }
 function fmtDate(d: any) {
   if (!d) return '—';
   const x = new Date(d);
   if (isNaN(x.getTime())) return '—';
-  return x.toLocaleDateString();
+  return x.toLocaleDateString([], { timeZone: OPERATIONAL_TIME_ZONE });
 }
 function fmtShort(d: any) {
   if (!d) return '—';
@@ -246,89 +258,9 @@ const KPI_COLORS: Record<string, { dot: string; active: string; idle: string }> 
   purple:  { dot: 'bg-purple-500',  active: 'bg-purple-500 text-white border-transparent',  idle: 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20' },
 };
 
-// Timeline slot calculation helpers
-function toMinutes(dateStr: any, baseDateStr: string): number {
-  if (!dateStr) return -1;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return -1;
-  const base = new Date(baseDateStr + 'T00:00:00');
-  return (d.getTime() - base.getTime()) / 60000;
-}
-
-function tripTimePosition(trip: any, from: string, totalMinutes: number) {
-  const dep = toMinutes(trip.plannedDeparture, from);
-  const arr = toMinutes(trip.plannedArrival, from);
-  if (dep < 0 && arr < 0) return null;
-  const depClamped = Math.max(0, dep < 0 ? 0 : dep);
-  const arrClamped = Math.min(totalMinutes, arr < 0 ? totalMinutes : arr);
-  const width = Math.max(arrClamped - depClamped, 30); // minimum 30 min wide
-  return {
-    left: (depClamped / totalMinutes) * 100,
-    width: (width / totalMinutes) * 100,
-    startMin: depClamped,
-    endMin: arrClamped,
-  };
-}
-
-// A truck may run several independent trips. Overlapping trips get separate
-// visual lanes instead of being drawn on top of each other; non-overlapping
-// trips stay in the first lane so the row remains compact.
-function layoutTimelineTrips(trips: any[], from: string, totalMinutes: number) {
-  const entries = (trips || [])
-    .map((trip, index) => {
-      const pos = tripTimePosition(trip, from, totalMinutes) || { startMin: 0, endMin: 60 };
-      return { trip, index, startMin: pos.startMin, endMin: Math.max(pos.endMin, pos.startMin + 30) };
-    })
-    .sort((a, b) => a.startMin - b.startMin || a.index - b.index);
-
-  const laneEnds: number[] = [];
-  const placed: Array<{ trip: any; startMin: number; endMin: number; lane: number }> = [];
-  for (const entry of entries) {
-    let lane = laneEnds.findIndex((end) => entry.startMin >= end - 1);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(entry.endMin);
-    } else {
-      laneEnds[lane] = Math.max(laneEnds[lane], entry.endMin);
-    }
-    placed.push({ ...entry, lane });
-  }
-
-  const overlapCounts = new Map<string, number>();
-  for (let i = 0; i < placed.length; i += 1) {
-    for (let j = i + 1; j < placed.length; j += 1) {
-      if (placed[i].startMin < placed[j].endMin && placed[j].startMin < placed[i].endMin) {
-        overlapCounts.set(placed[i].trip.id, (overlapCounts.get(placed[i].trip.id) || 0) + 1);
-        overlapCounts.set(placed[j].trip.id, (overlapCounts.get(placed[j].trip.id) || 0) + 1);
-      }
-    }
-  }
-
-  const laneCount = Math.max(1, laneEnds.length);
-  const byId = new Map(placed.map((p, ordinal) => [p.trip.id, { ...p, ordinal: ordinal + 1, laneCount, overlapCount: overlapCounts.get(p.trip.id) || 0 }]));
-
-  const repositioning: Array<{ left: number; width: number; minutes: number; fromId: string; toId: string; lane: number }> = [];
-  for (let lane = 0; lane < laneCount; lane += 1) {
-    const laneTrips = placed.filter((p) => p.lane === lane);
-    for (let i = 1; i < laneTrips.length; i += 1) {
-      const previous = laneTrips[i - 1];
-      const next = laneTrips[i];
-      const gap = next.startMin - previous.endMin;
-      if (gap >= 15) {
-        repositioning.push({
-          left: (previous.endMin / totalMinutes) * 100,
-          width: (gap / totalMinutes) * 100,
-          minutes: Math.round(gap),
-          fromId: previous.trip.id,
-          toId: next.trip.id,
-          lane,
-        });
-      }
-    }
-  }
-
-  return { byId, laneCount, placed, repositioning };
-}
+// Timeline geometry (lane allocation, overlap detection, repositioning gaps)
+// lives in lib/timelineLayout.ts so the algorithm is regression-tested without
+// React, and the page only binds it to the view.
 
 // ─── Map Component ──────────────────────────────────────────────────────────
 function PlanningMap({
@@ -657,11 +589,26 @@ function TripBlock({
   const blockWidthPct = pos.width;
   const isVeryNarrow = blockWidthPct < 4;
   const isNarrow = blockWidthPct < 10;
-  const cardHeight = 78;
-  const cardTop = 8 + lane * 86;
+  const cardHeight = TIMELINE_CARD_HEIGHT;
+  const cardTop = timelineCardTop(lane);
   const orderRefs = (trip.orders || []).map((o: any) => o.orderNumber || o.reference || '—').filter(Boolean);
   const stops = ((trip.stops?.length ? trip.stops : (trip.orders || []).flatMap((o: any) => o.stops || [])) || [])
     .slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+  // Everything that does not fit on a compact card lives here, in the hover
+  // panel, instead of being squeezed into the timeline row.
+  const detailsTooltip = [
+    `${trip.tripNumber || '—'} · ${opLabel}`,
+    `${origin} → ${dest}`,
+    trip.plannedDeparture ? `${fmtTime(trip.plannedDeparture)}${trip.plannedArrival ? ` → ${fmtTime(trip.plannedArrival)}` : ''}` : null,
+    orderRefs.length ? `${t('timeline_orders_short', 'ORD')}: ${orderRefs.join(' · ')}` : null,
+    cargo.weight > 0 ? `${t('capacity_weight', 'Weight')}: ${fmtNumber(cargo.weight)} kg` : null,
+    cargo.pallets > 0 ? `${t('capacity_pallets', 'Pallets')}: ${cargo.pallets}` : null,
+    revenue > 0 ? `${t('revenue', 'Revenue')}: ${fmtMoney(revenue, 'EUR')}` : null,
+    driverName ? `${t('driver', 'Driver')}: ${driverName}` : null,
+    trailerPlate ? `${t('trailer', 'Trailer')}: ${trailerPlate}` : null,
+    stops.length ? `${t('timeline_stop_sequence', 'Stop sequence')}: ${stops.slice(0, 8).map((s: any, idx: number) => `${idx + 1}. ${s.city || s.address || s.type || ''}`).join(' → ')}` : null,
+    ['planning', 'planned', 'assigned'].includes(legacySt) ? t('drag_trip_to_unassign', 'Trage spre Order Pool pentru a dezasocia, sau click pentru detalii') : null,
+  ].filter(Boolean).join('\n');
 
   return (
     <div
@@ -685,25 +632,24 @@ function TripBlock({
       data-trip-id={trip.id}
       data-trip-lane={lane + 1}
       onClick={onClick}
-      title={['planning', 'planned', 'assigned'].includes(legacySt) ? t('drag_trip_to_unassign', 'Trage spre Order Pool pentru a dezasocia, sau click pentru detalii') : undefined}
+      title={detailsTooltip}
     >
       <div
-        className={`relative h-full rounded-lg border-2 overflow-hidden transition-all duration-150 flex flex-col ${
-          overlapCount > 0 ? 'border-red-500/80' : col.border
+        className={`relative h-full rounded-md border overflow-hidden transition-all duration-150 flex flex-col bg-card ${
+          overlapCount > 0 ? 'border-red-500' : col.border
         } ${
           isSelected
-            ? 'ring-2 ring-offset-1 shadow-xl scale-y-[1.03] z-10'
-            : 'hover:shadow-lg hover:scale-y-[1.02]'
+            ? 'ring-2 ring-offset-1 shadow-lg z-10'
+            : 'shadow-sm hover:shadow-md'
         }`}
         style={{
-          background: `linear-gradient(135deg, ${hex}28 0%, ${hex}12 100%)`,
-          boxShadow: isSelected ? `0 4px 20px ${hex}50, 0 0 0 2px ${hex}` : undefined,
+          borderLeftWidth: 4,
+          borderLeftColor: hex,
+          boxShadow: isSelected ? `0 0 0 2px ${hex}40` : undefined,
         }}
       >
-        {/* Color accent strip at top */}
-        <div className="h-[3px] w-full shrink-0" style={{ background: hex }} />
 
-        <div className="px-2 pt-1 pb-2 flex flex-col justify-between flex-1 min-h-0 overflow-hidden gap-px">
+        <div className="pl-1.5 pr-1 pt-0.5 pb-1 flex flex-col justify-center flex-1 min-h-0 overflow-hidden gap-px">
           {/* Row 1: Trip number + sequence + status + fleet badge */}
           <div className="flex items-center gap-1 min-w-0 flex-wrap">
             <span className={`font-black truncate ${col.text} ${isVeryNarrow ? 'text-[8px]' : 'text-[10px]'}`} style={{ maxWidth: isNarrow ? '100%' : '55%' }}>
@@ -761,45 +707,25 @@ function TripBlock({
             </div>
           )}
 
-          {/* Row 3: Driver + departure/arrival */}
+          {/* Row 3: the one operational detail worth keeping inline. Everything
+              else (cargo, revenue, driver, trailer, orders) is in the tooltip. */}
           {!isVeryNarrow && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {driverName && (
-                <span className="text-[8px] text-text-secondary font-semibold truncate flex items-center gap-0.5">
-                  <Users className="w-2 h-2 shrink-0" />{driverName}
+            <div className="flex items-center gap-1.5 min-w-0 text-[8px] text-text-secondary tabular-nums">
+              {trip.plannedDeparture && (
+                <span className="truncate">
+                  {fmtTime(trip.plannedDeparture)}{trip.plannedArrival ? `–${fmtTime(trip.plannedArrival)}` : ''}
                 </span>
               )}
-              {trailerPlate && (
-                <span className="text-[8px] text-text-secondary font-semibold truncate flex items-center gap-0.5" title={t('trailer', 'Trailer')}>
-                  <TruckIcon className="w-2 h-2 shrink-0 opacity-80" />{trailerPlate}
-                </span>
+              {!isNarrow && ordersCount > 0 && (
+                <span className="truncate text-text-muted">· {orderRefs.length > 1 ? `${ordersCount} ${t('timeline_orders_short', 'ORD')}` : orderRefs[0]}</span>
               )}
-              {!isNarrow && trip.plannedDeparture && (
-                <span className="text-[8px] text-text-secondary">
-                  {fmtTime(trip.plannedDeparture)}{trip.plannedArrival ? ` → ${fmtTime(trip.plannedArrival)}` : ''}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Row 4: grouped order references + cargo */}
-          {!isVeryNarrow && (
-            <div className="flex items-center gap-1.5 min-w-0">
-              {ordersCount > 0 && (
-                <span className="text-[8px] text-text-secondary truncate max-w-[48%]" title={orderRefs.join(' · ')}>
-                  {orderRefs.slice(0, 2).join(' · ')}{orderRefs.length > 2 ? ` +${orderRefs.length - 2}` : ''}
-                </span>
-              )}
-              {cargo.weight > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5 shrink-0"><WeightKgIcon className="w-3 h-3" />{fmtNumber(cargo.weight)}kg</span>}
-              {cargo.pallets > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5 shrink-0"><PalletIcon className="w-3 h-3" />{cargo.pallets}p</span>}
-              {!isNarrow && revenue > 0 && <span className="text-[8px] font-black ml-auto shrink-0" style={{ color: hex }}>{fmtMoney(revenue, 'EUR')}</span>}
             </div>
           )}
         </div>
 
-        {/* Stop sequence rail: pickup / delivery order is visible directly on the card. */}
+        {/* Stop sequence rail: a 2px read of pickup → delivery order. */}
         {!isVeryNarrow && stops.length > 0 && (
-          <div className="absolute left-1.5 right-1.5 bottom-0.5 flex items-center gap-0.5" title={t('timeline_stop_sequence', 'Stop sequence')}>
+          <div className="absolute left-1.5 right-1.5 bottom-[3px] flex items-center gap-0.5 opacity-80" title={t('timeline_stop_sequence', 'Stop sequence')}>
             {stops.slice(0, 10).map((s: any, idx: number) => {
               const kind = String(s.type || '').toLowerCase();
               const isDelivery = kind.includes('deliver') || kind.includes('drop') || (idx === stops.length - 1 && stops.length > 1);
@@ -856,7 +782,7 @@ function ResourceRow({
   const [isDragOver, setIsDragOver] = useState(false);
   const timelineLayout = useMemo(() => layoutTimelineTrips(trips, fromDate, totalMinutes), [trips, fromDate, totalMinutes]);
   const laneCount = timelineLayout.laneCount;
-  const rowHeight = Math.max(104, 16 + laneCount * 86);
+  const rowHeight = timelineRowHeight(laneCount);
   const nowMinutes = (now - parseDay(fromDate).getTime()) / 60000;
   const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
   const nextTrip = [...trips]
@@ -1051,7 +977,7 @@ function ResourceRow({
           <div
             key={`lane-separator-${lane}`}
             className="absolute left-0 right-0 border-t border-dashed border-border/60 pointer-events-none"
-            style={{ top: `${8 + (lane + 1) * 86 - 4}px` }}
+            style={{ top: `${TIMELINE_LANE_GAP + (lane + 1) * TIMELINE_LANE_HEIGHT - 4}px` }}
           />
         ))}
 
@@ -1060,7 +986,7 @@ function ResourceRow({
           <div
             key={`reposition-${gap.fromId}-${gap.toId}-${index}`}
             className="absolute h-[2px] border-t border-dashed border-text-muted/50 pointer-events-none z-[2]"
-            style={{ left: `${gap.left}%`, width: `${gap.width}%`, top: `${8 + gap.lane * 86 + 32}px` }}
+            style={{ left: `${gap.left}%`, width: `${gap.width}%`, top: `${timelineCardTop(gap.lane) + 24}px` }}
             title={`${t('timeline_reposition', 'Repositioning')}: ${gap.minutes} min`}
           >
             {gap.width > 5 && (

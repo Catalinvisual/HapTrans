@@ -26,6 +26,7 @@ import { buildTripMetrics, costBucket, minutesBetween, nameOfDriver, toMs, toNum
 import { planningApi } from '../../lib/planningApi';
 import { emissionUnavailableKey, fuelTypeLabel } from '../../lib/truckFuel';
 import { operationalStatusForDisplay } from '../../lib/operationalI18n';
+import { formatAppointmentInstants, OPERATIONAL_TIME_ZONE } from '../../lib/stopAppointment';
 
 type ViewKey = 'results' | 'route' | 'costs' | 'driver' | 'conflicts' | 'emissions';
 type ExportFormat = 'xlsx' | 'csv' | 'pdf';
@@ -97,13 +98,14 @@ function fmtDateTime(value: any): string {
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: OPERATIONAL_TIME_ZONE,
   });
 }
 
 function fmtClock(value: any): string {
   const ms = toMs(value);
   if (ms === null) return '';
-  return new Date(ms).toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' });
+  return new Date(ms).toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit', timeZone: OPERATIONAL_TIME_ZONE });
 }
 
 function fmtEtaDifference(value: any, onTime: string, unit: string): string {
@@ -825,9 +827,9 @@ export default function PlanningResultsPanel({
                 : stop?.type || '',
             location: [stop?.city, stop?.address].filter(Boolean).join(', '),
             company: stop?.companyName || '',
-            timeWindow: [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
-              .filter(Boolean)
-              .join(' – '),
+            // A fixed appointment is one exact instant: print one time, not a
+            // fabricated `08:00 – 09:00` or next-day maximum.
+            timeWindow: formatAppointmentInstants(stop?.timeWindowMin, stop?.timeWindowMax, appLocale),
             calculatedEta: fmtDateTime(etaStop?.liveEta),
             plannedEta: fmtDateTime(planned),
             difference: fmtEtaDifference(
@@ -1704,9 +1706,7 @@ export default function PlanningResultsPanel({
                   t('up_eta_on_time', 'On time'),
                   t('up_eta_minutes', 'min'),
                 );
-                const windowValue = [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
-                  .filter(Boolean)
-                  .join(' – ');
+                const windowValue = formatAppointmentInstants(stop?.timeWindowMin, stop?.timeWindowMax, appLocale);
                 const taskLabel = (stop?.tasks || [])
                   .map((task: any) => {
                     const taskType = String(task?.type || '').toLowerCase();

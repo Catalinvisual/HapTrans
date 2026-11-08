@@ -12,6 +12,7 @@ import AdrBadge from '../components/common/AdrBadge';
 import ActivityTimeline from '../components/ActivityTimeline';
 import StatusBadge from '../components/ui/StatusBadge';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
+import { describeWallClockAppointment } from '../lib/stopAppointment';
 export default function OrderDetailsPage() {
   const {
     id
@@ -144,7 +145,21 @@ export default function OrderDetailsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50 text-sm">
                         <div>
                           <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_schedule", "Schedule")}</p>
-                          <p className="font-medium">{stop.dateFrom ? new Date(stop.dateFrom).toLocaleDateString() : '—'} {stop.timeFrom || '00:00'} - {stop.timeUntil || '23:59'}</p>
+                          {(() => {
+                            const appointment = describeWallClockAppointment(stop);
+                            return (
+                              <>
+                                <p className="font-medium">{appointment.label || '—'}</p>
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-text-muted mt-0.5">
+                                  {appointment.kind === 'fixed'
+                                    ? t('tw_fixed', 'Fixed appointment')
+                                    : appointment.kind === 'window'
+                                    ? t('tw_window', 'Flexible window')
+                                    : t('tw_unscheduled', 'Unscheduled — no appointment set')}
+                                </p>
+                              </>
+                            );
+                          })()}
                         </div>
                         {stop.reference && <div>
                           <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_reference", "Reference")}</p>

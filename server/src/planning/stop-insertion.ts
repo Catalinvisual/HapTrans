@@ -1,6 +1,7 @@
 import { KnownTruckCapacity, CapacityViolation } from './assignment-capacity';
 import { buildCargoLedger, CargoLedgerResult, CargoLedgerStop } from './cargo-ledger';
 import { cargoForOrder } from './consolidation-cargo';
+import { resolveStopAppointment } from './stop-appointment';
 
 /**
  * Insertion evaluation for adding an Order to an existing Trip.
@@ -185,17 +186,22 @@ function parseDate(value: any): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function combine(date?: string | null, time?: string | null): Date | null {
-  if (!date) return null;
-  return parseDate(`${date}T${time && time.length === 5 ? time : time || '00:00'}:00`);
+function appointment(stop: InsertionStop) {
+  return resolveStopAppointment({
+    dateFrom: stop.dateFrom,
+    timeFrom: stop.timeFrom,
+    dateTo: stop.dateUntil,
+    timeUntil: stop.timeUntil,
+    timeZone: (stop as any).timeZone,
+  });
 }
 
 function windowStart(stop: InsertionStop): Date | null {
-  return parseDate(stop.timeWindowMin) || combine(stop.dateFrom, stop.timeFrom);
+  return parseDate(stop.timeWindowMin) || appointment(stop).start;
 }
 
 function windowEnd(stop: InsertionStop): Date | null {
-  return parseDate(stop.timeWindowMax) || combine(stop.dateUntil || stop.dateFrom, stop.timeUntil);
+  return parseDate(stop.timeWindowMax) || appointment(stop).end;
 }
 
 function isPickup(stop: InsertionStop): boolean {

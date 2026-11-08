@@ -1,5 +1,6 @@
 import { CargoTotals, CapacityViolation, KnownTruckCapacity, capacityViolations } from './assignment-capacity';
 import { buildCargoLedger, CargoLedgerResult, CargoLedgerStop } from './cargo-ledger';
+import { resolveStopAppointment } from './stop-appointment';
 
 const num = (value: unknown): number => {
   const parsed = Number(value);
@@ -38,16 +39,17 @@ function isUnloadStop(stop: any): boolean {
   return ['delivery', 'dropoff', 'unload'].includes(String(stop?.type || '').toLowerCase());
 }
 
+/**
+ * Window end of a stop. `timeWindowMax` is authoritative when present (a fixed
+ * appointment stores start === end); a stop that only carries date/time fields
+ * is resolved by the shared appointment model. No 23:59 default is invented.
+ */
 function stopWindowEnd(stop: any): Date | null {
   if (stop?.timeWindowMax) {
     const value = new Date(stop.timeWindowMax);
     if (!Number.isNaN(value.getTime())) return value;
   }
-  if (stop?.dateFrom) {
-    const value = new Date(`${stop.dateFrom}T${stop.timeUntil || '23:59'}:00`);
-    if (!Number.isNaN(value.getTime())) return value;
-  }
-  return null;
+  return resolveStopAppointment(stop).end;
 }
 
 function syntheticTask(taskType: 'load' | 'unload', order: any, cargo: CargoTotals) {
