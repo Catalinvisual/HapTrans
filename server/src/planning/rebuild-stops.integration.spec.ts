@@ -199,4 +199,32 @@ describeDb('route-plan stop rebuild (PostgreSQL)', () => {
     expect(stops).toHaveLength(2);
     expect(stops.map((s) => s.city)).toEqual(['Écully', 'Soest']);
   });
+
+  it('rebuilds one operation once when the order carries duplicated stop rows', async () => {
+    // The production shape behind "Stop Sequence (44)": the same pickup and the
+    // same delivery written several times as separate records.
+    const { company, trip, order } = await seedLegacyTrip();
+    for (let copy = 0; copy < 4; copy += 1) {
+      await repo<OrderStop>(OrderStop).save({
+        company, order, type: 'pickup', sequence: 1, city: 'Écully', country: 'FR',
+        address: '1 Rue de la Gare', latitude: 45.7719, longitude: 4.7755,
+        dateFrom: '2026-11-10', timeFrom: '08:00',
+      } as any);
+      await repo<OrderStop>(OrderStop).save({
+        company, order, type: 'delivery', sequence: 2, city: 'Soest', country: 'DE',
+        address: '2 Markt', latitude: 51.5713, longitude: 8.1064,
+        dateFrom: '2026-11-11', timeFrom: '10:00',
+      } as any);
+    }
+
+    await (service as any).rebuildStops(trip.id);
+
+    const stops = await tripStops(trip.id);
+    expect(stops).toHaveLength(2);
+    expect(stops.map((s) => `${s.type}:${s.city}`)).toEqual(['pickup:Écully', 'delivery:Soest']);
+
+    // A second rebuild must not resurrect the copies from the order rows.
+    await (service as any).rebuildStops(trip.id);
+    expect(await tripStops(trip.id)).toHaveLength(2);
+  });
 });
