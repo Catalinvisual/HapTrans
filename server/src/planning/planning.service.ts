@@ -37,6 +37,7 @@ import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } f
 import { etaDeviations } from './eta-deviation';
 import { deriveConsolidationVerdict } from './consolidation-feasibility';
 import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
+import { planOrderStopSync } from './stop-sync';
 import { buildRouteSchedule } from './route-schedule';
 import { evaluateInsertion } from './stop-insertion';
 import { buildConsolidationProposal } from './consolidation-proposal';
@@ -3462,19 +3463,19 @@ export class PlanningService {
       return { updated: 0, tripId, skipped: 'no_matching_stops' };
     }
 
-    const used = new Set<string>();
+    // Idempotent matching: the same order and trip must always resolve to the
+    // same trip stops, and a duplicated trip stop is never consumed twice.
+    const syncPlan = planOrderStopSync(orderStops as any[], tripStops as any[]);
     let updated = 0;
     let historyPreserved = false;
-    for (let index = 0; index < orderStops.length; index += 1) {
-      const orderStop: any = orderStops[index];
-      const wantedType = orderStops.length === 1
-        ? null
-        : index === 0 ? 'pickup' : index === orderStops.length - 1 ? 'delivery' : 'stop';
-      const target = (wantedType
-        ? tripStops.find((stop: any) => !used.has(stop.id) && String(stop.type || '').toLowerCase() === wantedType)
-        : null) || tripStops.find((stop: any) => !used.has(stop.id));
+    // A duplicated candidate means the trip already carries two stops for one
+    // order operation. Report it as stale data instead of hiding it or deleting
+    // operational history behind the dispatcher's back.
+    if (syncPlan.duplicates.length > 0) {
+      await this.tripRepo.update(tripId, { validationOutdated: true } as any);
+    }
+    for (const { orderStop, tripStop: target } of syncPlan.pairs) {
       if (!target) continue;
-      used.add(target.id);
 
       const appointment = resolveStopAppointment(orderStop);
       const completed = Boolean(target.ata || target.completedAt || String(target.status || '').toLowerCase() === 'completed');
@@ -3518,7 +3519,14 @@ export class PlanningService {
         }
       }
     }
-    return { updated, tripId, stops: tripStops.length, historyPreserved };
+    return {
+      updated,
+      tripId,
+      stops: tripStops.length,
+      historyPreserved,
+      duplicates: syncPlan.duplicates,
+      unmatchedTripStops: syncPlan.unmatchedTripStopIds,
+    };
   }
 
   async rebuildStops(tripId: string, manager?: EntityManager) {
