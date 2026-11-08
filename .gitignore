@@ -48,3 +48,4 @@ server/dist/
 server/node_modules/
 
 .tools/
+.verify-pg/

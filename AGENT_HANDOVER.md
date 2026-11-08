@@ -120,6 +120,38 @@ jump-to-order action, and a required override reason for `warning`/`unverified` 
   other labels used by `ConsolidationWizard.tsx` (`cons_title`, `stops`, `sched_waiting`, …) resolve
   from the base catalogue in `client/src/lib/i18n.ts`, where each is defined for all seven locales.
 
+## Verified against a real PostgreSQL 16.4 database
+
+`server/src/planning/confirmation-transaction.integration.spec.ts` (gated by `VERIFY_DATABASE_URL`,
+skipped otherwise) runs the real `PlanningService.assignOrders` against a disposable PostgreSQL 16.4
+instance; only the preflight verdict and routing provider are mocked, every write is real SQL.
+
+```bash
+# one-off disposable server (no admin, no production credentials)
+.verify-pg/pgsql/bin/pg_ctl.exe -D .verify-pg/data -o "-p 55432" -l .verify-pg/pg.log start
+cd server && VERIFY_DATABASE_URL="postgres://postgres@127.0.0.1:55432/haptrans_verify" \
+  npx jest src/planning/confirmation-transaction.integration.spec.ts --runInBand
+```
+
+| Scenario | Result |
+| --- | --- |
+| A. commit persists assignment, 2 rebuilt stops with ETA, schedule, distance, confirmation row | pass |
+| B. failure in `rebuildStops` → order still `new`, 0 stops, no confirmation key | pass |
+| C. failure in `recalculateTrip` → order unassigned, 0 stops, no confirmation row | pass |
+| D. failure inserting the audit row (injected inside the real transaction) → no audit, no key, no assignment | pass |
+| E. same `confirmationKey` twice → same trip, 1 confirmation row, 2 stops, 2 tasks | pass |
+| F. two concurrent confirmations, one key → exactly one commit, one row, same trip | pass |
+| G. hard blocker with an override present → `ASSIGNMENT_BLOCKED`, nothing written | pass |
+| H. committed truck overlap → `TRUCK_OVERLAP`, `overlapMinutes = 423`, `overrideable = false`, assignment refused; missing trailer body data reported `unverified`, never `incompatible` | pass |
+
+### Defect found by the database suite (fixed)
+
+The idempotency lookup used `action.afterState->>'confirmationKey'`. `afterState` is a camelCase
+database column, so unquoted SQL is folded to `afterstate` and PostgreSQL rejects it:
+`column action.afterstate does not exist`. Mocks could not catch this — it failed on the first real
+query. Both lookups (`findConfirmation` and the in-transaction re-check) now use
+`action."afterState"->>'confirmationKey'`, and tests E/F are the regression cover.
+
 ## Not verified / blocked (no deployment access)
 
 - **Not deployed.** Production still serves commit `2940881`:
@@ -131,12 +163,12 @@ jump-to-order action, and a required override reason for `warning`/`unverified` 
 - **Production Planning not opened**: the only reachable host is the API
   (`haptrans-production.up.railway.app`), which answers `Cannot GET /`; `haptrans.up.railway.app` and
   `haptrans-tms.up.railway.app` do not exist. The TMS URL is unknown to this environment.
-- **No duplicate-confirmation test against production** — forbidden by the milestone, and there is no
-  local Postgres to run the transaction against. The transaction/advisory-lock path is compiled and
-  covered by the pure-rule tests only; it must be exercised on a non-production database.
-- Truck/trailer/driver overlap checks were added to the preflight **without** seeing the live payload.
-  The genuine 423-minute `AR 67X WT` / `TRP-2026-0005` overlap will now surface as `TRUCK_OVERLAP`
-  (blocking) in the wizard; that is intended, and must be confirmed on the real data after deploy.
+- **No duplicate-confirmation test against production** — forbidden, and not needed: atomicity,
+  rollback and the advisory-lock idempotency contract are proven on a disposable PostgreSQL 16.4
+  (tests A–G above), never on production records.
+- The truck/trailer/driver overlap rule is verified against real rows (test H: 423 min, blocking,
+  not overrideable, assignment refused). It has **not** been run against the production records of
+  `AR 67X WT` / `TRP-2026-0005`, because the preflight needs a JWT and no credentials exist here.
 
 ## Deployment (dashboard, exact)
 
@@ -166,8 +198,8 @@ Deploy, then call the consolidation preflight with `{ orderIds: ["7db8a596-f560-
 3. the wizard renders that payload, the override reason is required for `unverified` (trailer
    `VL61TWZ` has no internal height) and confirmation stores `assignment_override` +
    `assignment_confirmation` rows;
-4. re-sending the same `confirmationKey` returns the same trip with no second allocation — only on a
-   controlled test trip, never on the production assignment.
+4. re-sending the same `confirmationKey` returns the same trip with no second allocation — already
+   proven on PostgreSQL (tests E/F); repeat it on a controlled trip, never on the production one.
 
 Then continue with Priority 5 (`Conflicts: 1` explanation) and Priority 7 (the six Calculation
 Results tabs and their exports), which are independent of the consolidation work.

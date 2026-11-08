@@ -295,7 +295,7 @@ export class PlanningService {
     const record = await this.actionRepo
       .createQueryBuilder('action')
       .where('action.action = :action', { action: 'assignment_confirmation' })
-      .andWhere("action.afterState->>'confirmationKey' = :key", { key: confirmationKey })
+      .andWhere(`action."afterState"->>'confirmationKey' = :key`, { key: confirmationKey })
       .getOne();
     if (!record) return null;
     const tripId = (record.afterState as any)?.tripId || null;
@@ -2448,7 +2448,7 @@ export class PlanningService {
         const prior = await manager.getRepository(PlanningAction)
           .createQueryBuilder('action')
           .where('action.action = :action', { action: 'assignment_confirmation' })
-          .andWhere("action.afterState->>'confirmationKey' = :key", { key: confirmationKey })
+          .andWhere(`action."afterState"->>'confirmationKey' = :key`, { key: confirmationKey })
           .getOne();
         const priorTripId = (prior?.afterState as any)?.tripId;
         if (priorTripId) {
