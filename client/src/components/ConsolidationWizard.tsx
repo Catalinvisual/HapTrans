@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { groupConflicts, presentConflict } from '../lib/conflictPresentation';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -481,34 +482,78 @@ export default function ConsolidationWizard({
                 {[...blockers, ...warnings].length === 0 && (
                   <p className="text-[11px] text-text-secondary">{t('cw_no_conflicts', 'No blocking or warning conditions were found.')}</p>
                 )}
-                {[...blockers, ...warnings].map((conflict: any, index: number) => (
-                  <div key={`${conflict.id || conflict.code}-${index}`} className="rounded-xl border border-border bg-card p-2 text-[11px]">
-                    <div className="flex items-start gap-1.5">
-                      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[8px] font-black uppercase ${conflict.level === 'blocking'
-                        ? 'bg-red-600 text-white'
-                        : 'bg-amber-500/20 text-amber-800 dark:text-amber-300'}`}
-                      >
-                        {conflict.level === 'blocking' ? t('cons_blockers', 'Blockers') : t('cw_warnings', 'Warnings')}
-                      </span>
-                      {conflict.code && <code className="shrink-0 rounded bg-surface px-1 py-0.5 text-[9px] font-bold text-text-secondary">{conflict.code}</code>}
-                      <span className="text-text-primary">{conflict.message}</span>
+                {groupConflicts([...blockers, ...warnings]).map(({ conflict, count }: any, index: number) => {
+                  const presented = presentConflict(conflict, {
+                    t,
+                    locale: (typeof document !== 'undefined' && document.documentElement.lang) || 'en-GB',
+                  });
+                  return (
+                    <div key={`${conflict.id || conflict.code}-${index}`} className="rounded-xl border border-border bg-card p-2 text-[11px]">
+                      <div className="flex items-start gap-1.5">
+                        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[8px] font-black uppercase ${presented.severity === 'blocking'
+                          ? 'bg-red-600 text-white'
+                          : presented.severity === 'unverified'
+                            ? 'bg-sky-500/20 text-sky-800 dark:text-sky-300'
+                            : 'bg-amber-500/20 text-amber-800 dark:text-amber-300'}`}
+                        >
+                          {presented.severity === 'blocking'
+                            ? t('cons_blockers', 'Blockers')
+                            : presented.severity === 'unverified'
+                              ? t('cw_unverified', 'Unverified')
+                              : t('cw_warnings', 'Warnings')}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-text-primary">
+                            {presented.title}
+                            {count > 1 && (
+                              <span className="ml-1 text-[9px] font-black text-text-muted">
+                                {t('cf_occurrences', '{count}×').replace('{count}', String(count))}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-text-secondary">{presented.description}</p>
+                          {presented.meta.length > 0 && (
+                            <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[10px]">
+                              {presented.meta.map((entry: any) => (
+                                <div key={entry.label} className="contents">
+                                  <dt className="text-text-muted">{entry.label}</dt>
+                                  <dd className="font-semibold text-text-primary">{entry.value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )}
+                          {presented.action && (
+                            <p className="mt-1 font-semibold text-amber-800 dark:text-amber-300">{presented.action}</p>
+                          )}
+                          {presented.technical.length > 0 && (
+                            <details className="mt-1">
+                              <summary className="cursor-pointer text-[9px] font-black uppercase tracking-wide text-text-muted">
+                                {t('cf_technical', 'Technical details')}
+                              </summary>
+                              <dl className="mt-1 space-y-0.5 font-mono text-[9px] text-muted-foreground">
+                                {presented.technical.map((entry: any) => (
+                                  <div key={`${entry.label}-${entry.value}`} className="flex gap-1">
+                                    <dt className="shrink-0 text-text-muted">{entry.label}:</dt>
+                                    <dd className="break-all">{entry.value}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </details>
+                          )}
+                        </div>
+                      </div>
+                      {conflict.orderId && (
+                        <button
+                          type="button"
+                          onClick={() => onJumpToOrder(String(conflict.orderId))}
+                          className="mt-1 inline-flex items-center gap-1 text-[10px] font-black text-primary hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />{t('cw_jump', 'Open')} {t('cw_order_ref', 'Order')}
+                        </button>
+                      )}
                     </div>
-                    {conflict.params && Object.keys(conflict.params).length > 0 && (
-                      <p className="mt-0.5 pl-1 font-mono text-[9px] text-text-muted">
-                        {Object.entries(conflict.params).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`).join(' · ')}
-                      </p>
-                    )}
-                    {conflict.orderId && (
-                      <button
-                        type="button"
-                        onClick={() => onJumpToOrder(String(conflict.orderId))}
-                        className="mt-1 inline-flex items-center gap-1 text-[10px] font-black text-primary hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" />{t('cw_jump', 'Open')} {conflict.orderId}
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {needsOverride && (

@@ -186,6 +186,17 @@ relabelled as EUR. Wired into `TripsService.recalculateTripMetrics`, which previ
 EUR sums, mixed EUR/PLN, PLN-only, missing currency, an unavailable leg, explicit zero and a partial
 route.
 
+## Conflict presentation
+
+`client/src/lib/conflictPresentation.ts` turns each raw conflict into a human explanation: a title, a
+sentence, formatted facts (`Conflicting trip`, `Location`, `Busy until`, `Overlap` as `7 h 03 min`),
+a recommended action, and a **collapsed** `Technical details` section holding the code, ids, the
+original backend message and raw params. Times use `Intl.DateTimeFormat` with the user's locale and
+local time zone, so no ISO `T`/`Z` strings reach the primary UI; identifiers are never printed in the
+primary description (the jump button now says "Open · Order" instead of the raw id). Identical
+conflicts are grouped with a `×N` badge (`groupConflicts`). Labels for all seven locales live in
+`client/src/lib/planningConflictI18n.ts` (merged in `i18n.ts`).
+
 ## Deployment (dashboard, exact)
 
 Railway → project **HapCargo** → `main` @ `4fc81e1` (or this commit).
