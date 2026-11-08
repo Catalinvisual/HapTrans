@@ -43,6 +43,14 @@ interface ExportData {
 }
 
 const VIEWS: ViewKey[] = ['results', 'route', 'costs', 'driver', 'conflicts', 'emissions'];
+
+/**
+ * Consumption is quoted per 100 km (L/100 km), but the estimated energy on a
+ * trip is a total quantity in the base unit (L, kg or kWh). Reusing the
+ * consumption unit labelled 594.3 litres as "L/100 km".
+ */
+const energyUnit = (consumptionUnit?: string | null): string =>
+  String(consumptionUnit || '').split('/')[0].trim();
 const HEIGHT_KEY = 'hapcargo:planningResultsHeight';
 const COLLAPSED_KEY = 'hapcargo:planningResultsCollapsed';
 const VIEW_KEY = 'hapcargo:planningResultsView';
@@ -996,7 +1004,9 @@ export default function PlanningResultsPanel({
         fuelType: m.fuelType ? fuelTypeLabel(m.fuelType, t) : '',
         distance: m.distanceKm ?? '',
         consumption: m.consumption === null ? '' : `${m.consumption} ${m.consumptionUnit || ''}`.trim(),
-        energy: m.energyQuantity === null ? '' : `${m.energyQuantity} ${m.consumptionUnit || ''}`.trim(),
+        energy: m.energyQuantity === null
+          ? ''
+          : `${fmtNumber(m.energyQuantity, 1)} ${energyUnit(m.consumptionUnit)}`.trim(),
         factor: m.emissionFactor ?? '',
         co2: m.co2Kg ?? '',
         status:
@@ -2121,8 +2131,8 @@ export default function PlanningResultsPanel({
     for (const metric of metrics) {
       if (metric.energyQuantity === null || !metric.consumptionUnit) continue;
       energyByUnit.set(
-        metric.consumptionUnit,
-        (energyByUnit.get(metric.consumptionUnit) || 0) + metric.energyQuantity,
+        energyUnit(metric.consumptionUnit),
+        (energyByUnit.get(energyUnit(metric.consumptionUnit)) || 0) + metric.energyQuantity,
       );
     }
     const totalCo2 = co2Metrics.reduce((sum, m) => sum + (m.co2Kg ?? 0), 0);
@@ -2194,7 +2204,7 @@ export default function PlanningResultsPanel({
                 <td className={tdR}>
                   {m.energyQuantity === null || !m.consumptionUnit
                     ? nc()
-                    : `${fmtNumber(m.energyQuantity, 1)} ${m.consumptionUnit}`}
+                    : `${fmtNumber(m.energyQuantity, 1)} ${energyUnit(m.consumptionUnit)}`}
                 </td>
                 <td className={tdR}>
                   {m.emissionFactor === null ? na() : `${fmtNumber(m.emissionFactor, 2)} kg/${m.consumptionUnit?.split('/')[0] || 'unit'}`}
