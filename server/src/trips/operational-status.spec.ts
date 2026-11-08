@@ -1,5 +1,6 @@
 import {
   deriveOperationalStatus,
+  orderDeliveryProgress,
   operationalStatusForIncident,
   incidentBlocksCompletion,
   isDeliveryResolution,
@@ -82,6 +83,33 @@ describe('canonical operational lifecycle', () => {
       stops: [pickup('pending'), delivery('pending')],
     } as any);
     expect(accepted.operationalStatus).toBe('ACCEPTED');
+  });
+
+  it('keeps a multi-stop order in progress after one delivery allocation completes', () => {
+    const progress = orderDeliveryProgress([
+      { sequence: 2, type: 'delivery', status: 'completed' },
+      { sequence: 3, type: 'delivery', status: 'pending' },
+    ]);
+    expect(progress.allDeliveriesDone).toBe(false);
+    expect(progress.operationalStatus).toBe('EN_ROUTE_TO_DELIVERY');
+  });
+
+  it('reports the next open delivery allocation stage for a multi-stop order', () => {
+    expect(orderDeliveryProgress([
+      { sequence: 2, type: 'delivery', status: 'completed' },
+      { sequence: 3, type: 'delivery', status: 'arrived' },
+    ])).toEqual({ allDeliveriesDone: false, operationalStatus: 'ARRIVED_AT_DELIVERY' });
+    expect(orderDeliveryProgress([
+      { sequence: 2, type: 'delivery', status: 'completed' },
+      { sequence: 3, type: 'delivery', status: 'unloading' },
+    ])).toEqual({ allDeliveriesDone: false, operationalStatus: 'UNLOADING' });
+  });
+
+  it('completes an order only when every delivery stop is completed', () => {
+    expect(orderDeliveryProgress([
+      { sequence: 2, type: 'delivery', status: 'completed' },
+      { sequence: 3, type: 'delivery', status: 'completed' },
+    ])).toEqual({ allDeliveriesDone: true, operationalStatus: 'COMPLETED' });
   });
 
   it('maps every legacy stored stage without exposing an unknown code', () => {

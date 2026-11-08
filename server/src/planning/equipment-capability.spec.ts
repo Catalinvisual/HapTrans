@@ -10,6 +10,7 @@ const frigoTruck = {
 };
 const frigoTrailer = { type: 'frigo', heightCm: null };
 const megaTrailer = { type: 'mega', heightCm: 400 };
+const plainTruck = { truckType: 'Camion' };
 
 describe('equipment capability', () => {
   it('maps stored requirement labels to canonical codes in every supported language', () => {
@@ -57,6 +58,31 @@ describe('equipment capability', () => {
 
   it('matches frigo against the combination type', () => {
     const result = assessEquipment(frigoTruck, frigoTrailer, 'Frigo');
+    expect(result.supported).toBe(true);
+    expect(result.verified).toBe(true);
+  });
+
+  it('does not turn a mega-only body into a verified frigo incompatibility', () => {
+    const result = assessEquipment(plainTruck, { ...megaTrailer, plateNumber: 'VL61TWZ' }, 'Camion frigorific');
+    expect(result.code).toBe('frigo');
+    expect(result.supported).toBe(false);
+    // A mega trailer can also be refrigerated, so absence of the frigo token
+    // proves nothing until the body type or features say otherwise.
+    expect(result.verified).toBe(false);
+    expect(result.reason).toContain('cannot be verified');
+    expect(result.reason).toContain('VL61TWZ');
+  });
+
+  it('verifies a frigo incompatibility only for an explicitly non-refrigerated body', () => {
+    const result = assessEquipment(plainTruck, { type: 'tautliner', plateNumber: 'AB12CDE' }, 'Frigo');
+    expect(result.code).toBe('frigo');
+    expect(result.supported).toBe(false);
+    expect(result.verified).toBe(true);
+    expect(result.reason).toContain('does not provide refrigeration');
+  });
+
+  it('accepts refrigeration recorded as a feature', () => {
+    const result = assessEquipment(plainTruck, { type: 'mega', features: ['reefer'] }, 'Frigo');
     expect(result.supported).toBe(true);
     expect(result.verified).toBe(true);
   });

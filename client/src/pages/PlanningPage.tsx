@@ -1479,6 +1479,18 @@ function TripDetailDrawer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  const validationCode = String(trip.validationStatus || '').toLowerCase();
+  const validationLabelKey = ['feasible', 'warning', 'not_feasible', 'not_validated', 'validating'].includes(validationCode)
+    ? `status_${validationCode}`
+    : 'status_unknown';
+  const validationClass = validationCode === 'feasible'
+    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
+    : validationCode === 'warning'
+      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+      : validationCode === 'not_feasible'
+        ? 'bg-red-500/10 border-red-500/30 text-red-600'
+        : 'bg-slate-500/10 border-slate-500/30 text-slate-600 dark:text-slate-300';
+
   return typeof document !== 'undefined' ? createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 md:p-8 bg-black/60 backdrop-blur-md transition-all animate-in fade-in-0 duration-150"
@@ -1500,12 +1512,8 @@ function TripDetailDrawer({
                 </span>
               )}
               {trip.validationStatus && (
-                <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border uppercase ${
-                  trip.validationStatus === 'feasible' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' :
-                  trip.validationStatus === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' :
-                  'bg-red-500/10 border-red-500/30 text-red-600'
-                }`}>
-                  {String(t(`status_${trip.validationStatus}`, trip.validationStatus))}
+                <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border uppercase ${validationClass}`}>
+                  {t(validationLabelKey, t('status_unknown', 'Status unavailable'))}
                 </span>
               )}
               {detailLoading && <Loader2 className="w-4 h-4 animate-spin text-text-muted" />}
@@ -3709,12 +3717,20 @@ export default function PlanningPage() {
                   </div>
                 </div>
 
-                <div className="hidden md:flex items-center gap-3 text-[9px] font-bold text-text-secondary">
-                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary" />{t('timeline_legend_planned', 'Planned / assigned')}</span>
-                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" />{t('timeline_legend_active', 'In execution')}</span>
-                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500" />{t('timeline_legend_conflict', 'Conflict')}</span>
-                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500" />{t('timeline_legend_pickup', 'Pickup')}</span>
-                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" />{t('timeline_legend_delivery', 'Delivery')}</span>
+                <div className="hidden md:flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-bold text-text-secondary">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[8px] font-black uppercase tracking-wide text-text-muted">{t('timeline_legend_trip_status', 'Trip status')}</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('planning').accent }} />{t('timeline_legend_planned', 'Planned')}</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('assigned').accent }} />{t('timeline_legend_assigned', 'Assigned')}</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('in_transit').accent }} />{t('timeline_legend_active', 'In execution')}</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('delayed').accent }} />{t('timeline_legend_conflict', 'Conflict')}</span>
+                  </div>
+                  <span className="w-px h-3 bg-border" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[8px] font-black uppercase tracking-wide text-text-muted">{t('timeline_stop_sequence', 'Stop sequence')}</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500" />{t('timeline_legend_pickup', 'Pickup')}</span>
+                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" />{t('timeline_legend_delivery', 'Delivery')}</span>
+                  </div>
                 </div>
 
                 <div className="ml-auto flex items-center gap-2 shrink-0">

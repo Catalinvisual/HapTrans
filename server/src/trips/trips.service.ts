@@ -25,6 +25,7 @@ import { diffStopChanges, localizeStopChange } from './stop-change';
 import {
   deriveOperationalStatus,
   deriveOrderOperationalStatus,
+  orderDeliveryProgress,
   normalizeTripOperationalStatus,
   operationalStatusForIncident,
   operationalStatusFromLegacy,
@@ -608,12 +609,21 @@ export class TripsService {
       operationalStatus = deriveOperationalStatus(stops, legacy);
       const patch: any = { hasOpenIncident: false, operationalStatus };
       await this.repo.update(tripId, patch);
-      if (incident.orderId) {
+    }
+    if (incident.orderId) {
+      // An incident on one order must not leave a different order flagged, and
+      // resolving the last incident for this order must clear its own flag even
+      // when another order on the trip still has an open incident.
+      const otherOpenForOrder = await this.incidentRepo().count({
+        where: { tripId, orderId: incident.orderId, status: 'OPEN' },
+      });
+      if (otherOpenForOrder === 0) {
+        const stop = ((trip as any).stops || []).find((s: any) => String(s.id) === String(incident.stopId));
         await this.repo.manager.update('Order', { id: incident.orderId }, {
           hasOpenIncident: false,
           operationalStatus: deriveOrderOperationalStatus(
-            String((((trip as any).stops || []).find((s: any) => String(s.id) === String(incident.stopId))?.type) || 'delivery'),
-            String((((trip as any).stops || []).find((s: any) => String(s.id) === String(incident.stopId))?.status) || 'unloading'),
+            String(stop?.type || 'delivery'),
+            String(stop?.status || 'unloading'),
           ),
         });
       }
@@ -662,15 +672,21 @@ export class TripsService {
     return { success: true, message: 'Delay reported successfully' };
   }
 
-  /** Open full/partial rejection prevents any silent completion. */
-  private async openBlockingIncident(tripId: string): Promise<DeliveryIncident | null> {
+  /**
+   * Open full/partial rejection prevents that delivery stop from being marked
+   * complete. The block is scoped to the affected stop so other orders on the
+   * same trip can still be delivered while dispatch resolves the incident.
+   */
+  private async openBlockingIncident(tripId: string, stopId?: string): Promise<DeliveryIncident | null> {
     if (!this.incidentsRepo) return null;
+    const where: any = {
+      tripId,
+      status: 'OPEN',
+      outcome: In(['FULL_REJECTION', 'PARTIAL_REJECTION']),
+    };
+    if (stopId) where.stopId = String(stopId);
     return this.incidentsRepo.findOne({
-      where: {
-        tripId,
-        status: 'OPEN',
-        outcome: In(['FULL_REJECTION', 'PARTIAL_REJECTION']),
-      },
+      where,
       order: { createdAt: 'DESC' },
     });
   }
@@ -802,7 +818,7 @@ export class TripsService {
   }
 
   /** True only when every delivery allocation for this order is completed. */
-  private async orderDeliveriesCompleted(tripId: string, orderId: string, fallbackType?: string, fallbackStatus?: string): Promise<boolean> {
+  private async orderDeliveryProgress(tripId: string, orderId: string, fallbackType?: string, fallbackStatus?: string) {
     const tasks = (await this.repo.manager.find('StopTask', {
       where: { order: { id: orderId }, stop: { trip: { id: tripId } } },
       relations: ['stop'],
@@ -811,9 +827,12 @@ export class TripsService {
       ['unload', 'delivery', 'dropoff'].includes(String(task.type || '').toLowerCase()),
     );
     if (deliveryTasks.length === 0) {
-      return fallbackType === 'delivery' && fallbackStatus === 'completed';
+      return {
+        allDeliveriesDone: fallbackType === 'delivery' && fallbackStatus === 'completed',
+        operationalStatus: deriveOrderOperationalStatus(fallbackType || 'delivery', fallbackStatus || 'pending'),
+      };
     }
-    return deliveryTasks.every((task) => normalizeStopStatus(task.stop?.status) === 'completed');
+    return orderDeliveryProgress(deliveryTasks.map((task) => task.stop));
   }
 
   /**
@@ -856,7 +875,7 @@ export class TripsService {
     }
     if (target.status === 'completed') return this.findOne(tripId);
 
-    const blocking = await this.openBlockingIncident(tripId);
+    const blocking = await this.openBlockingIncident(tripId, target.id);
     if (blocking) {
       throw new ConflictException('Delivery is rejected. The dispatcher must resolve the incident before completion.');
     }
@@ -905,13 +924,13 @@ export class TripsService {
 
     const orderIds = this.orderIdsForStop(target, trip, data.orderId);
     for (const orderId of orderIds) {
-      const allDeliveriesDone = await this.orderDeliveriesCompleted(tripId, orderId, 'delivery', 'completed');
-      const orderPatch: any = { operationalStatus: allDeliveriesDone ? 'COMPLETED' : 'UNLOADING' };
+      const progress = await this.orderDeliveryProgress(tripId, orderId, 'delivery', 'completed');
+      const orderPatch: any = { operationalStatus: progress.operationalStatus };
       // Completion is the only point where the commercial fulfilment status
       // becomes delivered. Other delivery stops may still be outstanding.
-      if (allDeliveriesDone) orderPatch.status = 'delivered';
+      if (progress.allDeliveriesDone) orderPatch.status = 'delivered';
       await this.repo.manager.update('Order', { id: orderId }, orderPatch);
-      if (allDeliveriesDone) {
+      if (progress.allDeliveriesDone) {
         await this.ensureDraftInvoice(orderId, user);
       }
     }
@@ -1592,7 +1611,7 @@ export class TripsService {
     // full/partial rejection. Validate before writing so a failed proof upload
     // can never leave a completed stop behind.
     if (stopType === 'delivery' && next === 'completed') {
-      const blocking = await this.openBlockingIncident(trip.id);
+      const blocking = await this.openBlockingIncident(trip.id, stop.id);
       if (blocking) {
         throw new ConflictException('Delivery is rejected. The dispatcher must resolve the incident before completion.');
       }
@@ -1621,18 +1640,27 @@ export class TripsService {
       }
     }
     const orderStatus = deriveOrderStatusForStop(stopType, next);
-    const orderOperational = deriveOrderOperationalStatus(stopType, next);
+    let orderOperational: string | undefined;
     for (const orderId of orderIds) {
-      const allDeliveriesDone = await this.orderDeliveriesCompleted(trip.id, orderId, stopType, next);
+      if (stopType !== 'delivery') {
+        const op = deriveOrderOperationalStatus(stopType, next);
+        orderOperational = op;
+        const patch: any = { operationalStatus: op };
+        if (orderStatus && orderStatus !== 'delivered') patch.status = orderStatus;
+        await this.repo.manager.update('Order', { id: orderId }, patch);
+        continue;
+      }
+      const progress = await this.orderDeliveryProgress(trip.id, orderId, stopType, next);
+      orderOperational = progress.operationalStatus;
       const patch: any = {
-        operationalStatus: allDeliveriesDone ? 'COMPLETED' : orderOperational,
+        operationalStatus: progress.operationalStatus,
       };
       // A multi-stop order is delivered only after every delivery allocation is
       // complete. One completed delivery stop must not close the whole order.
-      if (allDeliveriesDone) patch.status = 'delivered';
+      if (progress.allDeliveriesDone) patch.status = 'delivered';
       else if (orderStatus && orderStatus !== 'delivered') patch.status = orderStatus;
       await this.repo.manager.update('Order', { id: orderId }, patch);
-      if (allDeliveriesDone) {
+      if (progress.allDeliveriesDone) {
         await this.ensureDraftInvoice(orderId, user);
       }
     }

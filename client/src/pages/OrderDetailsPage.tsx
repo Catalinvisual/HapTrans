@@ -11,6 +11,7 @@ import WeightKgIcon from '../components/icons/WeightKgIcon';
 import AdrBadge from '../components/common/AdrBadge';
 import ActivityTimeline from '../components/ActivityTimeline';
 import StatusBadge from '../components/ui/StatusBadge';
+import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 export default function OrderDetailsPage() {
   const {
     id
@@ -50,8 +51,8 @@ export default function OrderDetailsPage() {
           <div>
             <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3 flex-wrap">{order.orderNumber}
               <StatusBadge
-                status={order.status}
-                label={order.status ? t(`status_${order.status}`, order.status.replace(/_/g, ' ')) : '—'}
+                status={operationalStatusForDisplay(order)}
+                label={t(operationalStatusKey(order), operationalStatusForDisplay(order)) as string}
                 size="md"
               />
               {orderIsAdr(order) && (

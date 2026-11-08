@@ -150,13 +150,29 @@ export function assessEquipment(truck: any, trailer: any, requirement: unknown):
     }
     case 'frigo': {
       const supported = has(c, 'frigo', 'reefer', 'isotherm', 'refriger');
+      if (supported) {
+        return { code, supported: true, verified: true, reason: 'the combination has refrigeration.' };
+      }
+      // A body type such as mega, box or container does not prove the absence
+      // of refrigeration: refrigerated mega trailers and reefer boxes exist.
+      // Only an explicitly non-refrigerated body is a verified incompatibility.
+      const body = c.trailerType || c.truckType;
+      const explicitNonRefrigerated = /(tautliner|curtain|prelata|bache|planen|tilt|flatbed|plateau|platform|open side|walking floor)/.test(body);
+      if (explicitNonRefrigerated) {
+        const label = trailer?.plateNumber ? `Trailer ${trailer.plateNumber}` : 'The assigned combination';
+        return {
+          code,
+          supported: false,
+          verified: true,
+          reason: `${label} is recorded as ${describe(body)} and does not provide refrigeration.`,
+        };
+      }
+      const label = trailer?.plateNumber ? `Trailer ${trailer.plateNumber}` : 'The assigned combination';
       return {
         code,
-        supported,
-        verified: c.hasTypeData || c.hasFeatureData,
-        reason: supported
-          ? 'the combination has refrigeration.'
-          : `the combination is ${describe(c.trailerType || c.truckType || c.truckType)} without refrigeration.`,
+        supported: false,
+        verified: false,
+        reason: `${label} is recorded as ${describe(body)} and no refrigeration is recorded, so refrigerated capability cannot be verified; this body type can also be refrigerated.`,
       };
     }
     case 'lift': {

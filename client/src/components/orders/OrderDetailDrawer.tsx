@@ -23,6 +23,7 @@ import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
+import { operationalStatusForDisplay, operationalStatusKey } from '../../lib/operationalI18n';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/settingsStore';
 import { generateOrderPdf } from '../../lib/pdfGenerator';
@@ -168,8 +169,8 @@ export default function OrderDetailDrawer({
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge
                 type="order"
-                status={order.status}
-                label={t(`status_${order.status}`, order.status.replace(/_/g, ' '))}
+                status={operationalStatusForDisplay(order)}
+                label={t(operationalStatusKey(order), operationalStatusForDisplay(order)) as string}
                 size="md"
               />
               {orderIsAdr(order) && (

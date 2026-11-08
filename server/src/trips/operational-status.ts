@@ -194,6 +194,36 @@ export function normalizeTripOperationalStatus<T extends { operationalStatus?: a
   return trip;
 }
 
+export interface OrderDeliveryProgress {
+  /** True only when every delivery allocation of this order is completed. */
+  allDeliveriesDone: boolean;
+  /** Canonical stage of the next still-open delivery stop. */
+  operationalStatus: OperationalStatus;
+}
+
+/**
+ * Progress of one order across all of its delivery stops on a trip.
+ *
+ * Completing a single delivery allocation of a multi-stop order must not
+ * report the whole order as completed. The next open allocation decides the
+ * label: pending -> en route, arrived -> arrived, unloading -> unloading.
+ */
+export function orderDeliveryProgress(deliveryStops: any[]): OrderDeliveryProgress {
+  const open = (deliveryStops || [])
+    .filter((stop) => stop && stopStatus(stop) !== 'completed')
+    .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+  if (open.length === 0) {
+    return { allDeliveriesDone: true, operationalStatus: 'COMPLETED' };
+  }
+  const status = stopStatus(open[0]);
+  const operationalStatus: OperationalStatus = status === 'arrived'
+    ? 'ARRIVED_AT_DELIVERY'
+    : status === 'unloading'
+      ? 'UNLOADING'
+      : 'EN_ROUTE_TO_DELIVERY';
+  return { allDeliveriesDone: false, operationalStatus };
+}
+
 /** Operational status for one order, based on the stop that carries it. */
 export function deriveOrderOperationalStatus(stopTypeValue: string, status: string): OperationalStatus {
   const type = stopType({ type: stopTypeValue });

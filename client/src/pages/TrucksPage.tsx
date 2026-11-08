@@ -36,6 +36,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { matchesSearch } from '../lib/search';
+import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import { countryNames, countryName } from '../lib/countries';
 import {
   TRUCK_FUEL_TYPES,
@@ -802,7 +803,7 @@ export default function TrucksPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-sm text-text-primary truncate">{order.orderNumber || order.id}</span>
                     <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-surface border border-border text-text-secondary">
-                      {t(`status_${String(order.status || '').toLowerCase()}`, order.status || '—')}
+                      {t(operationalStatusKey(order), operationalStatusForDisplay(order))}
                     </span>
                   </div>
                   <div className="text-xs text-text-secondary mt-0.5 truncate">
