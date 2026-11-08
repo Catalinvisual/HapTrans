@@ -154,15 +154,20 @@ query. Both lookups (`findConfirmation` and the in-transaction re-check) now use
 
 ## Not verified / blocked (no deployment access)
 
-- **Not deployed.** Production still serves commit `2940881`:
+- **Deployed and verified.** Pushing `2787909` to GitHub `main` triggered Railway's auto-deploy:
   `GET https://haptrans-production.up.railway.app/api/routing-public/deployment` →
-  `{"commit":"29408818e9daef60a2989dc7bbcda9783c3332de", ...}`. No `railway` CLI and no Railway token
-  exist in this environment, so nothing was deployed and no deployment is claimed.
-- **Production scenario not executed**: `POST /api/planning/trips/af3e9176-baca-4258-9a1b-bf6e15769854/consolidation-preflight`
-  needs a JWT, and no credentials are available here.
-- **Production Planning not opened**: the only reachable host is the API
-  (`haptrans-production.up.railway.app`), which answers `Cannot GET /`; `haptrans.up.railway.app` and
-  `haptrans-tms.up.railway.app` do not exist. The TMS URL is unknown to this environment.
+  `{"commit":"2787909eec3993d5a96bf43d9ee5d82f3e3ca94c","deploymentId":"1973874d-cc14-4d11-a82b-b00ef5a6588d","branch":"main","environment":"production"}`.
+  The TMS is served from `https://joyful-exploration-production.up.railway.app` (`<title>HapCargo</title>`,
+  HTTP 200); its lazy chunk `PlanningPage-XtLo89_t.js` contains `confirmationKey`, `PROPOSAL_CHANGED`
+  and `cw_feasible`, so the client code from `d5f40fb` is what production serves.
+- **Production preflight not executed — blocked on authentication.**
+  `POST /api/auth/login` with the README admin account (`admin@hapcargo.ro`) answers
+  `401 {"message":"Contul dumneavoastră este inactiv. Vă rugăm să contactați administratorul."}`.
+  Only the owner can re-activate or reset that production account; no other account exists in the
+  repository. Nothing was attempted against production data to work around it.
+- **Browser wizard verification not performed.** The TMS (`joyful-exploration-production.up.railway.app`)
+  requires a signed-in session; with the only documented account inactive, no authenticated Planning
+  page could be opened, so no visual, scrolling, responsive or locale result is claimed here.
 - **No duplicate-confirmation test against production** — forbidden, and not needed: atomicity,
   rollback and the advisory-lock idempotency contract are proven on a disposable PostgreSQL 16.4
   (tests A–G above), never on production records.
@@ -188,8 +193,9 @@ Railway → project **HapCargo** → `main` @ `4fc81e1` (or this commit).
 
 ## Next highest-priority task
 
-Deploy, then call the consolidation preflight with `{ orderIds: ["7db8a596-f560-4ae5-ba49-091951c6ef77"] }`
-(ORD-2024007) and confirm:
+Deployment is done (API `2787909`, TMS serving the `d5f40fb` client). The remaining gate is an active
+production account: re-activate `admin@hapcargo.ro` (or supply a JWT), then call the consolidation
+preflight with `{ orderIds: ["7db8a596-f560-4ae5-ba49-091951c6ef77"] }` (ORD-2024007) and confirm:
 
 1. `route.addedDistanceKm << 2657` and `route.legs` differ from `route.baselineLegs` by insertion,
    not by tail append;
