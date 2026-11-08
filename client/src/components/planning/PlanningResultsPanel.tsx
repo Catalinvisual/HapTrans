@@ -1007,8 +1007,8 @@ export default function PlanningResultsPanel({
         energy: m.energyQuantity === null
           ? ''
           : `${fmtNumber(m.energyQuantity, 1)} ${energyUnit(m.consumptionUnit)}`.trim(),
-        factor: m.emissionFactor ?? '',
-        co2: m.co2Kg ?? '',
+        factor: m.emissionFactor === null || m.emissionFactor === undefined ? '' : fmtNumber(m.emissionFactor, 2),
+        co2: m.co2Kg === null || m.co2Kg === undefined ? '' : fmtNumber(m.co2Kg, 1),
         status:
           m.co2Kg !== null
             ? t('pr.estimated', 'Estimated')
