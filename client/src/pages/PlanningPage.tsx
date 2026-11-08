@@ -661,6 +661,11 @@ function TripBlock({
             <span className={`font-black truncate tracking-tight text-text-primary ${isVeryNarrow ? 'text-[8px]' : 'text-[11px]'}`} style={{ maxWidth: isNarrow ? '100%' : '55%' }}>
               {trip.tripNumber || '—'}
             </span>
+            {!isNarrow && (trip.truck?.plateNumber || trip.truckPlate) && (
+              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30 tabular-nums" title={`${t('truck', 'Truck')}: ${trip.truck?.plateNumber || trip.truckPlate}`}>
+                {trip.truck?.plateNumber || trip.truckPlate}
+              </span>
+            )}
             {ordinalTotal > 1 && !isVeryNarrow && (
               <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm bg-card/70 border border-border/70 text-text-secondary" title={t('timeline_trip_sequence', 'Trip {{current}} of {{total}} on this resource', { current: ordinal, total: ordinalTotal })}>
                 {ordinal}/{ordinalTotal}
@@ -728,6 +733,9 @@ function TripBlock({
               )}
               {!isNarrow && ordersCount > 0 && (
                 <span className="truncate text-text-muted">· {orderRefs.length > 1 ? `${ordersCount} ${t('timeline_orders_short', 'ORD')}` : orderRefs[0]}</span>
+              )}
+              {!isNarrow && driverName && (
+                <span className="truncate text-text-muted">· {driverName}</span>
               )}
             </div>
           )}
