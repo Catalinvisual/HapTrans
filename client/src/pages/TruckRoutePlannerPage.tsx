@@ -1254,9 +1254,57 @@ export default function TruckRoutePlannerPage() {
                   {Array.isArray(scheduleBreakdown.gaps) && scheduleBreakdown.gaps.length > 0 && (
                     <span className="text-amber-700 dark:text-amber-300">{t('sched_gap', 'Schedule gaps')}: {scheduleBreakdown.gaps.length}</span>
                   )}
-                  {Array.isArray(scheduleBreakdown.conflicts) && scheduleBreakdown.conflicts.length > 0 && (
-                    <span className="font-semibold text-red-700 dark:text-red-400">{t('pln_conflicts', 'Conflicts')}: {scheduleBreakdown.conflicts.length}</span>
-                  )}
+                  {Array.isArray(scheduleBreakdown.conflicts) && scheduleBreakdown.conflicts.map((conflict: any, conflictIndex: number) => {
+                    const conflictStop: any = (routePlan.stops || []).find((candidate: any) => candidate.id === conflict.stopId);
+                    const arrival = conflict.arrival ? new Date(conflict.arrival) : null;
+                    const deadline = conflict.windowEnd
+                      ? new Date(conflict.windowEnd)
+                      : conflictStop?.timeWindowEnd
+                        ? new Date(conflictStop.timeWindowEnd)
+                        : null;
+                    const plannedArrival = conflictStop?.plannedEta ? new Date(conflictStop.plannedEta) : null;
+                    const lateMin = arrival && deadline
+                      ? Math.max(0, Math.round((arrival.getTime() - deadline.getTime()) / 60000))
+                      : null;
+                    const stamp = (value: Date | null) =>
+                      value
+                        ? new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(value)
+                        : '—';
+                    const city = conflict.city || conflictStop?.city || '—';
+                    const label = t('cf_planner_chip', '{{city}}: arrives {{arrival}}, deadline {{deadline}} ({{minutes}} min late)', {
+                      city,
+                      arrival: stamp(arrival),
+                      deadline: stamp(deadline),
+                      minutes: lateMin ?? 0,
+                    });
+                    const details = [
+                      `${t('cf_planner_stop', 'Stop')}: ${city}`,
+                      `${t('cf_planner_planned', 'Planned arrival')}: ${stamp(plannedArrival)}`,
+                      `${t('cf_planner_calculated', 'Calculated arrival')}: ${stamp(arrival)}`,
+                      `${t('cf_planner_deadline', 'Window deadline')}: ${stamp(deadline)}`,
+                      `${t('cf_planner_delay', 'Delay')}: ${lateMin ?? 0} min`,
+                      t('cf_planner_reason', 'The trip reaches this stop after its time window closes.'),
+                    ].join(' · ');
+                    return (
+                      <button
+                        key={`schedule-conflict-${conflict.stopId || conflictIndex}`}
+                        type="button"
+                        title={details}
+                        aria-label={details}
+                        onClick={() => {
+                          if (!conflict.stopId) return;
+                          setActiveStopId(conflict.stopId);
+                          document
+                            .getElementById(`planner-stop-${conflict.stopId}`)
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }}
+                        className="inline-flex items-center gap-1 font-semibold text-red-700 dark:text-red-400 hover:underline"
+                      >
+                        <AlertTriangle className="w-3 h-3" />
+                        {label}
+                      </button>
+                    );
+                  })}
                 </>
               )}
               <span className="text-text-secondary">{t('pln_total_elapsed', 'Total elapsed')}: <strong className="text-text-primary">{Math.floor(routeTotalMinutes / 60)}h {routeTotalMinutes % 60}m</strong></span>
@@ -1454,7 +1502,7 @@ export default function TruckRoutePlannerPage() {
                 : null;
 
               return (
-                <div key={stop.id} className="space-y-1.5">
+                <div key={stop.id} id={`planner-stop-${stop.id}`} className="space-y-1.5">
                   {isDateChange && dayLabel && (
                     <div className="flex items-center gap-2 pt-2 pb-1 text-[11px] font-bold text-text-muted">
                       <div className="h-px bg-border flex-1" />

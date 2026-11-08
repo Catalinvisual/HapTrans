@@ -25,6 +25,17 @@ const positive = (value: unknown): number | null => {
 };
 
 /**
+ * An attached trailer is part of the vehicle combination, so the tightest
+ * known limit governs. A 23.2 t tractor drawing a 21.2 t trailer can only
+ * legally carry 21.2 t; taking the first value found let the heavier tractor
+ * figure win and hid a real overload.
+ */
+const tightest = (...values: Array<number | null>): number | null => {
+  const known = values.filter((value): value is number => value !== null);
+  return known.length ? Math.min(...known) : null;
+};
+
+/**
  * Only values that actually exist on the tractor or trailer can prove an
  * overload. resolveTruckCapacity deliberately has display defaults, but those
  * defaults must never be used to block a dispatcher.
@@ -32,16 +43,18 @@ const positive = (value: unknown): number | null => {
 export function knownTruckCapacity(truck?: any): KnownTruckCapacity {
   const trailer = truck?.trailer;
   const gvw = positive(truck?.maxWeightKg);
-  const truckPayload = positive(truck?.payloadCapacity);
   return {
-    maxWeightKg:
-      truckPayload ??
-      (gvw !== null && gvw <= 30000 ? gvw : null) ??
-      positive(trailer?.payloadCapacityWeight) ??
+    maxWeightKg: tightest(
+      positive(truck?.payloadCapacity),
+      // A gross vehicle weight only stands in for payload on light vehicles;
+      // above 30 t it is the combination's own mass and proves nothing.
+      gvw !== null && gvw <= 30000 ? gvw : null,
+      positive(trailer?.payloadCapacityWeight),
       positive(trailer?.maxWeightKg),
-    maxLdm: positive(truck?.maxLdm) ?? positive(trailer?.maxLdm),
-    maxVolumeCbm: positive(truck?.maxVolumeCbm) ?? positive(trailer?.maxVolumeCbm),
-    maxPallets: positive(truck?.maxPallets) ?? positive(trailer?.payloadCapacityPallets),
+    ),
+    maxLdm: tightest(positive(truck?.maxLdm), positive(trailer?.maxLdm)),
+    maxVolumeCbm: tightest(positive(truck?.maxVolumeCbm), positive(trailer?.maxVolumeCbm)),
+    maxPallets: tightest(positive(truck?.maxPallets), positive(trailer?.payloadCapacityPallets)),
   };
 }
 

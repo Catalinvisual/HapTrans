@@ -298,3 +298,77 @@ export const planningConflictResources: Record<string, { translation: Record<str
   es: { translation: es },
   pl: { translation: pl },
 };
+
+// Route-planner schedule conflicts: the chip names the stop and its deadline so
+// the planner does not have to decode "Conflicts: 1". Kept beside the wizard
+// labels so both surfaces stay in the same seven locales.
+const plannerScheduleLabels: Record<string, Record<string, string>> = {
+  en: {
+    cf_planner_chip: '{{city}}: arrives {{arrival}}, deadline {{deadline}} ({{minutes}} min late)',
+    cf_planner_stop: 'Stop',
+    cf_planner_planned: 'Planned arrival',
+    cf_planner_calculated: 'Calculated arrival',
+    cf_planner_deadline: 'Window deadline',
+    cf_planner_delay: 'Delay',
+    cf_planner_reason: 'The trip reaches this stop after its time window closes.',
+  },
+  ro: {
+    cf_planner_chip: '{{city}}: sosire {{arrival}}, termen {{deadline}} ({{minutes}} min întârziere)',
+    cf_planner_stop: 'Oprire',
+    cf_planner_planned: 'Sosire planificată',
+    cf_planner_calculated: 'Sosire calculată',
+    cf_planner_deadline: 'Termen fereastră',
+    cf_planner_delay: 'Întârziere',
+    cf_planner_reason: 'Cursa ajunge la această oprire după închiderea ferestrei de timp.',
+  },
+  nl: {
+    cf_planner_chip: '{{city}}: aankomst {{arrival}}, deadline {{deadline}} ({{minutes}} min te laat)',
+    cf_planner_stop: 'Stop',
+    cf_planner_planned: 'Geplande aankomst',
+    cf_planner_calculated: 'Berekende aankomst',
+    cf_planner_deadline: 'Deadline tijdsvenster',
+    cf_planner_delay: 'Vertraging',
+    cf_planner_reason: 'De rit bereikt deze stop nadat het tijdsvenster sluit.',
+  },
+  de: {
+    cf_planner_chip: '{{city}}: Ankunft {{arrival}}, Frist {{deadline}} ({{minutes}} Min. zu spät)',
+    cf_planner_stop: 'Stopp',
+    cf_planner_planned: 'Geplante Ankunft',
+    cf_planner_calculated: 'Berechnete Ankunft',
+    cf_planner_deadline: 'Frist Zeitfenster',
+    cf_planner_delay: 'Verspätung',
+    cf_planner_reason: 'Die Tour erreicht diesen Stopp nach Ablauf des Zeitfensters.',
+  },
+  fr: {
+    cf_planner_chip: '{{city}} : arrivée {{arrival}}, échéance {{deadline}} ({{minutes}} min de retard)',
+    cf_planner_stop: 'Arrêt',
+    cf_planner_planned: 'Arrivée prévue',
+    cf_planner_calculated: 'Arrivée calculée',
+    cf_planner_deadline: 'Échéance de la fenêtre',
+    cf_planner_delay: 'Retard',
+    cf_planner_reason: 'La tournée atteint cet arrêt après la fermeture de la fenêtre horaire.',
+  },
+  es: {
+    cf_planner_chip: '{{city}}: llegada {{arrival}}, límite {{deadline}} ({{minutes}} min de retraso)',
+    cf_planner_stop: 'Parada',
+    cf_planner_planned: 'Llegada prevista',
+    cf_planner_calculated: 'Llegada calculada',
+    cf_planner_deadline: 'Límite de la ventana',
+    cf_planner_delay: 'Retraso',
+    cf_planner_reason: 'El viaje llega a esta parada después del cierre de la ventana horaria.',
+  },
+  pl: {
+    cf_planner_chip: '{{city}}: przybycie {{arrival}}, termin {{deadline}} ({{minutes}} min opóźnienia)',
+    cf_planner_stop: 'Postój',
+    cf_planner_planned: 'Planowane przybycie',
+    cf_planner_calculated: 'Obliczone przybycie',
+    cf_planner_deadline: 'Termin okna czasowego',
+    cf_planner_delay: 'Opóźnienie',
+    cf_planner_reason: 'Kurs dociera do tego postoju po zamknięciu okna czasowego.',
+  },
+};
+
+for (const [locale, labels] of Object.entries(plannerScheduleLabels)) {
+  const resources = planningConflictResources[locale];
+  if (resources) resources.translation = { ...labels, ...resources.translation };
+}

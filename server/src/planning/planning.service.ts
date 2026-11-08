@@ -890,7 +890,10 @@ export class PlanningService {
     }
 
     const stops = (trip.stops || []).slice().sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
-    const capacity = knownTruckCapacity(trip.truck as any);
+    const capacity = knownTruckCapacity({
+      ...((trip.truck || {}) as any),
+      trailer: (trip as any).trailer || (trip.truck as any)?.trailer || null,
+    });
     const ledger = buildCargoLedger(stops as any[], capacity);
     return {
       tripId: trip.id,
@@ -1606,7 +1609,9 @@ export class PlanningService {
 
     const truck = trip.truck || null;
     const trailer = trip.trailer || truck?.trailer || null;
-    const known = knownTruckCapacity(truck);
+    // The attached trailer limits the combination; leaving it out let the
+    // tractor's payload and pallet figures hide a trailer overload.
+    const known = knownTruckCapacity({ ...(truck || {}), trailer });
     const existingStops = [...((trip.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
 
     // Every insertion position is evaluated before anything is persisted, so
@@ -2028,7 +2033,7 @@ export class PlanningService {
 
     const truck = trip.truck || null;
     const trailer = trip.trailer || (truck as any)?.trailer || null;
-    const capacity = knownTruckCapacity(truck);
+    const capacity = knownTruckCapacity({ ...(truck || {}), trailer });
     const departure = trip.plannedDeparture ? new Date(trip.plannedDeparture) : null;
     const orderOfStop = (stop: any) => stop.tasks?.[0]?.order?.id || stop.tasks?.[0]?.orderId || null;
 

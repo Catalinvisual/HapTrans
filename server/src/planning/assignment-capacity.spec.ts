@@ -37,6 +37,26 @@ describe('assignment capacity rules', () => {
     ]);
   });
 
+  it('lets the attached trailer tighten the combination limits', () => {
+    // Real production pair: tractor AR 67X WT (23,235 kg / 34 pallets) with
+    // trailer VL61TWZ (21,220 kg / 24 pallets). The trailer governs.
+    const capacity = knownTruckCapacity({
+      payloadCapacity: 23235,
+      maxWeightKg: 40924,
+      maxPallets: 34,
+      maxLdm: 9.9,
+      maxVolumeCbm: 84,
+      trailer: { payloadCapacityWeight: 21220, payloadCapacityPallets: 24, maxLdm: 9.9, maxVolumeCbm: 87 },
+    });
+    expect(capacity).toEqual({ maxWeightKg: 21220, maxLdm: 9.9, maxVolumeCbm: 84, maxPallets: 24 });
+  });
+
+  it('never lets a larger trailer raise the tractor limit', () => {
+    expect(
+      knownTruckCapacity({ payloadCapacity: 18000, maxPallets: 20, trailer: { payloadCapacityWeight: 24000, payloadCapacityPallets: 33 } }),
+    ).toMatchObject({ maxWeightKg: 18000, maxPallets: 20 });
+  });
+
   it('uses trailer capacity when the tractor has none and normalizes equipment', () => {
     expect(knownTruckCapacity({ trailer: { maxLdm: 13.6, payloadCapacityPallets: 33 } })).toMatchObject({
       maxLdm: 13.6,
