@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, IsNull, Not, Brackets } from 'typeorm';
+import { Repository, In, IsNull, Not, Brackets, DataSource, EntityManager } from 'typeorm';
+import { buildOverrideAudit, isAcceptableReviewedSequence, normalizeConfirmationKey, validateInsertionSequence } from './assignment-confirmation';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { Trip } from '../trips/trip.entity';
 import { Stop } from '../trips/stop.entity';
@@ -167,6 +168,7 @@ export class PlanningService {
     private readonly timelineService: TimelineService,
     private readonly optimizationService: OptimizationService,
     private readonly routingService: RoutingService,
+    private readonly dataSource: DataSource,
   ) {
     this.actionRepo = this.planningActionRepo;
   }
@@ -268,8 +270,40 @@ export class PlanningService {
     return { weight: Math.round(weight * 100) / 100, ldm: Math.round(ldm * 100) / 100, pallets, volume: Math.round(volume * 100) / 100 };
   }
 
-  private loadTrip(id: string) {
-    return this.tripRepo.findOne({
+  private tripRepoFor(manager?: EntityManager) {
+    return manager ? manager.getRepository(Trip) : this.tripRepo;
+  }
+
+  private stopRepoFor(manager?: EntityManager) {
+    return manager ? manager.getRepository(Stop) : this.stopRepo;
+  }
+
+  private taskRepoFor(manager?: EntityManager) {
+    return manager ? manager.getRepository(StopTask) : this.taskRepo;
+  }
+
+  private orderRepoFor(manager?: EntityManager) {
+    return manager ? manager.getRepository(Order) : this.orderRepo;
+  }
+
+  /**
+   * Looks up a committed confirmation by its idempotency key. The record is
+   * written inside the confirmation transaction, so finding one proves the
+   * assignment, stop reconstruction, schedule and audit were all committed.
+   */
+  private async findConfirmation(confirmationKey: string): Promise<{ tripId: string | null } | null> {
+    const record = await this.actionRepo
+      .createQueryBuilder('action')
+      .where('action.action = :action', { action: 'assignment_confirmation' })
+      .andWhere("action.afterState->>'confirmationKey' = :key", { key: confirmationKey })
+      .getOne();
+    if (!record) return null;
+    const tripId = (record.afterState as any)?.tripId || null;
+    return { tripId: tripId ? String(tripId) : null };
+  }
+
+  private loadTrip(id: string, manager?: EntityManager) {
+    return this.tripRepoFor(manager).findOne({
       where: { id },
       relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'truck.driver.documents', 'truck.trailer', 'trailer', 'driver', 'driver.user', 'driver.documents',
         'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems',
@@ -1701,6 +1735,83 @@ export class PlanningService {
       });
     }
 
+    // Committed activities, revalidated for the trip window immediately before
+    // the proposal is shown and again before persistence. A truck, trailer or
+    // driver already committed to another active trip cannot be assigned here,
+    // and this stays a hard blocker that no override can bypass.
+    const plannedStart = trip.plannedDeparture ? new Date(trip.plannedDeparture) : null;
+    const plannedFinish = trip.plannedArrival ? new Date(trip.plannedArrival) : null;
+    const activeDriver: any = (trip as any).driver || (trip.truck as any)?.driver || null;
+    const activeDriverId = activeDriver?.id || null;
+    const activeTrailerId = (trip as any).trailer?.id || (trip.truck as any)?.trailer?.id || null;
+    if (plannedStart && plannedFinish) {
+      const proposedInterval = { start: plannedStart.getTime(), end: plannedFinish.getTime() };
+      const otherTrips = await this.tripRepo.find({
+        where: { id: Not(tripId) },
+        relations: ['truck', 'trailer', 'driver', 'driver.user', 'stops'],
+      });
+      for (const other of otherTrips) {
+        if (!isActiveTrip(other)) continue;
+        const interval = tripInterval(other);
+        if (!interval) continue;
+        const overlap = overlapInterval(proposedInterval, interval);
+        const overlapMinutes = Math.round((overlap.end - overlap.start) / 60000);
+        if (!Number.isFinite(overlapMinutes) || overlapMinutes <= 0) continue;
+        const otherRef = (other as any).tripNumber || other.id;
+        const overlapStart = new Date(overlap.start).toISOString();
+        const overlapEnd = new Date(overlap.end).toISOString();
+        if (truck && other.truck && String(other.truck.id) === String(truck.id)) {
+          add(blockers, {
+            level: 'blocking',
+            code: 'TRUCK_OVERLAP',
+            tripId,
+            resourceId: truck.id,
+            params: { plateNumber: truck.plateNumber, trip: otherRef, tripId: other.id, overlapStart, overlapEnd, overlapMinutes },
+            message: `Truck ${truck.plateNumber || ''} is already committed to trip ${otherRef} (${overlapMinutes} min overlap). Release that commitment before confirming.`,
+          });
+        }
+        const otherTrailer: any = (other as any).trailer || (other.truck as any)?.trailer || null;
+        if (activeTrailerId && otherTrailer && String(otherTrailer.id) === String(activeTrailerId)) {
+          add(blockers, {
+            level: 'blocking',
+            code: 'TRAILER_OVERLAP',
+            tripId,
+            resourceId: String(activeTrailerId),
+            params: { plateNumber: otherTrailer.plateNumber, trip: otherRef, tripId: other.id, overlapStart, overlapEnd, overlapMinutes },
+            message: `Trailer ${otherTrailer.plateNumber || ''} is already committed to trip ${otherRef} (${overlapMinutes} min overlap). Release that commitment before confirming.`,
+          });
+        }
+        const otherDriverId = ((other as any).driver || (other.truck as any)?.driver)?.id || null;
+        if (activeDriverId && otherDriverId && String(otherDriverId) === String(activeDriverId)) {
+          add(blockers, {
+            level: 'blocking',
+            code: 'DRIVER_OVERLAP',
+            tripId,
+            resourceId: String(activeDriverId),
+            params: { trip: otherRef, tripId: other.id, overlapStart, overlapEnd, overlapMinutes },
+            message: `The trip driver is already committed to trip ${otherRef} (${overlapMinutes} min overlap). Release that commitment before confirming.`,
+          });
+        }
+      }
+    }
+
+    // Driver-hour limits are checked only against recorded driving/rest periods.
+    // Missing tachograph data stays "unverified" and never becomes a blocker, so
+    // an absent record can never be read as unlimited availability either.
+    if (activeDriver && activeDriverId && plannedStart && plannedFinish) {
+      const recordedHours = await this.hosRepo.count({ where: { driver: { id: activeDriverId } } as any });
+      if (recordedHours > 0 && !this.isDriverAvailable(activeDriver, plannedStart, plannedFinish)) {
+        add(blockers, {
+          level: 'blocking',
+          code: 'DRIVER_HOURS_EXCEEDED',
+          tripId,
+          resourceId: String(activeDriverId),
+          params: { from: plannedStart.toISOString(), to: plannedFinish.toISOString(), periods: recordedHours },
+          message: 'The recorded driving and rest periods do not allow this driver to cover the trip window. Reduce the plan or assign another driver.',
+        });
+      }
+    }
+
     // Equipment is reported field by field with its verification state. A field
     // that was never recorded stays null instead of being replaced by a generic
     // vehicle value.
@@ -2112,6 +2223,25 @@ export class PlanningService {
     const companyId = user?.companyId || null;
     const orderIds: string[] = (dto.orderIds || dto.orders || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
     if (!orderIds.length) throw new BadRequestException('At least one order is required.');
+
+    // Idempotency: a retry of an already committed confirmation returns the
+    // committed trip instead of failing with "already planned" or allocating
+    // the orders a second time.
+    const confirmationKey = normalizeConfirmationKey(dto.confirmationKey);
+    if (dto.confirmationKey != null && !confirmationKey) {
+      throw new BadRequestException({
+        message: 'A confirmation key must be an opaque token of 8-128 characters.',
+        code: 'CONFIRMATION_KEY_INVALID',
+      });
+    }
+    if (confirmationKey) {
+      const prior = await this.findConfirmation(confirmationKey);
+      if (prior?.tripId) {
+        const committed = await this.loadTrip(prior.tripId);
+        if (committed) return committed;
+      }
+    }
+
     const orders = await this.orderRepo.find({ where: { id: In(orderIds) }, relations: ['stops', 'cargoItems', 'company', 'trip'] });
     if (orders.length !== orderIds.length) {
       const found = new Set(orders.map((o) => o.id));
@@ -2141,7 +2271,8 @@ export class PlanningService {
     const undoSnapshots = orders.map((o) => ({ id: o.id, tripId: null, status: o.status }));
 
     const tripIds: string[] = (dto.tripIds || dto.trips || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
-    let trip: Trip;
+    let trip: Trip | null = null;
+    let newTripDraft: any = null;
     let createdTripId: string | null = null;
     if (tripIds.length) {
       const existingTrip = await this.loadTrip(tripIds[0]);
@@ -2168,29 +2299,25 @@ export class PlanningService {
       const driver = driverId ? await this.driverRepo.findOne({ where: { id: driverId } }) : null;
       if (driverId && !driver) throw new NotFoundException('Driver not found.');
 
-      const tripNumber = await this.nextTripNumber();
-      const status = 'planning';
-      const tripEntity = this.tripRepo.create({
+      // The trip row is created inside the confirmation transaction: a failed
+      // confirmation must never leave an orphan trip or a consumed trip number.
+      newTripDraft = {
         company: companyId ? { id: companyId } : null,
-        tripNumber,
-        status,
+        status: 'planning',
         truck,
         driver,
         trailer: trailerId ? { id: trailerId } as any : undefined,
         plannedDeparture: departure,
         plannedArrival: arrival,
         dispatcher: { id: user?.id } as any,
-      } as any);
-      trip = await this.tripRepo.save(tripEntity as unknown as Trip);
-      createdTripId = trip.id;
-      this.logger.log(`Created trip ${trip.tripNumber} (${trip.id}) for ${orderIds.length} order(s).`);
+      };
     }
 
     // The review modal is a preview, not the enforcement point. Re-run the
     // same server-side feasibility rules for drag/drop and direct API clients
     // so no hard blocker can be bypassed by posting to /planning/assign.
     const validation = tripIds.length
-      ? await this.preflightConsolidation(user, trip.id, orderIds)
+      ? await this.preflightConsolidation(user, tripIds[0], orderIds)
       : { blockers: await this.validateAssignment(user, { ...dto, orderIds }) };
     const hardBlockers = (validation.blockers || []).filter((c: any) => c.level === 'blocking');
     if (hardBlockers.length) {
@@ -2263,35 +2390,19 @@ export class PlanningService {
         currentSequence,
         ...((current?.insertion?.alternatives || []) as any[]).map((option: any) => (option?.stopOrder || []).map(String)),
       ].filter((list) => list.length > 0);
-      const sameStops = (left: string[], right: string[]) =>
-        left.length === right.length
-        && [...left].sort().join('|') === [...right].sort().join('|');
       const sequenceChanged = reviewedSequence.length > 0
         && allowedSequences.length > 0
-        && !allowedSequences.some((list) => JSON.stringify(list) === JSON.stringify(reviewedSequence))
-        && !allowedSequences.some((list) => sameStops(list, reviewedSequence));
+        && !isAcceptableReviewedSequence(reviewedSequence, allowedSequences);
       if (reviewedSequence.length > 0) {
         // Pickup before delivery is a hard dependency: a requested sequence that
         // violates it must never be persisted.
-        const lastDelivery = new Map<string, number>();
-        const firstPickup = new Map<string, number>();
-        reviewedSequence.forEach((key, index) => {
-          const [orderId, type] = key.split(':');
-          if (!orderId) return;
-          if (type === 'pickup' || type === 'load') {
-            if (!firstPickup.has(orderId)) firstPickup.set(orderId, index);
-          }
-          if (type === 'delivery' || type === 'dropoff' || type === 'unload') lastDelivery.set(orderId, index);
-        });
-        for (const [orderId, pickupIndex] of firstPickup) {
-          const deliveryIndex = lastDelivery.get(orderId);
-          if (deliveryIndex != null && deliveryIndex < pickupIndex) {
-            throw new BadRequestException({
-              message: `The confirmed sequence places a delivery of ${orderId} before its pickup.`,
-              code: 'STOP_ORDER_INVALID',
-              orderId,
-            });
-          }
+        const sequenceCheck = validateInsertionSequence(reviewedSequence, allowedSequences[0] || []);
+        if (!sequenceCheck.ok) {
+          throw new BadRequestException({
+            message: sequenceCheck.message,
+            code: sequenceCheck.code,
+            orderId: sequenceCheck.orderId,
+          });
         }
       }
       const distanceChanged = reviewed.addedDistanceKm != null
@@ -2309,83 +2420,149 @@ export class PlanningService {
       }
     }
 
-    trip.orders = [...(trip.orders || [])];
-    const existingIds = new Set(trip.orders.map((o) => o.id));
-    const newOrders = orders.filter((o) => !existingIds.has(o.id));
-    for (const o of newOrders) {
-      o.trip = { id: trip.id } as any;
-      o.status = 'planned';
-      trip.orders.push(o as any);
-    }
-    await this.orderRepo.save(newOrders);
-
-    await this.rebuildStops(trip.id);
-    // A dispatcher-confirmed insertion sequence is authoritative: apply it to
-    // the rebuilt stops before distance, costs and the route plan are derived.
-    if (Array.isArray(dto.stopOrder) && dto.stopOrder.length) {
-      await this.applyConfirmedStopOrder(trip.id, dto.stopOrder);
-    }
-    const reloaded = await this.loadTrip(trip.id);
-    if (reloaded) {
-      await this.recalculateTrip(reloaded.id);
-      if (reloaded.truck) await this.recalculateCosts(reloaded);
+    // The confirmed sequence is authoritative, so it is validated before any
+    // write: the same stop set as the reviewed proposal, no duplicate key, and
+    // never a delivery before its own pickup.
+    const stopOrder: string[] = Array.isArray(dto.stopOrder) ? dto.stopOrder.map(String) : [];
+    if (stopOrder.length) {
+      const expectedKeys: string[] = ((validation as any)?.insertion?.recommended?.stopOrder || []).map(String);
+      const sequenceCheck = validateInsertionSequence(stopOrder, expectedKeys);
+      if (!sequenceCheck.ok) {
+        throw new BadRequestException({
+          message: sequenceCheck.message,
+          code: sequenceCheck.code,
+          orderId: sequenceCheck.orderId,
+        });
+      }
     }
 
-    await this.logTimeline('orders_planned', user, {
-      tripId: trip.id,
-      message: `${newOrders.length} order(s) added to trip ${trip.tripNumber}.`,
-      companyId: companyId || undefined,
-    });
+    // Assignment, stop reconstruction, route/schedule persistence and the
+    // override audit are one atomic unit. If any step fails the transaction is
+    // rolled back: no half-assigned trip, no rebuilt stops without their ETA,
+    // and no assignment without its audit record.
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      if (confirmationKey) {
+        // Serialises concurrent retries of the same key until this transaction
+        // ends, so two requests can never both write the assignment.
+        await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [confirmationKey]);
+        const prior = await manager.getRepository(PlanningAction)
+          .createQueryBuilder('action')
+          .where('action.action = :action', { action: 'assignment_confirmation' })
+          .andWhere("action.afterState->>'confirmationKey' = :key", { key: confirmationKey })
+          .getOne();
+        const priorTripId = (prior?.afterState as any)?.tripId;
+        if (priorTripId) {
+          return { tripId: String(priorTripId), replayed: true, newOrders: [] as Order[] };
+        }
+      }
 
-    // Append-only audit record for every accepted override. The user identity
-    // comes from the authenticated request, never from the body.
-    if (needsOverride) {
-      try {
-        await this.actionRepo.save(this.actionRepo.create({
+      let activeTrip: Trip;
+      if (trip) {
+        activeTrip = trip;
+      } else {
+        const tripNumber = await this.nextTripNumber(manager);
+        const created = manager.getRepository(Trip).create({ ...newTripDraft, tripNumber } as any);
+        activeTrip = await manager.getRepository(Trip).save(created as unknown as Trip);
+        createdTripId = activeTrip.id;
+        this.logger.log(`Created trip ${activeTrip.tripNumber} (${activeTrip.id}) for ${orderIds.length} order(s).`);
+      }
+
+      activeTrip.orders = [...(activeTrip.orders || [])];
+      const existingIds = new Set(activeTrip.orders.map((o) => o.id));
+      const newOrders = orders.filter((o) => !existingIds.has(o.id));
+      for (const o of newOrders) {
+        o.trip = { id: activeTrip.id } as any;
+        o.status = 'planned';
+        activeTrip.orders.push(o as any);
+      }
+      await this.orderRepoFor(manager).save(newOrders as any);
+
+      await this.rebuildStops(activeTrip.id, manager);
+      // A dispatcher-confirmed insertion sequence is authoritative: apply it to
+      // the rebuilt stops before distance, schedule and route are derived.
+      if (stopOrder.length) {
+        await this.applyConfirmedStopOrder(activeTrip.id, stopOrder, manager);
+      }
+      await this.recalculateTrip(activeTrip.id, manager);
+
+      // Append-only audit of the accepted override, written in the same
+      // transaction as the assignment it justifies. The identity always comes
+      // from the authenticated user, never from the body: buildOverrideAudit
+      // throws when the reason or the user is missing, which rolls this back.
+      if (needsOverride) {
+        const trailerId = (activeTrip as any).trailer?.id || (activeTrip.truck as any)?.trailer?.id || null;
+        const audit = buildOverrideAudit({
+          user,
+          companyId,
+          tripId: activeTrip.id,
+          tripNumber: activeTrip.tripNumber || null,
+          orderIds,
+          truckId: activeTrip.truck?.id || null,
+          trailerId,
+          feasibility,
+          softCodes,
+          acceptedCodes: claimedCodes,
+          reason: overrideReason,
+        });
+        const auditRepo = manager.getRepository(PlanningAction);
+        await auditRepo.save(auditRepo.create(audit as any));
+      }
+
+      // The idempotency record is part of the same transaction: it exists only
+      // for a confirmation that actually committed.
+      if (confirmationKey) {
+        const recordRepo = manager.getRepository(PlanningAction);
+        await recordRepo.save(recordRepo.create({
           company: companyId ? { id: companyId } : null,
           user: user?.id ? { id: user.id } : null,
-          truckId: trip.truck?.id || null,
-          action: 'assignment_override',
-          beforeState: {
-            tripId: trip.id,
-            orderIds,
-            feasibility,
-            codes: softCodes,
-          },
+          truckId: activeTrip.truck?.id || null,
+          action: 'assignment_confirmation',
+          beforeState: { tripId: activeTrip.id, orderIds, feasibilityStatus: feasibility?.status || null },
           afterState: {
-            decision: 'accepted',
-            reason: overrideReason,
-            acceptedCodes: claimedCodes,
-            feasibilityStatus: feasibility?.status || null,
-            tripId: trip.id,
-            tripNumber: trip.tripNumber || null,
+            confirmationKey,
+            tripId: activeTrip.id,
+            tripNumber: activeTrip.tripNumber || null,
             orderIds,
-            truckId: trip.truck?.id || null,
-            trailerId: (trip as any).trailer?.id || (trip.truck as any)?.trailer?.id || null,
             decidedBy: user?.id || null,
             decidedAt: new Date().toISOString(),
           },
         } as any));
-      } catch (error) {
-        // An override without its audit record must never be silently accepted.
-        throw new BadRequestException({
-          message: `The override could not be audited and the assignment was cancelled: ${(error as Error).message}`,
-          code: 'OVERRIDE_AUDIT_FAILED',
+      }
+
+      return { tripId: activeTrip.id, replayed: false, newOrders };
+    });
+
+    const confirmed = await this.loadTrip(outcome.tripId);
+    if (!confirmed) throw new NotFoundException('Trip not found after confirmation.');
+
+    if (!outcome.replayed) {
+      await this.logTimeline('orders_planned', user, {
+        tripId: confirmed.id,
+        message: `${outcome.newOrders.length} order(s) added to trip ${confirmed.tripNumber}.`,
+        companyId: companyId || undefined,
+      });
+      if (needsOverride) {
+        await this.logTimeline('assignment_override', user, {
+          tripId: confirmed.id,
+          message: `Override accepted (${feasibility?.status}) for ${softCodes.join(', ')}: ${overrideReason}`,
+          companyId: companyId || undefined,
         });
       }
-      await this.logTimeline('assignment_override', user, {
-        tripId: trip.id,
-        message: `Override accepted (${feasibility?.status}) for ${softCodes.join(', ')}: ${overrideReason}`,
-        companyId: companyId || undefined,
+      // The cost breakdown is derived data and is recalculated after the commit.
+      if (confirmed.truck) {
+        try {
+          await this.recalculateCosts(confirmed);
+        } catch (error) {
+          this.logger.warn(`Cost recalculation failed for trip ${confirmed.id}: ${(error as Error).message}`);
+        }
+      }
+      await this.recordUndo(user, 'assign', {
+        orders: undoSnapshots,
+        newTripIds: createdTripId ? [createdTripId] : [],
       });
     }
 
-    await this.recordUndo(user, 'assign', {
-      orders: undoSnapshots,
-      newTripIds: createdTripId ? [createdTripId] : [],
-    });
-
-    return this.loadTrip(trip.id);
+    return confirmed;
   }
 
   /**
@@ -2393,8 +2570,8 @@ export class PlanningService {
    * `orderId:type:city`, which identifies a stop without relying on the ids
    * that rebuildStops has just recreated.
    */
-  private async applyConfirmedStopOrder(tripId: string, stopOrder: string[]): Promise<void> {
-    const stops = await this.stopRepo.find({
+  private async applyConfirmedStopOrder(tripId: string, stopOrder: string[], manager?: EntityManager): Promise<void> {
+    const stops = await this.stopRepoFor(manager).find({
       where: { trip: { id: tripId } },
       relations: ['tasks', 'tasks.order'],
     });
@@ -2419,15 +2596,15 @@ export class PlanningService {
       const stop = ordered[index] as any;
       if (Number(stop.sequence) !== index + 1) {
         stop.sequence = index + 1;
-        await this.stopRepo.save(stop);
+        await this.stopRepoFor(manager).save(stop);
       }
     }
   }
 
-  private async nextTripNumber(): Promise<string> {
+  private async nextTripNumber(manager?: EntityManager): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `TRP-${year}-`;
-    const count = await this.tripRepo
+    const count = await this.tripRepoFor(manager)
       .createQueryBuilder('trip')
       .where('trip.tripNumber LIKE :prefix', { prefix: `${prefix}%` })
       .getCount();
@@ -2768,8 +2945,8 @@ export class PlanningService {
 
   // ─── Scheduling ─────────────────────────────────────────────────────────────
 
-  async recalculateTrip(tripId: string) {
-    const trip = await this.loadTrip(tripId);
+  async recalculateTrip(tripId: string, manager?: EntityManager) {
+    const trip = await this.loadTrip(tripId, manager);
     if (!trip) throw new NotFoundException('Trip not found.');
 
     const stops = (trip.stops || []).slice().sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
@@ -2834,14 +3011,14 @@ export class PlanningService {
     (trip as any).totalCargo = newCargo;
     const revenue = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
     (trip as any).totalRevenue = revenue;
-    trip.distanceKm = await this.calculateTripDistance(tripId);
+    trip.distanceKm = await this.calculateTripDistance(tripId, manager);
     (trip as any).estimatedDurationMin = trip.plannedDeparture && trip.plannedArrival
       ? Math.round((new Date(trip.plannedArrival).getTime() - new Date(trip.plannedDeparture).getTime()) / 60000)
       : 0;
-    await this.tripRepo.save(trip);
+    await this.tripRepoFor(manager).save(trip);
 
     for (const stop of stops) {
-      await this.stopRepo.save(stop);
+      await this.stopRepoFor(manager).save(stop);
     }
 
     return trip;
@@ -2874,8 +3051,8 @@ export class PlanningService {
     return true;
   }
 
-  private async calculateTripDistance(tripId: string): Promise<number> {
-    const stops = await this.stopRepo.find({ where: { trip: { id: tripId } }, order: { sequence: 'ASC' } });
+  private async calculateTripDistance(tripId: string, manager?: EntityManager): Promise<number> {
+    const stops = await this.stopRepoFor(manager).find({ where: { trip: { id: tripId } }, order: { sequence: 'ASC' } });
     let total = 0;
     let prev: Stop | null = null;
     for (const s of stops) {
@@ -2953,14 +3130,14 @@ export class PlanningService {
 
   // ─── Stop rebuild ───────────────────────────────────────────────────────────
 
-  async rebuildStops(tripId: string) {
-    const trip = await this.tripRepo.findOne({
+  async rebuildStops(tripId: string, manager?: EntityManager) {
+    const trip = await this.tripRepoFor(manager).findOne({
       where: { id: tripId },
       relations: ['orders', 'orders.stops', 'orders.cargoItems', 'stops'],
     });
     if (!trip) throw new NotFoundException('Trip not found.');
 
-    await this.stopRepo.delete({ trip: { id: tripId } });
+    await this.stopRepoFor(manager).delete({ trip: { id: tripId } });
 
     const orders = (trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled');
     const collected: any[] = [];
@@ -2979,7 +3156,7 @@ export class PlanningService {
     let stopOrder = 1;
     for (const item of sorted) {
       const os = item.os;
-      const stop = this.stopRepo.create({
+      const stop = this.stopRepoFor(manager).create({
         trip: { id: tripId },
         company: trip.company ? { id: trip.company.id } : null,
         sequence: stopOrder++,
@@ -2999,13 +3176,13 @@ export class PlanningService {
         timeWindowMax: this.getStopDateEnd(os),
         eta: this.getStopDate(os),
       } as any);
-      const saved = await this.stopRepo.save(stop);
+      const saved = await this.stopRepoFor(manager).save(stop);
 
       const tasks: any[] = [];
       for (const cargo of item.order.cargoItems || []) {
         const isLoad = item.isOrigin;
         tasks.push(
-          this.taskRepo.create({
+          this.taskRepoFor(manager).create({
             stop: saved,
             order: item.order,
             company: trip.company ? { id: trip.company.id } : null,
@@ -3019,9 +3196,9 @@ export class PlanningService {
           } as any),
         );
       }
-      await this.taskRepo.save(tasks);
+      await this.taskRepoFor(manager).save(tasks);
     }
-    return this.loadTrip(tripId);
+    return this.loadTrip(tripId, manager);
   }
 
   private compareOrderStops(a: any, b: any): number {

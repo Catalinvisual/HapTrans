@@ -2524,6 +2524,7 @@ export default function PlanningPage() {
     overrideReason?: string;
     overrideError?: string | null;
     proposalChanged?: boolean;
+    confirmationKey?: string;
   } | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
@@ -2929,6 +2930,13 @@ export default function PlanningPage() {
     }) || null;
   };
 
+  // One opaque key per reviewed proposal: retrying the same confirmation (a
+  // double click or a network retry) can never allocate the orders twice.
+  const newConfirmationKey = () =>
+    (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function'
+      ? (crypto as any).randomUUID()
+      : `ck-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
   const reviewAssignment = async (
     orderIds: string[],
     resourceId: string,
@@ -2946,6 +2954,7 @@ export default function PlanningPage() {
       loading: true,
       error: null,
       preflight: null,
+      confirmationKey: newConfirmationKey(),
     });
     try {
       let preflight: any;
@@ -3017,6 +3026,7 @@ export default function PlanningPage() {
     stopOrder?: string[],
     override?: { reason: string; codes: string[] },
     preview?: { feasibility: string; addedDistanceKm: number | null; stopOrder: string[] },
+    confirmationKey?: string,
   ) => {
     setLoadingAction('assign');
     try {
@@ -3028,6 +3038,7 @@ export default function PlanningPage() {
         ...(tripId && stopOrder?.length ? { stopOrder } : {}),
         ...(override ? { override } : {}),
         ...(preview ? { preview } : {}),
+        ...(confirmationKey ? { confirmationKey } : {}),
       });
       toast.success(t('jsx_assignedOk', 'Orders assigned'));
       setSelectedPoolOrderIds(new Set());
@@ -3047,6 +3058,7 @@ export default function PlanningPage() {
           proposalChanged: true,
           overrideReason: '',
           selectedInsertion: null,
+          confirmationKey: newConfirmationKey(),
         } : prev);
         toast.error(t('cw_proposal_changed', 'The proposal changed. Review the new result and confirm again.'));
         return;
@@ -3095,6 +3107,7 @@ export default function PlanningPage() {
       stopOrder,
       override,
       preview,
+      assignmentReview.confirmationKey || newConfirmationKey(),
     );
   };
 

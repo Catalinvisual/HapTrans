@@ -185,6 +185,20 @@ mockOrderRepo = {
       mockTimelineService,
       mockOptimizationService,
       mockRoutingService,
+      {
+        transaction: async (fn: any) => fn({
+          query: async () => [],
+          getRepository: () => ({
+            create: (entity: any) => entity,
+            save: async (entity: any) => entity,
+            findOne: async () => null,
+            find: async () => [],
+            createQueryBuilder: () => ({
+              where: () => ({ andWhere: () => ({ getOne: async () => null }) }),
+            }),
+          }),
+        }),
+      } as any,
     );
 
     trackController = new TrackController(mockOrdersService);
