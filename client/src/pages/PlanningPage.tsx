@@ -3467,7 +3467,7 @@ export default function PlanningPage() {
               type="button"
               onClick={() => {
                 const truckId = selectedTrip?.truck?.id || selectedTrip?.truckId;
-                if (truckId) navigate(`/fleet?tab=trucks&editId=${truckId}&highlight=profile`);
+                if (truckId) navigate(buildTruckDimensionsEditUrl(truckId, '/planning'));
               }}
               disabled={!selectedTrip?.truck?.id && !selectedTrip?.truckId}
               className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
