@@ -197,6 +197,35 @@ primary description (the jump button now says "Open · Order" instead of the raw
 conflicts are grouped with a `×N` badge (`groupConflicts`). Labels for all seven locales live in
 `client/src/lib/planningConflictI18n.ts` (merged in `i18n.ts`).
 
+## Production verification (authenticated, 2026-11-08)
+
+Signed in as the production administrator through the normal login endpoint (credentials are never
+stored in the repo). Read-only preflight for trip `af3e9176-baca-4258-9a1b-bf6e15769854` with
+ORD-2024007 returns **blocked and not overrideable**:
+
+- `STOP_WINDOW_MISSED` — Brașov delivery arrives 2026-11-09T04:45Z against a window ending
+  2026-11-08T17:00Z (705 min late).
+- `WEIGHT_OVERLOAD` — 31,791 kg on board vs 23,235 kg permitted.
+- `PALLET_OVERLOAD` — 57 pallets vs 34 permitted.
+- Warnings: `PRE_EXISTING_WINDOW_MISS` (Soest, 7,583 min, already missed in the baseline),
+  `ROUTE_UNVERIFIED`, `CARGO_DIMENSIONS_UNVERIFIED`, `EQUIPMENT_UNVERIFIED`.
+- Equipment: truck `AR 67X WT` (frigo) with trailer `VL61TWZ` (frigo, `heightCm: null`) cannot be
+  verified for the order's `Camion mega` requirement, so it stays `EQUIPMENT_UNVERIFIED` — never
+  reported as compatible or incompatible.
+- Route: provider `here`, baseline 2,154 km, proposed 2,154 km, added 0 km, 3 legs,
+  `insertion.recommended: null` because no position is feasible. The 2,657 km tail append does not
+  reproduce.
+- No `TRUCK_OVERLAP` is returned for this trip's interval, so the Planning board's `Conflicts: 1` chip
+  is **not** the AR67XWT overlap. It still has to be read from the board's own payload.
+
+### Calculation Results panel already exists
+
+`client/src/components/planning/PlanningResultsPanel.tsx` (2,390 lines, wired into `PlanningPage`)
+renders all six views — `results`, `route`, `costs`, `driver`, `conflicts`, `emissions` — with CO₂ and
+emission-factor/availability states, resize and collapse persistence, and xlsx (`lib/exportExcel`), CSV
+and PDF (jspdf + autotable) exports. Earlier entries calling these "untouched" were stale and are
+corrected here; what remains is deployed visual verification of each view and export, not construction.
+
 ## Deployment (dashboard, exact)
 
 Railway → project **HapCargo** → `main` @ `4fc81e1` (or this commit).
