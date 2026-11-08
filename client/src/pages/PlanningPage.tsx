@@ -138,6 +138,47 @@ function fmtShort(d: any) {
   return x.toLocaleDateString([], { day: '2-digit', month: 'short' });
 }
 
+/**
+ * Simultaneous load peak for one trip, from its persisted stop tasks.
+ *
+ * Capacity is a statement about what is on board at the same moment, so a pallet
+ * delivered before the next pickup must not be added to the pallet picked up
+ * later. Returns null when no stop carries a load/unload task, so the caller can
+ * fall back to the assigned total instead of inventing a peak.
+ */
+function tripCargoPeak(trip: any): { weight: number; pallets: number; ldm: number; volume: number } | null {
+  const stops = Array.isArray(trip?.stops) ? [...trip.stops] : [];
+  if (!stops.length) return null;
+  stops.sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+  let weight = 0, pallets = 0, ldm = 0, volume = 0;
+  let peak = { weight: 0, pallets: 0, ldm: 0, volume: 0 };
+  let sawTask = false;
+  for (const stop of stops) {
+    for (const task of stop?.tasks || []) {
+      const type = String(task?.type || '').toLowerCase();
+      const load = type === 'load' || type === 'pickup';
+      const unload = type === 'unload' || type === 'delivery' || type === 'dropoff';
+      if (!load && !unload) continue;
+      sawTask = true;
+      const sign = load ? 1 : -1;
+      const taskPallets = task.pallets != null
+        ? Number(task.pallets) || 0
+        : String(task.unit || '').toLowerCase() === 'pallet' ? Number(task.quantity) || 0 : 0;
+      weight += sign * (Number(task.weightKg) || 0);
+      pallets += sign * taskPallets;
+      ldm += sign * (Number(task.loadingMeters) || 0);
+      volume += sign * (Number(task.volumeCbm) || 0);
+      peak = {
+        weight: Math.max(peak.weight, weight),
+        pallets: Math.max(peak.pallets, pallets),
+        ldm: Math.max(peak.ldm, ldm),
+        volume: Math.max(peak.volume, volume),
+      };
+    }
+  }
+  return sawTask ? peak : null;
+}
+
 function sumCargo(orders: any[]) {
   let weight = 0, ldm = 0, pallets = 0, volume = 0, hasLdm = false;
   for (const o of orders || []) {
@@ -821,7 +862,21 @@ function ResourceRow({
   const nextTrip = [...trips]
     .filter((tr: any) => tr.plannedDeparture && new Date(tr.plannedDeparture).getTime() >= now)
     .sort((a: any, b: any) => new Date(a.plannedDeparture).getTime() - new Date(b.plannedDeparture).getTime())[0];
-  const cargo = sumCargo(trips.filter((tr: any) => !['completed', 'closed', 'cancelled'].includes(tr.status)).flatMap((tr: any) => tr.orders || []));
+  const activeTrips = trips.filter((tr: any) => !['completed', 'closed', 'cancelled'].includes(tr.status));
+  const tripPeaks = activeTrips.map((tr: any) => tripCargoPeak(tr)).filter(Boolean) as Array<{ weight: number; pallets: number; ldm: number; volume: number }>;
+  // Capacity is compared with the simultaneous peak. Summing every order on the
+  // resource showed 25/24 plt for a trip whose real peak is 24/24: the single
+  // pallet delivered at Soest was already off the truck before the 24 loaded.
+  const assignedCargo = sumCargo(activeTrips.flatMap((tr: any) => tr.orders || []));
+  const peakCargo = tripPeaks.length
+    ? tripPeaks.reduce((best, item) => ({
+      weight: Math.max(best.weight, item.weight),
+      pallets: Math.max(best.pallets, item.pallets),
+      ldm: Math.max(best.ldm, item.ldm),
+      volume: Math.max(best.volume, item.volume),
+    }), { weight: 0, pallets: 0, ldm: 0, volume: 0 })
+    : null;
+  const cargo = peakCargo || assignedCargo;
   // Use the same capacity the server ledger and conflict engine use. Never
   // invent 24000 kg / 33 pallets: an unknown limit must read as unknown.
   const mwValue = resource.capacity?.maxWeightKg ?? resource.payloadCapacity ?? resource.maxWeightKg;

@@ -2363,7 +2363,10 @@ export default function PlanningResultsPanel({
       </div>
 
       {!collapsed && (
-        <div className="h-9 shrink-0 flex items-center gap-1 px-2 border-b border-border bg-surface/50 overflow-x-auto custom-scrollbar">
+        // The six views must all be reachable: a fixed 36px strip with
+        // overflow-x clipped Ore de conducere, Conflicte and Emisii on a narrow
+        // panel with no visible scroll affordance, so the strip wraps instead.
+        <div className="shrink-0 flex flex-wrap items-center gap-1 px-2 py-1 border-b border-border bg-surface/50">
           {viewOptions.map((option) => (
             <button
               key={option.value}
