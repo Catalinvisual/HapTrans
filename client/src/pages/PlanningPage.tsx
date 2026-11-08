@@ -2698,7 +2698,10 @@ export default function PlanningPage() {
       return { from: dayStr(start), to: dayStr(end), totalMinutes: 31 * 24 * 60, hoursVisible: 31, fromDateObj: start };
     }
     if (viewMode === 'week') {
-      const start = addDays(curr, -((curr.getDay() + 6) % 7));
+      // The planning week opens on the selected day (today by default), not on
+      // the previous Monday: starting in the past pushed today's column — and
+      // its now-marker — off the first screen of the board.
+      const start = curr;
       return { from: dayStr(start), to: dayStr(addDays(start, 6)), totalMinutes: 7 * 24 * 60, hoursVisible: 7, fromDateObj: start };
     }
     // day / timeline / map — same range
@@ -4012,8 +4015,10 @@ export default function PlanningPage() {
                 )}
 </div>
 
-{boardData ? (
-      <div className="shrink-0 h-[34%] min-h-[190px] max-h-[320px] overflow-hidden border-t border-border">
+        {/* The results panel owns its height (48px collapsed, resizable when
+            open). A min-height wrapper left a blank region under it. */}
+        {boardData ? (
+      <div className="shrink-0 border-t border-border">
       <PlanningResultsPanel
         boardData={boardData}
         selectedTripId={selectedTripId}
