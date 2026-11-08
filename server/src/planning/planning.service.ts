@@ -61,6 +61,8 @@ import {
   missingTruckCapacity,
   normalizeEquipmentRequirements,
 } from './assignment-capacity';
+import { assessEquipment } from './equipment-capability';
+import { assessCandidateAvailability, tripOccupancyFromTimeline } from './truck-availability';
 import {
   missingVehicleRestrictions,
   resolveRouteRestrictionsState,
@@ -118,35 +120,9 @@ const dayStr = (d: Date) =>
 
 function vehicleHasEquipment(truck?: any, trailer?: any, req?: string): boolean {
   if (!req) return true;
-  const target = req.toLowerCase().trim();
-  const available: string[] = [
-    ...(truck?.features || []),
-    ...(truck?.equipment || []),
-    ...(truck?.equipmentRequirements || []),
-    ...(trailer?.features || []),
-    ...(trailer?.equipment || []),
-    ...(trailer?.equipmentRequirements || []),
-    ...(truck?.type ? [truck.type] : []),
-    ...(truck?.truckType ? [truck.truckType] : []),
-    ...(trailer?.type ? [trailer.type] : []),
-    ...(trailer?.trailerType ? [trailer.trailerType] : []),
-  ].map((s) => String(s).toLowerCase().trim());
-
-  // Match synonyms
-  if (target === 'tautliner' || target === 'curtainside' || target === 'standard' || target === 'prelata') {
-    if (available.length === 0 || available.some((a) => a.includes('tautliner') || a.includes('curtain') || a.includes('standard') || a.includes('prelata') || a.includes('mega') || a.includes('box'))) return true;
-  }
-  if (target === 'mega') {
-    if (available.length === 0 || available.some((a) => a.includes('mega') || a.includes('tautliner') || a.includes('curtain'))) return true;
-  }
-  if (target === 'frigo' || target === 'reefer' || target === 'isotherm') {
-    if (available.some((a) => a.includes('frigo') || a.includes('reefer') || a.includes('isotherm') || a.includes('temp'))) return true;
-  }
-  if (target === 'lift' || target === 'tail_lift' || target === 'taillift' || target === 'oblon') {
-    if (available.some((a) => a.includes('lift') || a.includes('oblon'))) return true;
-  }
-
-  return available.some((a) => a.includes(target) || target.includes(a));
+  // Canonical capability, not raw label comparison: orders store the wizard
+  // label ("Camion mega"), which never matched a truck type.
+  return assessEquipment(truck, trailer, req).supported;
 }
 
 export interface RouteValidationResult {
@@ -1309,7 +1285,7 @@ export class PlanningService {
     }
 
     if (truckId) {
-      const truck = await this.truckRepo.findOne({ where: { id: truckId } });
+      const truck = await this.truckRepo.findOne({ where: { id: truckId }, relations: ['trailer'] });
       if (!truck) throw new NotFoundException('Truck not found.');
       const sum = this.sumCargo(orders);
       const known = knownTruckCapacity(truck);
@@ -1335,9 +1311,16 @@ export class PlanningService {
       for (const o of orders) {
         const requirements = normalizeEquipmentRequirements(o.equipmentRequirements);
         for (const req of requirements) {
-          if (!vehicleHasEquipment(truck, truck.trailer, req)) {
-            add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, resourceId: truck.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
-          }
+          const assessment = assessEquipment(truck, truck.trailer, req);
+          if (assessment.supported) continue;
+          add({
+            level: 'warning',
+            code: assessment.verified ? 'EQUIPMENT_MISSING' : 'EQUIPMENT_UNVERIFIED',
+            orderId: o.id,
+            resourceId: truck.id,
+            params: { req, equipment: assessment.code, reason: assessment.reason },
+            message: `Order ${o.orderNumber} requires ${assessment.code === 'unknown' ? `equipment ${req}` : assessment.code.toUpperCase()}: ${assessment.reason}`,
+          });
         }
       }
     }
@@ -1348,24 +1331,106 @@ export class PlanningService {
     }
 
     if (date && trips.length === 0 && truckId) {
-      const from = new Date(`${date}T00:00:00`);
-      const to = new Date(`${date}T23:59:59.999`);
+      const dayStart = new Date(`${date}T00:00:00`);
+      const dayEnd = new Date(`${date}T23:59:59.999`);
+      // The candidate window is the order's own operation window. A whole
+      // calendar day is only a fallback and cannot prove an overlap.
+      const windows = orders
+        .map((o) => this.orderWindow(o))
+        .filter((w): w is { start: Date; end: Date } => !!w.start && !!w.end);
+      const windowVerified = windows.length > 0 && windows.length === orders.length;
+      const candidateStart = windowVerified
+        ? new Date(Math.min(...windows.map((w) => w.start.getTime())))
+        : dayStart;
+      const candidateEnd = windowVerified
+        ? new Date(Math.max(...windows.map((w) => w.end.getTime())))
+        : dayEnd;
+
       const overlapping = await this.tripRepo
         .createQueryBuilder('trip')
         .where('trip.truckId = :truckId', { truckId })
         .andWhere('trip.status IN (:...statuses)', { statuses: ACTIVE_TRIP_STATUSES })
         .andWhere('trip.plannedDeparture < :to AND trip.plannedArrival > :from')
-        .setParameters({ truckId, from, to })
+        .setParameters({ truckId, from: candidateStart, to: candidateEnd })
         .getMany();
-      if (overlapping.length > 0) {
-        const refs = overlapping.slice(0, 3).map((t: any) => t.tripNumber).filter(Boolean).join(', ');
-        add({
-          level: 'blocking',
-          code: 'TRUCK_OVERLAP',
-          resourceId: truckId,
-          params: { date, trips: overlapping.map((t: any) => t.tripNumber || t.id) },
-          message: `Truck is already committed to overlapping trip(s) on this date${refs ? ` (${refs})` : ''}. Reassign the truck or move the schedule.`,
+
+      for (const trip of overlapping) {
+        const ref = (trip as any).tripNumber || trip.id;
+        const plan = await this.routePlanRepo.findOne({
+          where: { tripId: trip.id },
+          order: { updatedAt: 'DESC' },
         });
+        const timeline = (plan?.optimizationMetadata as any)?.scheduleTimeline;
+        const occupancy = tripOccupancyFromTimeline(timeline);
+
+        if (!windowVerified) {
+          add({
+            level: 'warning',
+            code: 'TRUCK_AVAILABILITY_UNVERIFIED',
+            resourceId: truckId,
+            tripId: trip.id,
+            params: { date, trip: ref },
+            message: `Truck is on trip ${ref}, but this order has no complete operation window, so availability on ${date} cannot be verified. Add the order dates before assigning.`,
+          });
+          continue;
+        }
+
+        const assessment = assessCandidateAvailability(
+          { start: candidateStart, end: candidateEnd },
+          occupancy,
+        );
+
+        if (assessment.status === 'unverified') {
+          add({
+            level: 'warning',
+            code: 'TRUCK_AVAILABILITY_UNVERIFIED',
+            resourceId: truckId,
+            tripId: trip.id,
+            params: { date, trip: ref },
+            message: `Truck is on trip ${ref}, but that trip has no schedule timeline, so availability cannot be verified. Recalculate the trip route before assigning.`,
+          });
+          continue;
+        }
+
+        if (assessment.status === 'conflict') {
+          add({
+            level: 'blocking',
+            code: 'TRUCK_OVERLAP',
+            resourceId: truckId,
+            tripId: trip.id,
+            params: {
+              date,
+              trip: ref,
+              tripId: trip.id,
+              city: assessment.interval.city,
+              busyStart: new Date(assessment.interval.start).toISOString(),
+              busyEnd: new Date(assessment.interval.end).toISOString(),
+              candidateStart: candidateStart.toISOString(),
+              candidateEnd: candidateEnd.toISOString(),
+              overlapMinutes: assessment.overlapMinutes,
+            },
+            message: `Truck is committed to trip ${ref}: ${assessment.interval.city || 'route'} ${new Date(assessment.interval.start).toISOString()} → ${new Date(assessment.interval.end).toISOString()} overlaps this order by ${assessment.overlapMinutes} min. Move the order or reassign the truck.`,
+          });
+          continue;
+        }
+
+        if (assessment.status === 'free_gap') {
+          add({
+            level: 'warning',
+            code: 'TRUCK_GAP_CANDIDATE',
+            resourceId: truckId,
+            tripId: trip.id,
+            params: {
+              date,
+              trip: ref,
+              city: assessment.interval.city,
+              freeStart: new Date(assessment.interval.start).toISOString(),
+              freeEnd: new Date(assessment.interval.end).toISOString(),
+              freeMinutes: assessment.windowMinutes,
+            },
+            message: `Truck is on trip ${ref} but idle at ${assessment.interval.city || 'a stop'} from ${new Date(assessment.interval.start).toISOString()} to ${new Date(assessment.interval.end).toISOString()} (${Math.round(assessment.windowMinutes / 60)}h). This order falls in that window: preview the insertion to verify repositioning, the new sequence and driver hours before confirming.`,
+          });
+        }
       }
     }
 
@@ -1399,9 +1464,15 @@ export class PlanningService {
       if (trip.truck && normalizeEquipmentRequirements(o.equipmentRequirements).length) {
         const truck = trip.truck;
         for (const req of normalizeEquipmentRequirements(o.equipmentRequirements)) {
-          if (!vehicleHasEquipment(truck, trip.trailer, req)) {
-            add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
-          }
+          const assessment = assessEquipment(truck, trip.trailer, req);
+          if (assessment.supported) continue;
+          add({
+            level: 'warning',
+            code: assessment.verified ? 'EQUIPMENT_MISSING' : 'EQUIPMENT_UNVERIFIED',
+            orderId: o.id,
+            params: { req, equipment: assessment.code, reason: assessment.reason },
+            message: `Order ${o.orderNumber} requires ${assessment.code === 'unknown' ? `equipment ${req}` : assessment.code.toUpperCase()}: ${assessment.reason}`,
+          });
         }
       }
     }
@@ -1530,9 +1601,18 @@ export class PlanningService {
       }
       for (const order of orders) {
         for (const req of normalizeEquipmentRequirements(order.equipmentRequirements)) {
-          if (!vehicleHasEquipment(truck, trailer, req)) {
-            add(blockers, { level: 'blocking', code: 'EQUIPMENT_MISSING', orderId: order.id, params: { req }, message: `Order ${order.orderNumber} requires equipment: ${req}.` });
-          }
+          const assessment = assessEquipment(truck, trailer, req);
+          if (assessment.supported) continue;
+          // A missing trailer or missing body data is unverified, not proof of
+          // incompatibility, so it must not block the assignment.
+          const target = assessment.verified ? blockers : warnings;
+          add(target, {
+            level: assessment.verified ? 'blocking' : 'warning',
+            code: assessment.verified ? 'EQUIPMENT_MISSING' : 'EQUIPMENT_UNVERIFIED',
+            orderId: order.id,
+            params: { req, equipment: assessment.code, reason: assessment.reason },
+            message: `Order ${order.orderNumber} requires ${assessment.code === 'unknown' ? `equipment ${req}` : assessment.code.toUpperCase()}: ${assessment.reason}`,
+          });
         }
       }
     }
@@ -1819,9 +1899,22 @@ export class PlanningService {
       }
       for (const order of orders) {
         for (const req of normalizeEquipmentRequirements(order.equipmentRequirements)) {
-          if (!vehicleHasEquipment(truck, truck.trailer, req)) {
-            blockers.push({ id: `equipment_${truck.id}_${req}`, level: 'blocking', code: 'EQUIPMENT_MISSING', resourceId: truck.id, params: { req }, message: `Required equipment is missing: ${req}.` });
-          }
+          const assessment = assessEquipment(truck, truck.trailer, req);
+          if (assessment.supported) continue;
+          const blocking = assessment.verified;
+          const entry = {
+            id: `equipment_${truck.id}_${req}`,
+            level: blocking ? ('blocking' as const) : ('warning' as const),
+            code: blocking ? 'EQUIPMENT_MISSING' : 'EQUIPMENT_UNVERIFIED',
+            resourceId: truck.id,
+            params: { req, equipment: assessment.code, reason: assessment.reason },
+            message: `Required ${assessment.code === 'unknown' ? `equipment ${req}` : assessment.code.toUpperCase()}: ${assessment.reason}`,
+          };
+          if (blocking) blockers.push(entry);
+          // An unverified capability (no trailer, no body data) is not a
+          // confirmed incompatibility, so it must not remove the candidate.
+          // The warning is surfaced by the assignment and preflight checks,
+          // which carry a warnings channel.
         }
       }
       const currentTrip = activeTrips.find((t) => String((t as any).truck?.id || (t as any).truckId) === String(truck.id));
