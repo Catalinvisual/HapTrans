@@ -9,10 +9,11 @@
  */
 
 const keyOf = (stop: any): string | null => {
-  if (stop?.id) return `id:${stop.id}`;
+  // Duplicated rows are different records with different ids, so the operation
+  // is the identity: one order, one kind, one sequence.
   const orderId = stop?.orderId || stop?.order?.id;
-  if (!orderId) return null;
-  return `op:${orderId}:${stop?.type || ''}:${stop?.sequence ?? ''}`;
+  if (orderId) return `op:${orderId}:${stop?.type || ''}:${stop?.sequence ?? ''}`;
+  return stop?.id ? `id:${stop.id}` : null;
 };
 
 export function dedupePlanStops(stops: any[] | null | undefined): any[] {

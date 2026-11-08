@@ -24,6 +24,23 @@ describe('rebuild de-duplication', () => {
     expect(dedupeOrderStops(rows)).toEqual([pickup, delivery]);
   });
 
+  it('collapses duplicated rows that were written as separate records', () => {
+    // The production shape: six copies of the same delivery, each its own row.
+    const copies = Array.from({ length: 6 }, (_, i) => ({ id: `copy-${i}`, type: 'delivery', sequence: 2 }));
+    const pickup = { id: 'p', type: 'pickup', sequence: 1 };
+    const result = dedupeOrderStops([pickup, ...copies]);
+    expect(result).toHaveLength(2);
+    expect(result.map((s) => s.type)).toEqual(['pickup', 'delivery']);
+  });
+
+  it('keeps distinct intermediate stops that share a type but differ in sequence', () => {
+    const rows = [
+      { id: 'a', type: 'stop', sequence: 2 },
+      { id: 'b', type: 'stop', sequence: 3 },
+    ];
+    expect(dedupeOrderStops(rows)).toHaveLength(2);
+  });
+
   it('never treats a freshly created row without an id as a duplicate', () => {
     const created = { type: 'pickup' } as any;
     expect(uniqueRowsById([created, created])).toHaveLength(2);

@@ -38,5 +38,22 @@ export function dedupeRebuildOrders(orders: any[] | null | undefined): any[] {
 }
 
 export function dedupeOrderStops(stops: any[] | null | undefined): any[] {
-  return uniqueRowsById((stops || []).filter((stop) => stop));
+  // Duplicated order stops were written as separate records, so two rows can
+  // share an operation (type + sequence) while carrying different ids. The
+  // operation is what makes them the same stop.
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const stop of (stops || []).filter(Boolean)) {
+    const type = String(stop?.type || '').toLowerCase();
+    const sequence = stop?.sequence;
+    const key = type && sequence !== null && sequence !== undefined
+      ? `op:${type}:${sequence}`
+      : (stop?.id ? `id:${stop.id}` : null);
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    out.push(stop);
+  }
+  return out;
 }
