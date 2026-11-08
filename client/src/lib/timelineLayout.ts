@@ -10,9 +10,9 @@
  * trip, and each entry keeps its trip id for the click handler.
  */
 
-export const TIMELINE_CARD_HEIGHT = 44;
-export const TIMELINE_LANE_HEIGHT = 50;
-export const TIMELINE_LANE_GAP = 6;
+export const TIMELINE_CARD_HEIGHT = 48;
+export const TIMELINE_LANE_HEIGHT = 56;
+export const TIMELINE_LANE_GAP = 8;
 export const TIMELINE_MIN_CARD_MINUTES = 30;
 
 export interface TimelineTripEntry {
@@ -134,7 +134,7 @@ export function layoutTimelineTrips(trips: any[], from: string, totalMinutes: nu
 }
 
 export const timelineRowHeight = (laneCount: number): number =>
-  Math.max(64, TIMELINE_LANE_GAP * 2 + Math.max(1, laneCount) * TIMELINE_LANE_HEIGHT);
+  Math.max(72, TIMELINE_LANE_GAP * 2 + Math.max(1, laneCount) * TIMELINE_LANE_HEIGHT);
 
 export const timelineCardTop = (lane: number): number =>
   TIMELINE_LANE_GAP + lane * TIMELINE_LANE_HEIGHT;

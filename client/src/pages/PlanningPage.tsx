@@ -625,7 +625,10 @@ function TripBlock({
       }}
       className="absolute cursor-pointer group/block"
       style={{
-        left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '3rem',
+        // Percentages resolve against the lane layer, so the card can never
+        // extend past the end of the timeline and be clipped by the scroll box.
+        left: `${pos.left}%`,
+        width: `${Math.max(1.5, Math.min(pos.width, 100 - pos.left))}%`,
         top: `${cardTop}px`, height: `${cardHeight}px`,
         zIndex: isSelected ? 20 : 5,
       }}
@@ -635,8 +638,8 @@ function TripBlock({
       title={detailsTooltip}
     >
       <div
-        className={`relative h-full rounded-md border overflow-hidden transition-all duration-150 flex flex-col bg-card ${
-          overlapCount > 0 ? 'border-red-500' : col.border
+        className={`relative h-full rounded-lg border overflow-hidden transition-all duration-150 flex flex-col bg-card ${
+          overlapCount > 0 ? 'border-red-500/70' : 'border-border/80'
         } ${
           isSelected
             ? 'ring-2 ring-offset-1 shadow-lg z-10'
@@ -649,10 +652,10 @@ function TripBlock({
         }}
       >
 
-        <div className="pl-1.5 pr-1 pt-0.5 pb-1 flex flex-col justify-center flex-1 min-h-0 overflow-hidden gap-px">
+        <div className="pl-2 pr-1.5 pt-1 pb-1.5 flex flex-col justify-center flex-1 min-h-0 overflow-hidden gap-0.5">
           {/* Row 1: Trip number + sequence + status + fleet badge */}
           <div className="flex items-center gap-1 min-w-0 flex-wrap">
-            <span className={`font-black truncate ${col.text} ${isVeryNarrow ? 'text-[8px]' : 'text-[10px]'}`} style={{ maxWidth: isNarrow ? '100%' : '55%' }}>
+            <span className={`font-black truncate tracking-tight text-text-primary ${isVeryNarrow ? 'text-[8px]' : 'text-[11px]'}`} style={{ maxWidth: isNarrow ? '100%' : '55%' }}>
               {trip.tripNumber || '—'}
             </span>
             {ordinalTotal > 1 && !isVeryNarrow && (
@@ -666,7 +669,11 @@ function TripBlock({
               </span>
             )}
             {!isVeryNarrow && (
-              <span className={`shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase ${col.text} opacity-80`}>
+              <span
+                className="shrink-0 inline-flex items-center gap-1 px-1 py-[1px] rounded text-[7px] font-black uppercase tracking-wide border"
+                style={{ color: col.text, backgroundColor: col.bg, borderColor: col.border }}
+              >
+                <span className="w-1 h-1 rounded-full" style={{ backgroundColor: hex }} />
                 {opLabel}
               </span>
             )}
@@ -700,7 +707,7 @@ function TripBlock({
 
           {/* Row 2: Route */}
           {!isNarrow && origin !== '—' && (
-            <div className="text-[8px] text-text-primary truncate flex items-center gap-0.5">
+            <div className="text-[9px] font-semibold text-text-primary truncate flex items-center gap-1">
               <MapPin className="w-2 h-2 shrink-0 text-blue-500" />
               <span className="truncate">{origin}</span>
               {dest !== '—' && <><ArrowRight className="w-1.5 h-1.5 shrink-0 opacity-60" /><span className="truncate">{dest}</span></>}
@@ -710,7 +717,7 @@ function TripBlock({
           {/* Row 3: the one operational detail worth keeping inline. Everything
               else (cargo, revenue, driver, trailer, orders) is in the tooltip. */}
           {!isVeryNarrow && (
-            <div className="flex items-center gap-1.5 min-w-0 text-[8px] text-text-secondary tabular-nums">
+            <div className="flex items-center gap-1.5 min-w-0 text-[8.5px] font-bold text-text-secondary tabular-nums">
               {trip.plannedDeparture && (
                 <span className="truncate">
                   {fmtTime(trip.plannedDeparture)}{trip.plannedArrival ? `–${fmtTime(trip.plannedArrival)}` : ''}
@@ -783,6 +790,11 @@ function ResourceRow({
   const timelineLayout = useMemo(() => layoutTimelineTrips(trips, fromDate, totalMinutes), [trips, fromDate, totalMinutes]);
   const laneCount = timelineLayout.laneCount;
   const rowHeight = timelineRowHeight(laneCount);
+  // The unassigned bucket is a triage list, not a fleet resource. With six
+  // simultaneous unassigned trips it grew to 400px+ and pushed every truck row
+  // out of the viewport, which read as "no truck rows at all".
+  const isBucketRow = resource.id === '__unassigned_trips__';
+  const renderedRowHeight = isBucketRow ? Math.min(rowHeight, 156) : rowHeight;
   const nowMinutes = (now - parseDay(fromDate).getTime()) / 60000;
   const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
   const nextTrip = [...trips]
@@ -872,9 +884,10 @@ function ResourceRow({
   return (
     <div
       className={`flex border-b-2 border-border group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}
-      style={{ minWidth: `${224 + calcTimelineWidth}px`, minHeight: `${rowHeight}px` }}
+      style={{ minWidth: `${224 + calcTimelineWidth}px`, minHeight: `${renderedRowHeight}px` }}
       data-resource-id={resource.id}
       data-timeline-lanes={laneCount}
+      data-row-bucket={isBucketRow ? 'unassigned' : 'fleet'}
     >
       {/* Resource Column — sticky left — CLICKABLE & DROP TARGET */}
       <div
@@ -889,24 +902,34 @@ function ResourceRow({
         onDrop={handleRowDrop}
         title={t('pln_open_planner', 'Open Truck Route & Load Planner')}
       >
-        <div className="flex items-center justify-between">
+        {/* Identity header: the vehicle is the row's anchor, its state is a pill. */}
+        <div className="flex items-start justify-between gap-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
-            <div className={`w-5 h-5 rounded-md flex items-center justify-center border shrink-0 shadow-sm transition-colors ${
-              isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/20 group-hover/truck:bg-primary/20' : 'bg-surface border-border'
+            <div className={`w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 shadow-sm transition-colors ${
+              isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/30 group-hover/truck:bg-primary/20' : 'bg-surface border-border'
             }`}>
               {grouping === 'driver' ? (
-                <Users className={`w-3 h-3 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
-              ) : grouping === 'trailer' || resource.isTrailer ? (
-                <TruckIcon className={`w-3 h-3 opacity-80 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+                <Users className={`w-3.5 h-3.5 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
               ) : (
-                <TruckIcon className={`w-3 h-3 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+                <TruckIcon className={`w-3.5 h-3.5 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
               )}
             </div>
-            <p className="font-bold text-text-primary text-[11px] truncate" title={resource.brand ? `${resource.brand} ${resource.model || ''}` : ''}>
-              {resource.plateNumber || resource.name || resource.user?.name || '—'} {isMaintenance ? '🔧' : ''}
-            </p>
+            <div className="min-w-0">
+              <p className="font-black text-text-primary text-[12px] leading-tight truncate tracking-tight" title={resource.brand ? `${resource.brand} ${resource.model || ''}` : ''}>
+                {resource.plateNumber || resource.name || resource.user?.name || '—'}
+              </p>
+              <p className="text-[8px] font-bold uppercase tracking-wider text-text-muted truncate leading-tight">
+                {[resource.brand, resource.model].filter(Boolean).join(' ') || (grouping === 'trailer' ? t('trailer', 'Trailer') : t('timeline_vehicle', 'Vehicle'))}
+              </p>
+            </div>
           </div>
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} title={st} />
+          <span
+            className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border/70 bg-surface/80 px-1.5 py-[1px] text-[7px] font-black uppercase tracking-wide text-text-secondary"
+            title={st}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
+            {isMaintenance ? t('status_maintenance', 'Maintenance') : st.charAt(0).toUpperCase() + st.slice(1)}
+          </span>
         </div>
 
         <div className="flex items-center justify-between text-[10px] text-text-secondary pl-6">
@@ -926,8 +949,9 @@ function ResourceRow({
           </div>
         </div>
 
-        <div className="flex items-center justify-between pl-6 pr-1 text-[9px] text-text-muted">
-          <span className={`font-bold ${laneCount > 1 ? 'text-red-500' : 'text-text-secondary'}`}>
+        <div className="flex items-center justify-between pl-7 pr-1 text-[9px]">
+          <span className={`inline-flex items-center gap-1 font-bold ${laneCount > 1 ? 'text-red-500' : hasTrips ? 'text-text-primary' : 'text-text-muted'}`}>
+            <span className={`w-1 h-1 rounded-full ${hasTrips ? 'bg-primary' : 'bg-border'}`} />
             {trips.length} {t('timeline_trips_short', 'trips')}
             {laneCount > 1 ? ` · ${t('timeline_lane_count', '{{count}} lanes', { count: laneCount })}` : ''}
           </span>
@@ -948,7 +972,11 @@ function ResourceRow({
       {/* Timeline Area */}
       <div
         className={`relative flex-1 transition-all duration-150 ${dragZoneClass}`}
-        style={{ minWidth: `${calcTimelineWidth}px` }}
+        style={{
+          minWidth: `${calcTimelineWidth}px`,
+          maxHeight: isBucketRow ? `${renderedRowHeight}px` : undefined,
+          overflowY: isBucketRow ? 'auto' : undefined,
+        }}
         onDragOver={handleRowDragOver}
         onDragLeave={handleRowDragLeave}
         onDrop={handleRowDrop}
@@ -1720,9 +1748,13 @@ function TripDetailDrawer({
               <div className="flex items-center gap-1.5 min-w-0">
                 <Navigation className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span className="text-[10px] font-black uppercase tracking-wide text-text-secondary truncate">
-                  {etaInfo?.available && etaInfo?.etaType !== 'live_gps'
-                    ? t('up_eta_calculated', 'Calculated ETA')
-                    : t('up_eta_title', 'Live ETA')}
+                  {etaInfo?.etaType === 'live_gps'
+                    ? t('up_eta_live', 'Live ETA (GPS)')
+                    : etaInfo?.etaType === 'stale_gps'
+                      ? t('up_eta_stale_label', 'Stale GPS')
+                      : etaInfo?.available
+                        ? t('up_eta_estimated', 'Estimated ETA (no live GPS)')
+                        : t('up_eta_title', 'Live ETA')}
                 </span>
                 {etaInfo?.freshness && (
                   <span className={`px-1 py-0.5 rounded text-[8px] font-black uppercase ${etaInfo.etaType === 'live_gps' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600'}`}>
@@ -2481,7 +2513,9 @@ export default function PlanningPage() {
 
   // ── State ──
   const [selectedDate, setSelectedDate] = useState<string>(() => dayStr(new Date()));
-  const [viewMode, setViewMode] = useState<'all' | 'day' | 'week' | 'timeline' | 'map'>('all');
+  // A week is the only range where a dispatch card is still readable at 100%
+  // zoom in the workspace width the board actually gets.
+  const [viewMode, setViewMode] = useState<'all' | 'day' | 'week' | 'timeline' | 'map'>('week');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [truckFilter, setTruckFilter] = useState('');
@@ -2673,6 +2707,7 @@ export default function PlanningPage() {
 
   const poolRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const autoScrollSignatureRef = useRef<string>('');
 
   // Enterprise Operations States
   const [dropHookConfig, setDropHookConfig] = useState<{ isOpen: boolean; mode: 'drop' | 'hook'; trailerId?: string; tripId?: string }>({ isOpen: false, mode: 'drop' });
@@ -3300,6 +3335,24 @@ export default function PlanningPage() {
     return trips.filter((tr: any) => operationalStatusForDisplay(tr) === 'DELAYED' || tr.isDelayed || (tr.plannedArrival && new Date(tr.plannedArrival) < new Date() && !['COMPLETED', 'CANCELLED'].includes(operationalStatusForDisplay(tr)))).length || (boardData?.delayedTrips || 0);
   }, [trips, boardData?.delayedTrips]);
 
+  // Open the board over the work instead of the empty head of the range: without
+  // this every trip card sat to the right of the visible timeline and the board
+  // read as clipped. Runs once per range/first-trip change, never on re-render.
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el || !trips.length) return;
+    const starts = trips
+      .map((trip: any) => new Date(trip.plannedDeparture || trip.createdAt || 0).getTime())
+      .filter((value: number) => Number.isFinite(value) && value > 0);
+    if (!starts.length) return;
+    const firstStart = Math.min(...starts);
+    const signature = `${from}|${totalMinutes}|${firstStart}|${trips.length}`;
+    if (autoScrollSignatureRef.current === signature) return;
+    autoScrollSignatureRef.current = signature;
+    const offset = ((firstStart - parseDay(from).getTime()) / (totalMinutes * 60000)) * el.scrollWidth;
+    el.scrollLeft = Math.max(0, offset - 96);
+  }, [trips, from, totalMinutes]);
+
   // ── Filtered resources for display ──
   const displayResources = useMemo(() => {
     let list = [...resources];
@@ -3816,7 +3869,14 @@ export default function PlanningPage() {
               </div>
 
               {/* Timeline grid */}
-              <div ref={timelineRef} tabIndex={0} className="flex-1 overflow-auto relative outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20">
+              {/* The Gantt keeps a usable height of its own: the results panel
+                  below is bounded, so rows can never be squeezed out of view. */}
+              <div
+                ref={timelineRef}
+                tabIndex={0}
+                data-testid="planning-timeline-scroll"
+                className="flex-1 min-h-[300px] overflow-auto relative outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20 rounded-b-xl custom-scrollbar"
+              >
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -3953,6 +4013,7 @@ export default function PlanningPage() {
 </div>
 
 {boardData ? (
+      <div className="shrink-0 h-[34%] min-h-[190px] max-h-[320px] overflow-hidden border-t border-border">
       <PlanningResultsPanel
         boardData={boardData}
         selectedTripId={selectedTripId}
@@ -3967,6 +4028,7 @@ export default function PlanningPage() {
         onRefresh={loadData}
         focusSignal={resultsSignal}
       />
+      </div>
     ) : null}
 
     {/* Status bar footer */}

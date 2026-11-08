@@ -908,3 +908,82 @@ const appointmentLabels: Record<string, Record<string, string>> = {
 for (const [locale, labels] of Object.entries(appointmentLabels)) {
   Object.assign((planningUpgradeResources as any)[locale].translation, labels);
 }
+
+// Route-plan failure states and ETA source labels. Without these the planner
+// falls back to English, so every locale carries the same keys.
+const finalPlanningLabels: Record<string, Record<string, string>> = {
+  en: {
+    timeline_vehicle: 'Vehicle',
+    pln_no_truck_title: 'Assign a truck to plan this route',
+    pln_no_truck_hint: 'This trip has no assigned truck, so no road route can be built. Assign a truck in Planning, then retry — the trip is unchanged.',
+    pln_provider_down_title: 'Routing provider unavailable',
+    pln_provider_down_hint: 'The routing provider did not return a route. Any previously persisted geometry is kept; retry when the provider is reachable.',
+    pln_technical_details: 'Technical details',
+    up_eta_estimated: 'Estimated ETA (no live GPS)',
+    up_eta_live: 'Live ETA (GPS)',
+  },
+  ro: {
+    timeline_vehicle: 'Vehicul',
+    pln_no_truck_title: 'Atribuiți un camion pentru a planifica ruta',
+    pln_no_truck_hint: 'Această cursă nu are camion atribuit, deci nu se poate construi o rută rutieră. Atribuiți un camion în Planificare, apoi reîncercați — cursa nu este modificată.',
+    pln_provider_down_title: 'Furnizorul de rutare este indisponibil',
+    pln_provider_down_hint: 'Furnizorul de rutare nu a returnat o rută. Geometria persistată anterior este păstrată; reîncercați când furnizorul este disponibil.',
+    pln_technical_details: 'Detalii tehnice',
+    up_eta_estimated: 'ETA estimat (fără GPS live)',
+    up_eta_live: 'ETA live (GPS)',
+  },
+  nl: {
+    timeline_vehicle: 'Voertuig',
+    pln_no_truck_title: 'Wijs een truck toe om deze route te plannen',
+    pln_no_truck_hint: 'Deze rit heeft geen toegewezen truck, dus er kan geen wegroute worden gebouwd. Wijs een truck toe in Planning en probeer opnieuw — de rit blijft ongewijzigd.',
+    pln_provider_down_title: 'Routeprovider niet beschikbaar',
+    pln_provider_down_hint: 'De routeprovider gaf geen route terug. Eerder opgeslagen geometrie blijft behouden; probeer opnieuw zodra de provider bereikbaar is.',
+    pln_technical_details: 'Technische details',
+    up_eta_estimated: 'Geschatte ETA (geen live gps)',
+    up_eta_live: 'Live ETA (gps)',
+  },
+  de: {
+    timeline_vehicle: 'Fahrzeug',
+    pln_no_truck_title: 'LKW zuweisen, um diese Route zu planen',
+    pln_no_truck_hint: 'Diese Tour hat keinen zugewiesenen LKW, daher kann keine Straßenroute berechnet werden. Weisen Sie in der Planung einen LKW zu und versuchen Sie es erneut — die Tour bleibt unverändert.',
+    pln_provider_down_title: 'Routing-Anbieter nicht verfügbar',
+    pln_provider_down_hint: 'Der Routing-Anbieter lieferte keine Route. Bereits gespeicherte Geometrie bleibt erhalten; versuchen Sie es erneut, sobald der Anbieter erreichbar ist.',
+    pln_technical_details: 'Technische Details',
+    up_eta_estimated: 'Geschätzte ETA (kein Live-GPS)',
+    up_eta_live: 'Live-ETA (GPS)',
+  },
+  fr: {
+    timeline_vehicle: 'Véhicule',
+    pln_no_truck_title: 'Affectez un camion pour planifier cet itinéraire',
+    pln_no_truck_hint: 'Ce trajet n’a pas de camion affecté : aucun itinéraire routier ne peut être calculé. Affectez un camion dans Planification puis réessayez — le trajet reste inchangé.',
+    pln_provider_down_title: 'Fournisseur d’itinéraires indisponible',
+    pln_provider_down_hint: 'Le fournisseur n’a renvoyé aucun itinéraire. La géométrie déjà enregistrée est conservée ; réessayez dès qu’il est joignable.',
+    pln_technical_details: 'Détails techniques',
+    up_eta_estimated: 'ETA estimée (sans GPS live)',
+    up_eta_live: 'ETA live (GPS)',
+  },
+  es: {
+    timeline_vehicle: 'Vehículo',
+    pln_no_truck_title: 'Asigne un camión para planificar esta ruta',
+    pln_no_truck_hint: 'Este viaje no tiene camión asignado, así que no se puede construir una ruta por carretera. Asigne un camión en Planificación y reintente — el viaje no cambia.',
+    pln_provider_down_title: 'Proveedor de rutas no disponible',
+    pln_provider_down_hint: 'El proveedor de rutas no devolvió una ruta. La geometría ya guardada se conserva; reintente cuando esté disponible.',
+    pln_technical_details: 'Detalles técnicos',
+    up_eta_estimated: 'ETA estimada (sin GPS en vivo)',
+    up_eta_live: 'ETA en vivo (GPS)',
+  },
+  pl: {
+    timeline_vehicle: 'Pojazd',
+    pln_no_truck_title: 'Przypisz ciężarówkę, aby zaplanować trasę',
+    pln_no_truck_hint: 'Ta trasa nie ma przypisanej ciężarówki, więc nie można zbudować trasy drogowej. Przypisz ciężarówkę w Planowaniu i spróbuj ponownie — trasa pozostaje niezmieniona.',
+    pln_provider_down_title: 'Dostawca tras niedostępny',
+    pln_provider_down_hint: 'Dostawca tras nie zwrócił trasy. Wcześniej zapisana geometria pozostaje bez zmian; spróbuj ponownie, gdy będzie dostępny.',
+    pln_technical_details: 'Szczegóły techniczne',
+    up_eta_estimated: 'Szacowany ETA (brak GPS na żywo)',
+    up_eta_live: 'ETA na żywo (GPS)',
+  },
+};
+
+for (const [locale, labels] of Object.entries(finalPlanningLabels)) {
+  Object.assign((planningUpgradeResources as any)[locale].translation, labels);
+}

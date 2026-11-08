@@ -1686,9 +1686,9 @@ export default function PlanningResultsPanel({
                 <th className={thL}>{t('pr.location', 'Location')}</th>
                 <th className={thL}>{t('pr.stop', 'Stop')}</th>
                 <th className={thL}>{t('pr.time_window', 'Time window')}</th>
-                <th className={thL}>{t('up_eta_calculated', 'Calculated ETA')}</th>
+                <th className={thL}>{t('pr_eta_recalculated', 'Recalculated ETA')}</th>
                 <th className={thL}>{t('up_eta_planned', 'Planned ETA')}</th>
-                <th className={thL}>{t('up_eta_difference', 'Difference')}</th>
+                <th className={thL}>{t('pr_deviation_basis', 'Deviation (ETA − planned)')}</th>
                 <th className={thL}>{t('pr.ata', 'ATA')}</th>
                 <th className={thR}>{t('pr.service_time', 'Service time')}</th>
                 <th className={thR}>{t('pr.distance_from_prev', 'Distance from previous stop')}</th>
