@@ -3538,7 +3538,24 @@ export class PlanningService {
 
     await this.stopRepoFor(manager).delete({ trip: { id: tripId } });
 
-    const orders = (trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled');
+    let orders = (trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled');
+    if (!orders.length) {
+      // Legacy assignments wrote stop tasks without the orders.tripId link, so
+      // trip.orders can be empty on a trip that genuinely has stops. Rebuilding
+      // from that empty list produced a route plan with zero stops while the
+      // planning board still showed every stop, which is why the truck route
+      // planner reported "0 stops" for a populated trip.
+      const taskRows = await this.taskRepoFor(manager).find({
+        where: { stop: { trip: { id: tripId } } },
+        relations: ['order', 'order.stops', 'order.cargoItems', 'order.client'],
+      });
+      const byOrderId = new Map<string, any>();
+      for (const task of taskRows as any[]) {
+        const order = task?.order;
+        if (order?.id) byOrderId.set(String(order.id), order);
+      }
+      orders = [...byOrderId.values()].filter((o) => String(o.status) !== 'cancelled') as any;
+    }
     const collected: any[] = [];
     for (const order of orders) {
       const os = (order.stops || [])
