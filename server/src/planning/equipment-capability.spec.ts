@@ -24,12 +24,15 @@ describe('equipment capability', () => {
     expect(canonicalEquipmentCode('ADR')).toBe('adr');
   });
 
-  it('does not treat external height as mega capability', () => {
-    const result = assessEquipment(frigoTruck, frigoTrailer, 'Camion mega');
+  it('does not treat external height or a frigo body as proof either way', () => {
+    const result = assessEquipment(frigoTruck, { ...frigoTrailer, plateNumber: 'VL61TWZ' }, 'Camion mega');
     expect(result.code).toBe('mega');
     expect(result.supported).toBe(false);
-    expect(result.verified).toBe(true);
-    expect(result.reason).toContain('external vehicle height does not prove it');
+    // A frigo trailer can also be a mega trailer; without a recorded internal
+    // height this is unverifiable, so it must not block the assignment.
+    expect(result.verified).toBe(false);
+    expect(result.reason).toContain('internal loading height is not recorded');
+    expect(result.reason).toContain('VL61TWZ');
   });
 
   it('accepts a mega trailer for a mega requirement', () => {

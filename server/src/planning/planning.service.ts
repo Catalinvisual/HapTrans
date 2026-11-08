@@ -1314,7 +1314,9 @@ export class PlanningService {
           const assessment = assessEquipment(truck, truck.trailer, req);
           if (assessment.supported) continue;
           add({
-            level: 'warning',
+            // A verified mismatch blocks; an unverifiable capability is only a
+            // warning. The code must match the severity for every consumer.
+            level: assessment.verified ? 'blocking' : 'warning',
             code: assessment.verified ? 'EQUIPMENT_MISSING' : 'EQUIPMENT_UNVERIFIED',
             orderId: o.id,
             resourceId: truck.id,

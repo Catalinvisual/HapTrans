@@ -79,7 +79,14 @@ export function buildProposedStops(existingStops: any[], newOrders: any[]): Carg
   const additions: CargoLedgerStop[] = [];
   for (const order of newOrders || []) {
     const cargo = cargoForOrder(order);
-    const orderStops = (order.stops || []).slice().sort((a: any, b: any) => num(a.sequence) - num(b.sequence));
+    // Pickup before delivery is the dependency the ledger enforces. Order
+    // stops can be stored in any sequence (a delivery row is sometimes created
+    // first), so sorting by stored sequence alone appended an unload before
+    // its load and produced UNLOAD_EXCEEDS_LOAD on the inserted stop.
+    const rank = (stop: any) => (isLoadStop(stop) ? 0 : isUnloadStop(stop) ? 1 : 2);
+    const orderStops = (order.stops || [])
+      .slice()
+      .sort((a: any, b: any) => rank(a) - rank(b) || num(a.sequence) - num(b.sequence));
     const firstLoadIndex = orderStops.findIndex((stop: any) => isLoadStop(stop));
     const lastUnloadIndex = orderStops.map((stop: any) => isUnloadStop(stop)).lastIndexOf(true);
     for (const [index, stop] of orderStops.entries()) {

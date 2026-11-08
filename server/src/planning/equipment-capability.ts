@@ -136,11 +136,16 @@ export function assessEquipment(truck: any, trailer: any, requirement: unknown):
       if (!c.hasTypeData && !c.hasFeatureData) {
         return { code, supported: false, verified: false, reason: 'neither body type nor features are recorded, so mega capability cannot be verified.' };
       }
+      // A body type alone cannot disprove a 3.00 m internal loading height: a
+      // refrigerated trailer can also be a mega trailer. Without a recorded
+      // internal height the capability is unverified, not incompatible, and
+      // must not block the assignment.
+      const trailerLabel = trailer?.plateNumber ? `Trailer ${trailer.plateNumber}` : 'The assigned combination';
       return {
         code,
         supported: false,
-        verified: true,
-        reason: `the assigned combination is ${describe(c.trailerType || c.truckType)}, not a mega trailer; a 3.00 m internal loading height is required and external vehicle height does not prove it.`,
+        verified: false,
+        reason: `${trailerLabel} is recorded as ${describe(c.trailerType || c.truckType)} and its internal loading height is not recorded, so mega capability (3.00 m internal) cannot be verified. External vehicle height does not prove it.`,
       };
     }
     case 'frigo': {
