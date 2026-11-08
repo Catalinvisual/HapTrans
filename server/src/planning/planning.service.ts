@@ -34,6 +34,7 @@ import { asJsonArray } from './route-plan-json';
 import { buildCargoLedger } from './cargo-ledger';
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
 import { etaDeviations } from './eta-deviation';
+import { deriveConsolidationVerdict } from './consolidation-feasibility';
 import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
 import { buildRouteSchedule } from './route-schedule';
 import { evaluateInsertion } from './stop-insertion';
@@ -1717,10 +1718,19 @@ export class PlanningService {
         ? 'MANUAL_REVIEW'
         : 'ADD_TO_EXISTING_TRIP';
 
+    // The verdict is decided here and rendered verbatim by the client, so a
+    // warning can never be shown as verified compatibility and an unverified
+    // dimension can never be shown as a confirmed mismatch.
+    const feasibility = deriveConsolidationVerdict(
+      blockers as any[],
+      warnings as any[],
+    );
+
     return {
       tripId,
       orderIds,
       recommendation,
+      feasibility,
       blockers,
       warnings,
       cargo: {
