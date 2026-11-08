@@ -175,6 +175,17 @@ query. Both lookups (`findConfirmation` and the in-transaction re-check) now use
   not overrideable, assignment refused). It has **not** been run against the production records of
   `AR 67X WT` / `TRP-2026-0005`, because the preflight needs a JWT and no credentials exist here.
 
+## Toll currency safety
+
+`server/src/trips/toll-aggregation.ts` (with `toll-aggregation.spec.ts`) aggregates leg tolls fail-closed:
+a consolidated EUR total is persisted only when **every** leg of the route was routed and returned a
+usable EUR figure. A PLN section, a toll without its currency, or a partially routed trip marks the
+trip `tollStatus = 'unavailable'` with `tollCost = null` — a PLN amount is never added to EUR and never
+relabelled as EUR. Wired into `TripsService.recalculateTripMetrics`, which previously did
+`totalTolls += Number(res.tollCost)` without looking at the leg currency. 8 regression tests cover
+EUR sums, mixed EUR/PLN, PLN-only, missing currency, an unavailable leg, explicit zero and a partial
+route.
+
 ## Deployment (dashboard, exact)
 
 Railway → project **HapCargo** → `main` @ `4fc81e1` (or this commit).

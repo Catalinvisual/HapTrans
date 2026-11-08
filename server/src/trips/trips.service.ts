@@ -13,6 +13,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { ResendService } from '../email/resend.service';
 import { RoutingService } from '../routing/routing.service';
+import { aggregateLegTolls } from './toll-aggregation';
 import { PlanningEngine } from '../engines/planning.engine';
 import { PricingEngine } from '../engines/pricing.engine';
 import { CostEngine } from '../engines/cost.engine';
@@ -2049,7 +2050,9 @@ export class TripsService {
 
     const sorted = trip.stops.sort((a, b) => a.sequence - b.sequence);
     let totalDist = 0;
-    let totalTolls = 0;
+    // Every leg keeps its own answer so its currency is checked before anything
+    // is added: a PLN section must never be summed into a EUR total.
+    const legTolls: any[] = [];
 
     for (let i = 0; i < sorted.length - 1; i++) {
       const from = sorted[i];
@@ -2063,8 +2066,8 @@ export class TripsService {
           if (res && res.distanceKm) {
             totalDist += res.distanceKm;
           }
-          if (res && res.tollCost) {
-            totalTolls += Number(res.tollCost);
+          if (res) {
+            legTolls.push(res);
           }
         } catch (e) {
           console.error('Routing failed in recalculateTripMetrics', e);
@@ -2074,7 +2077,17 @@ export class TripsService {
 
     if (totalDist > 0) {
       trip.distanceKm = totalDist;
-      trip.tollCost = Math.round(totalTolls * 100) / 100;
+      // Fail closed: a consolidated EUR total is persisted only when every leg
+      // returned a reconcilable EUR figure. Mixed or partial toll data marks the
+      // trip unavailable and never keeps a relabelled total.
+      const tolls = aggregateLegTolls(legTolls, sorted.length - 1);
+      if (tolls.totalCost !== null) {
+        trip.tollCost = tolls.totalCost;
+        trip.tollStatus = tolls.status === 'calculated_zero' ? 'calculated_zero' : 'calculated';
+      } else {
+        trip.tollCost = null as any;
+        trip.tollStatus = 'unavailable';
+      }
       await this.repo.save(trip);
     }
 
