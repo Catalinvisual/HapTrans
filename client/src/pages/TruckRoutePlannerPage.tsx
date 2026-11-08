@@ -1254,6 +1254,9 @@ export default function TruckRoutePlannerPage() {
                   {Array.isArray(scheduleBreakdown.gaps) && scheduleBreakdown.gaps.length > 0 && (
                     <span className="text-amber-700 dark:text-amber-300">{t('sched_gap', 'Schedule gaps')}: {scheduleBreakdown.gaps.length}</span>
                   )}
+                  {Array.isArray(scheduleBreakdown.conflicts) && scheduleBreakdown.conflicts.length > 0 && (
+                    <span className="font-semibold text-red-700 dark:text-red-400">{t('pln_conflicts', 'Conflicts')}: {scheduleBreakdown.conflicts.length}</span>
+                  )}
                 </>
               )}
               <span className="text-text-secondary">{t('pln_total_elapsed', 'Total elapsed')}: <strong className="text-text-primary">{Math.floor(routeTotalMinutes / 60)}h {routeTotalMinutes % 60}m</strong></span>
@@ -1421,7 +1424,16 @@ export default function TruckRoutePlannerPage() {
 
             {routePlan && sortedStops.map((stop: any, idx: number) => {
               const isPickup = stop.type === 'pickup';
-              const conflictFor = (routePlan?.conflicts || []).filter((c: any) => c.stopId === stop.id);
+              const conflictFor = [
+                ...(routePlan?.conflicts || []),
+                ...(((scheduleBreakdown?.conflicts || []) as any[])
+                  .filter((c) => c.stopId === stop.id)
+                  .map((c) => ({
+                    stopId: c.stopId,
+                    severity: 'error',
+                    message: `${t('pln_conflict', 'Conflict')}: ${Math.max(0, Math.round((new Date(c.arrival).getTime() - new Date(c.windowEnd).getTime()) / 60000))} min`,
+                  }))),
+              ].filter((c: any) => c.stopId === stop.id);
               const warnFor = (routePlan?.warnings || []).filter((w: any) => w.stopId === stop.id);
               const prevIdx = idx > 0 ? idx - 1 : -1;
               const nextIdx = idx < sortedStops.length - 1 ? idx + 1 : -1;
