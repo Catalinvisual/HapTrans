@@ -4016,6 +4016,18 @@ export class PlanningService {
     const routeMetadata: any = {
       ...(routePlan.optimizationMetadata || {}),
       routeRestrictionsMissing: missingRestrictions,
+      // Provider provenance per leg, so a distance can be traced to the profile
+      // and adapter that produced it instead of being an unexplained total.
+      routeLegs: route.legs.map((leg) => ({
+        fromIndex: leg.fromIndex,
+        toIndex: leg.toIndex,
+        distanceKm: leg.distanceKm,
+        durationMin: leg.durationMin,
+        provider: route.provider,
+        profile: 'truck',
+        calculatedAt: new Date().toISOString(),
+        fallbackReason: route.provider === 'ors' ? route.fallbackReason || null : null,
+      })),
     };
     if (route.provider === 'ors' && route.fallbackReason) {
       routeMetadata.routeFallbackReason = route.fallbackReason;

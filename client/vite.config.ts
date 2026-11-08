@@ -1,10 +1,43 @@
 import { defineConfig } from 'vite'
+import { execSync } from 'node:child_process'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Build identity injected into the served HTML. The API reports its own commit,
+// so the browser and the API can be compared instead of assuming a push shipped.
+function resolveBuildId(): string {
+  const fromEnv = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.SOURCE_VERSION || process.env.VERCEL_GIT_COMMIT_SHA
+  if (fromEnv) return fromEnv
+  try {
+    return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
+const buildId = resolveBuildId()
+const buildTime = new Date().toISOString()
+
+function buildIdentityPlugin() {
+  return {
+    name: 'hapcargo-build-identity',
+    transformIndexHtml(html: string) {
+      return html.replace(
+        '</head>',
+        `    <meta name="hapcargo-build" content="${buildId}" />\n    <meta name="hapcargo-built-at" content="${buildTime}" />\n  </head>`,
+      )
+    },
+  }
+}
+
 export default defineConfig({
+  define: {
+    __HAPCARGO_BUILD__: JSON.stringify(buildId),
+    __HAPCARGO_BUILT_AT__: JSON.stringify(buildTime),
+  },
   plugins: [
     react(),
+    buildIdentityPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
