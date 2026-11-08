@@ -367,11 +367,11 @@ export default function ConsolidationWizard({
                   <p className="text-[10px] font-black uppercase tracking-wide text-text-secondary">{t('cons_capacity', 'Capacity')}</p>
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div>
-                      <span className="block text-[10px] text-text-secondary">{t('cons_before', 'Before')}</span>
+                      <span className="block text-[10px] text-text-secondary">{t('cw_current_load', 'Current load (existing itinerary)')}</span>
                       <b className="text-text-primary">{cargo.before?.pallets || 0} {t('cw_pallets', 'pallets')} · {num(cargo.before?.weight)} kg · {num(cargo.before?.ldm, 1)} LDM</b>
                     </div>
                     <div>
-                      <span className="block text-[10px] text-text-secondary">{t('cons_after', 'After')}</span>
+                      <span className="block text-[10px] text-text-secondary">{t('cw_proposed_load', 'Proposed load (this itinerary)')}</span>
                       <b className="text-text-primary">{cargo.after?.pallets || 0} {t('cw_pallets', 'pallets')} · {num(cargo.after?.weight)} kg · {num(cargo.after?.ldm, 1)} LDM</b>
                     </div>
                   </div>
@@ -394,6 +394,43 @@ export default function ConsolidationWizard({
                       </div>
                     );
                   })}
+                  {preflight?.candidate && (
+                    <div className="space-y-1 border-t border-border pt-2 text-[10px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-black uppercase tracking-wide text-text-secondary">
+                          {t('cw_candidate', 'Proposed sequence')}
+                        </span>
+                        <span className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase ${preflight.candidate.status === 'rejected'
+                          ? 'bg-red-500/15 text-red-700 dark:text-red-300'
+                          : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'}`}>
+                          {preflight.candidate.status === 'rejected'
+                            ? t('cw_candidate_rejected', 'Cannot be inserted')
+                            : t('cw_candidate_selected', 'Selected')}
+                        </span>
+                      </div>
+                      <p className="text-text-secondary">
+                        {t('cw_candidate_peak', 'Maximum simultaneous load')}: <b className="text-text-primary">{preflight.candidate.peak?.pallets ?? 0} {t('cw_pallets', 'pallets')} · {num(preflight.candidate.peak?.weight)} kg · {num(preflight.candidate.peak?.ldm, 1)} LDM</b>
+                      </p>
+                      <p className="text-text-secondary">
+                        {t('cw_candidate_stops', 'Candidate stops')}: <b className="text-text-primary">{(preflight.candidate.stopOrder || []).length}</b>
+                        {' · '}{t('cw_candidate_ledger', 'Ledger')}: <b className="text-text-primary">{preflight.candidate.ledgerStatus || '—'}</b>
+                        {preflight.candidate.addedDistanceKm != null && (
+                          <>{' · '}{t('cw_added_distance', 'Incremental distance')}: <b className="text-text-primary">{num(preflight.candidate.addedDistanceKm)} km</b></>
+                        )}
+                      </p>
+                      {(preflight.candidate.blockers || []).filter((entry: any) => entry.level === 'blocking').map((entry: any, index: number) => (
+                        <p key={`${entry.code}-${index}`} className="text-red-700 dark:text-red-300">
+                          {entry.code}
+                          {entry.params?.load != null ? `: ${num(entry.params.load, 1)} / ${num(entry.params.max, 1)}` : ''}
+                        </p>
+                      ))}
+                      {preflight.candidate.status === 'rejected' && (
+                        <p className="text-text-muted">
+                          {t('cw_candidate_unchanged', 'The existing itinerary is unchanged; this sequence was evaluated but cannot be inserted.')}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

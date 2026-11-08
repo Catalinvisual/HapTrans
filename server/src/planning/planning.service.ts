@@ -1958,12 +1958,59 @@ export class PlanningService {
         requirements: equipmentChecks,
       },
       cargo: {
+        // `before`/`after` keep their historical meaning for existing clients:
+        // the itinerary and the proposal (equal when nothing was inserted).
         before: dimensions(capacityCheck.before.peak),
         after: dimensions(capacityCheck.after.peak),
         capacity: known,
         beforeStatus: capacityCheck.before.status,
         afterStatus: capacityCheck.after.status,
+        // The two ledgers are reported separately so a rejected candidate's
+        // figures are never presented as the existing itinerary's, and vice
+        // versa. Each carries its own rows and peak.
+        existing: {
+          status: capacityCheck.before.status,
+          peak: dimensions(capacityCheck.before.peak),
+          capacity: known,
+          rows: capacityCheck.before.rows,
+          issues: capacityCheck.before.issues,
+        },
+        candidate: proposal.candidate ? {
+          status: proposal.candidate.status,
+          orderId: proposal.candidate.orderId,
+          peak: {
+            weight: proposal.candidate.cargo.weightKg,
+            pallets: proposal.candidate.cargo.pallets,
+            ldm: proposal.candidate.cargo.ldm,
+            volume: proposal.candidate.cargo.volume,
+          },
+          capacity: known,
+          ledgerStatus: proposal.candidate.ledger.status,
+          rows: proposal.candidate.ledger.rows,
+          issues: proposal.candidate.ledger.issues,
+        } : null,
       },
+      // Everything below belongs to one evaluated sequence: its blockers are
+      // never mixed with blockers from a different insertion position.
+      candidate: proposal.candidate ? {
+        status: proposal.candidate.status,
+        orderId: proposal.candidate.orderId,
+        orderNumber: proposal.candidate.orderNumber,
+        stopOrder: proposal.candidate.stopOrder,
+        stopSequence: proposal.candidate.sequence,
+        peak: {
+          weight: proposal.candidate.cargo.weightKg,
+          pallets: proposal.candidate.cargo.pallets,
+          ldm: proposal.candidate.cargo.ldm,
+          volume: proposal.candidate.cargo.volume,
+        },
+        ledgerStatus: proposal.candidate.ledger.status,
+        blockers: proposal.candidate.blockers,
+        warnings: proposal.candidate.warnings,
+        addedDistanceKm: proposal.candidate.addedDistanceKm,
+        addedDrivingMin: proposal.candidate.addedDrivingMin,
+        explanation: proposal.candidate.explanation,
+      } : null,
       route: {
         status: routeStatus,
         provider: routeProvider,

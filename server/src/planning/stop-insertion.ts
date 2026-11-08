@@ -1,5 +1,5 @@
 import { KnownTruckCapacity, CapacityViolation } from './assignment-capacity';
-import { buildCargoLedger, CargoLedgerStop } from './cargo-ledger';
+import { buildCargoLedger, CargoLedgerResult, CargoLedgerStop } from './cargo-ledger';
 import { cargoForOrder } from './consolidation-cargo';
 
 /**
@@ -128,6 +128,12 @@ export interface InsertionOption {
   capacityBefore: { pallets: number; weightKg: number; ldm: number; volume: number };
   capacityAfter: { pallets: number; weightKg: number; ldm: number; volume: number };
   capacityCapacity: KnownTruckCapacity;
+  /**
+   * The cargo ledger of this exact stop sequence. Every blocker of this option
+   * is derived from it, so a reported load can always be traced to a segment
+   * of the sequence the option actually proposes.
+   */
+  ledger: CargoLedgerResult;
   driverHours: InsertionDriverHours;
   blockers: InsertionBlocker[];
   warnings: InsertionWarning[];
@@ -138,7 +144,15 @@ export interface InsertionEvaluation {
   status: 'feasible' | 'infeasible' | 'unverified';
   recommended: InsertionOption | null;
   candidates: InsertionOption[];
+  /**
+   * The single rejected position whose ledger and blockers are reported when no
+   * insertion is feasible. Null when a position was recommended.
+   */
+  rejectedCandidate: InsertionOption | null;
+  /** Other rejected positions, each with its own independent verdict. */
+  rejectedCandidates: InsertionOption[];
   blockedCount: number;
+  /** Codes seen across all rejected positions; a summary, never a verdict. */
   rejectedCodes: string[];
   blockers: InsertionBlocker[];
   warnings: InsertionWarning[];
@@ -584,6 +598,7 @@ function evaluateCandidate(
     capacityBefore: baseline.ledgerPeak,
     capacityAfter: peak,
     capacityCapacity: ctx.capacity,
+    ledger,
     driverHours: {
       status: drivingMin == null ? 'unverified' : 'verified',
       methodology: 'eu_561_2006_planning_model',
@@ -601,30 +616,24 @@ function evaluateCandidate(
   };
 }
 
-function uniqueWarnings(options: InsertionOption[]): InsertionWarning[] {
-  const seen = new Set<string>();
-  const out: InsertionWarning[] = [];
-  for (const option of options) {
-    for (const warning of option.warnings) {
-      if (seen.has(warning.code)) continue;
-      seen.add(warning.code);
-      out.push(warning);
-    }
-  }
-  return out;
-}
-
-function uniqueBlockers(options: InsertionOption[]): InsertionBlocker[] {
-  const seen = new Set<string>();
-  const out: InsertionBlocker[] = [];
-  for (const option of options) {
-    for (const blocker of option.blockers) {
-      if (seen.has(blocker.code)) continue;
-      seen.add(blocker.code);
-      out.push(blocker);
-    }
-  }
-  return out;
+/**
+ * Rank rejected positions deterministically: fewest independent blocking
+ * reasons first, then the cheapest net addition, then the earliest position,
+ * then the stop order itself. Exactly one of them is reported as the rejected
+ * candidate, so its blockers can never be borrowed from another sequence.
+ */
+function rankRejected(options: InsertionOption[]): InsertionOption[] {
+  const distinctCodes = (option: InsertionOption) => new Set(option.blockers.map((blocker) => blocker.code)).size;
+  return options.slice().sort((a, b) => {
+    const byCodes = distinctCodes(a) - distinctCodes(b);
+    if (byCodes !== 0) return byCodes;
+    const aKm = a.addedDistanceKm ?? Number.POSITIVE_INFINITY;
+    const bKm = b.addedDistanceKm ?? Number.POSITIVE_INFINITY;
+    if (aKm !== bKm) return aKm - bKm;
+    if (a.pickupIndex !== b.pickupIndex) return a.pickupIndex - b.pickupIndex;
+    if (a.deliveryIndex !== b.deliveryIndex) return a.deliveryIndex - b.deliveryIndex;
+    return a.stopOrder.join('|').localeCompare(b.stopOrder.join('|'));
+  });
 }
 
 function capacityViolationsFor(
@@ -661,6 +670,8 @@ export function evaluateInsertion(ctx: InsertionContext): InsertionEvaluation {
       recommended: null,
       candidates: [],
       blockedCount: 0,
+      rejectedCandidate: null,
+      rejectedCandidates: [],
       rejectedCodes: ['ORDER_STOPS_INCOMPLETE'],
       blockers: [{
         level: 'blocking',
@@ -714,6 +725,11 @@ export function evaluateInsertion(ctx: InsertionContext): InsertionEvaluation {
   const blocked = options.filter((option) => option.blockers.length > 0);
   const unverified = feasible.filter((option) => option.addedDistanceKm == null);
   const recommended = recommendable[0] || null;
+  const rejectedRanked = rankRejected(blocked);
+  const rejectedCandidate = recommended ? null : rejectedRanked[0] || null;
+  // When every position is capacity-feasible but no route is verified, no
+  // position is rejected; its warnings still describe one single sequence.
+  const unverifiedBest = recommended || rejectedCandidate ? null : rankRejected(unverified)[0] || null;
 
   const status: InsertionEvaluation['status'] = recommended
     ? 'feasible'
@@ -729,10 +745,16 @@ export function evaluateInsertion(ctx: InsertionContext): InsertionEvaluation {
     status,
     recommended,
     candidates: recommendable.slice(0, 5),
+    rejectedCandidate,
+    rejectedCandidates: recommended ? [] : rejectedRanked,
     blockedCount: blocked.length,
+    // A summary of what was seen, kept for the count chip. The verdict below is
+    // never assembled from these: it belongs to one sequence only.
     rejectedCodes: [...new Set(blocked.flatMap((option) => option.blockers.map((blocker) => blocker.code)))],
-    blockers: recommended ? recommended.blockers : uniqueBlockers(blocked),
-    warnings: recommended ? recommended.warnings : uniqueWarnings(feasible.concat(blocked)),
+    blockers: recommended ? recommended.blockers : rejectedCandidate?.blockers || [],
+    warnings: recommended
+      ? recommended.warnings
+      : rejectedCandidate?.warnings || unverifiedBest?.warnings || [],
     explanation,
   };
 }

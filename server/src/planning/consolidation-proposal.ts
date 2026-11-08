@@ -8,11 +8,13 @@ import {
   computeRouteTotals,
   evaluateInsertion,
   scheduleForStops,
+  InsertionBlocker,
   InsertionEvaluation,
   InsertionLeg,
   InsertionOption,
   InsertionOrder,
   InsertionStop,
+  InsertionWarning,
 } from './stop-insertion';
 
 /**
@@ -117,9 +119,34 @@ export interface ProposalInsertionOption {
   waitingMin: number | null;
   totalMin: number | null;
   capacityAfter: { pallets: number; weightKg: number; ldm: number; volume: number };
+  ledger: InsertionOption['ledger'];
   driverHours: InsertionOption['driverHours'];
   blockers: InsertionOption['blockers'];
   warnings: InsertionOption['warnings'];
+  explanation: string;
+}
+
+/**
+ * One evaluated insertion position with its own complete verdict.
+ *
+ * A rejected candidate is never written into the itinerary: it is returned
+ * beside it, with the ledger of its own stop sequence, so a capacity figure can
+ * never be attributed to a route that was not evaluated.
+ */
+export interface ProposalCandidate {
+  status: 'selected' | 'rejected';
+  orderId: string | null;
+  orderNumber: string | null;
+  pickupIndex: number;
+  deliveryIndex: number;
+  stopOrder: string[];
+  sequence: ProposalSequenceStop[];
+  cargo: InsertionOption['capacityAfter'];
+  ledger: InsertionOption['ledger'];
+  blockers: InsertionBlocker[];
+  warnings: InsertionWarning[];
+  addedDistanceKm: number | null;
+  addedDrivingMin: number | null;
   explanation: string;
 }
 
@@ -152,6 +179,8 @@ export interface ConsolidationProposal {
     recommended: ProposalInsertionOption | null;
     alternatives: ProposalInsertionOption[];
   };
+  /** Selected position, or the single best rejected one, with its own ledger. */
+  candidate: ProposalCandidate | null;
   blockers: ProposalConflict[];
   warnings: ProposalConflict[];
   explanation: string;
@@ -255,6 +284,7 @@ function summarizeOption(option: InsertionOption): ProposalInsertionOption {
     waitingMin: option.waitingMin,
     totalMin: option.totalMin,
     capacityAfter: option.capacityAfter,
+    ledger: option.ledger,
     driverHours: option.driverHours,
     blockers: option.blockers,
     warnings: option.warnings,
@@ -292,10 +322,12 @@ export function buildConsolidationProposal(input: ConsolidationProposalInput): C
   let working: InsertionStop[] = existing.slice();
   let status: 'feasible' | 'infeasible' | 'unverified' = 'feasible';
   let lastEvaluation: InsertionEvaluation | null = null;
+  let evaluatedOrder: InsertionOrder | null = null;
   // A proposal only exists when every requested order found a position.
   let placedAll = true;
 
   for (const order of orders) {
+    evaluatedOrder = order;
     const evaluation = evaluateInsertion({
       existingStops: working,
       order,
@@ -423,6 +455,27 @@ export function buildConsolidationProposal(input: ConsolidationProposalInput): C
     .filter((option) => option !== lastEvaluation?.recommended)
     .map(summarizeOption);
 
+  // The candidate is exactly one position: the selected one, or the single
+  // rejected one whose blockers are reported. Its `cargo`, `ledger` and
+  // `blockers` all come from that same evaluation.
+  const candidateOption = lastEvaluation?.recommended || lastEvaluation?.rejectedCandidate || null;
+  const candidate: ProposalCandidate | null = candidateOption ? {
+    status: lastEvaluation?.recommended ? 'selected' : 'rejected',
+    orderId: evaluatedOrder?.id || null,
+    orderNumber: evaluatedOrder?.orderNumber || null,
+    pickupIndex: candidateOption.pickupIndex,
+    deliveryIndex: candidateOption.deliveryIndex,
+    stopOrder: candidateOption.stopOrder,
+    sequence: summarizeOption(candidateOption).sequence,
+    cargo: candidateOption.capacityAfter,
+    ledger: candidateOption.ledger,
+    blockers: candidateOption.blockers,
+    warnings: candidateOption.warnings,
+    addedDistanceKm: candidateOption.addedDistanceKm,
+    addedDrivingMin: candidateOption.addedDrivingMin,
+    explanation: candidateOption.explanation,
+  } : null;
+
   const blockers = conflicts.filter((entry) => entry.level === 'blocking');
   const warnings = conflicts.filter((entry) => entry.level === 'warning');
   if (!routeVerified && !warnings.some((entry) => entry.code === 'ROUTE_UNVERIFIED')) {
@@ -459,6 +512,7 @@ export function buildConsolidationProposal(input: ConsolidationProposalInput): C
       baselineLegs: legProvenance(existing, baselineRoute),
     },
     cargo,
+    candidate,
     schedule: {
       status: proposedSchedule.status,
       departure: input.departure ? input.departure.toISOString() : null,
