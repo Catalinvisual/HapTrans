@@ -1642,17 +1642,21 @@ export class PlanningService {
     // The difference is the genuine incremental distance/time, never the whole
     // trip distance and never a straight-line guess.
     const routeCache = new Map<string, any>();
-    const routeForStops = async (stops: any[]): Promise<RouteTotals> => {
+    const routeForStops = async (stops: any[]): Promise<RouteTotals & { legDistancesKm: number[] }> => {
       let distanceKm = 0;
       let durationMin = 0;
       let provider: string | null = null;
       const legDurationsMin: number[] = [];
+      // Kept per leg so a suspicious incremental total can be traced to the
+      // exact pair of stops that produced it instead of being reported as one
+      // unexplained number.
+      const legDistancesKm: number[] = [];
       for (let index = 1; index < stops.length; index += 1) {
         const from = stops[index - 1];
         const to = stops[index];
         const coordinates = [from.latitude, from.longitude, to.latitude, to.longitude].map(Number);
         if (coordinates.some((value) => !Number.isFinite(value))) {
-          return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [] };
+          return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [], legDistancesKm: [] };
         }
         const key = coordinates.join(',');
         let leg = routeCache.get(key);
@@ -1661,14 +1665,15 @@ export class PlanningService {
           routeCache.set(key, leg);
         }
         if (!leg || !Number.isFinite(Number(leg.distanceKm)) || !Number.isFinite(Number(leg.durationMin))) {
-          return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [] };
+          return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [], legDistancesKm: [] };
         }
         provider = leg.source || provider;
         distanceKm += Number(leg.distanceKm);
         durationMin += Number(leg.durationMin);
         legDurationsMin.push(Number(leg.durationMin));
+        legDistancesKm.push(Number(leg.distanceKm));
       }
-      return { status: 'verified', distanceKm, durationMin, provider, legDurationsMin };
+      return { status: 'verified', distanceKm, durationMin, provider, legDurationsMin, legDistancesKm };
     };
 
     const baselineRoute = await routeForStops(existingStops);
@@ -1754,6 +1759,24 @@ export class PlanningService {
           type: String(stop.type || '').toLowerCase(),
           city: stop.city || null,
           orderId: (stop as any).orderId || null,
+        })),
+        // Per-leg distance and provider for the proposed itinerary, so an
+        // implausible incremental figure can be traced to the stop pair that
+        // caused it instead of being presented as one authoritative number.
+        legs: proposedRoute.legDistancesKm.map((legKm, index) => ({
+          sequence: index + 1,
+          from: capacityCheck.proposedStops[index]?.city || null,
+          to: capacityCheck.proposedStops[index + 1]?.city || null,
+          distanceKm: Math.round(legKm * 10) / 10,
+          durationMin: proposedRoute.legDurationsMin[index] ?? null,
+          provider: proposedRoute.provider,
+        })),
+        baselineLegs: baselineRoute.legDistancesKm.map((legKm, index) => ({
+          sequence: index + 1,
+          from: existingStops[index]?.city || null,
+          to: existingStops[index + 1]?.city || null,
+          distanceKm: Math.round(legKm * 10) / 10,
+          provider: baselineRoute.provider,
         })),
       },
       driverHours: {
