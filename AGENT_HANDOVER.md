@@ -18,9 +18,12 @@ Last updated at commit `9ccc196` (+ the commit that adds this file).
 | TMS | **`c786256`** | served document meta `hapcargo-build content="c7862567df3fc6b9620873c50e50f02468a5b1b6"` |
 | Website | unknown | no public URL is derivable from the repo; not verified |
 
-`9ccc196` is **NOT deployed**. There is no Railway CLI, token or project config in this
-environment, so a deployment can only be triggered from the Railway dashboard by the
-developer (service → `server/` root → Dockerfile → Redeploy). Do not claim otherwise.
+`9ccc196` **is deployed**: the API later reported `9ccc1966b53dc3cc90479137e04f1a953b992a56`
+and the live preflight now returns `route.legs` / `route.baselineLegs`. There is no Railway CLI,
+token or project config in this environment, so any further deployment must be triggered from the
+Railway dashboard by the developer (service → `server/` root → Dockerfile → Redeploy).
+
+TMS still serves `c786256`; nothing client-side changed since, so this is expected.
 
 ## Implemented and verified
 
@@ -59,19 +62,35 @@ developer (service → `server/` root → Dockerfile → Redeploy). Do not claim
 Live preflight for the case above:
 
 ```
-route.status   = verified      (provider success, NOT distance validity)
-provider       = here
-baselineKm     = 2152
-proposedKm     = 4809
-addedKm        = 2657          (= 4809 − 2152)
+baselineKm = 2152   proposedKm = 4809   addedKm = 2657   provider = here
 ```
 
-`incrementalRoute()` in `consolidation-cargo.ts` is arithmetically correct (subtracts totals,
-returns `null` when either side is unverified). The defect is **upstream in the proposed
-itinerary**: 4,809 km for adding two stops inside the corridor the trip already drives is
-~2.2× the baseline — the signature of a reordered/backtracking stop list, not a real detour.
-`buildProposedStops()` (pickup-first ranking) and/or the HERE per-leg results are the two
-candidates. Root cause is **not yet confirmed because `9ccc196` is undeployed**.
+**Root cause confirmed** from the deployed per-leg provenance. The proposed itinerary is the
+existing route *with the candidate order appended at the tail*, not inserted into the corridor:
+
+```
+baseline legs: 1. Écully>Soest 927   2. Soest>Pobiedziska 915   3. Pobiedziska>Berlin 310
+proposed legs: …same three legs…   4. Berlin>Eindhoven 654   5. Eindhoven>Brașov 2003
+proposed seq : 1 pickup Écully · 2 delivery Soest · 3 pickup Pobiedziska · 4 delivery Berlin
+               5 pickup Eindhoven · 6 delivery Brașov
+```
+
+The first three legs are byte-identical to the baseline (2152 km), so `incrementalRoute()` is
+correct and no leg is double-counted. The 2,657 km is the **real driving cost of appending**
+ORD-2024007's postings to the end of the trip: Berlin → Eindhoven (654 km) then
+Eindhoven → Brașov (2,003 km).
+
+So the defect is not routing, arithmetic or provider — it is that `preflightConsolidation`
+proposes a **tail append** instead of the best insertion position, while
+the corridor already runs through Pobiedziska/Soest. The UI therefore reports an
+"incremental distance" that is technically the append cost but operationally misleading,
+and `addedKm` is silently presented as if it were the cost of the assignment.
+
+Fix direction (not yet implemented): make preflight delegate to the existing
+`insertionPreview` position search (it already evaluates every insertion point) and return the
+cheapest feasible sequence with its own `addedKm`, or explicitly label the result as an
+append when no cheaper position is evaluated. Add a regression test asserting that inserting a
+stop between Soest and Pobiedziska does **not** produce a Berlin→Eindhoven→Brașov tail.
 
 ## Next precise task
 
