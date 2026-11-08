@@ -3536,8 +3536,6 @@ export class PlanningService {
     });
     if (!trip) throw new NotFoundException('Trip not found.');
 
-    await this.stopRepoFor(manager).delete({ trip: { id: tripId } });
-
     let orders = (trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled');
     if (!orders.length) {
       // Legacy assignments wrote stop tasks without the orders.tripId link, so
@@ -3556,6 +3554,10 @@ export class PlanningService {
       }
       orders = [...byOrderId.values()].filter((o) => String(o.status) !== 'cancelled') as any;
     }
+
+    // The stops (and their tasks) are recreated below, so the delete must run
+    // after the legacy task fallback has read the relationships it depends on.
+    await this.stopRepoFor(manager).delete({ trip: { id: tripId } });
     const collected: any[] = [];
     for (const order of orders) {
       const os = (order.stops || [])
