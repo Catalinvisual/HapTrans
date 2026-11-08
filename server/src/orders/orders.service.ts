@@ -15,6 +15,7 @@ import { computeAuditChanges } from '../action-logs/diff.util';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { validateStopAppointment } from '../planning/stop-appointment';
 import { planOrderStopMatch } from './order-stop-identity';
+import { stopAppointmentColumns } from './stop-appointment-columns';
 
 /**
  * The reference stored on a stop belongs to that stop's own direction.
@@ -327,10 +328,9 @@ export class OrdersService implements OnModuleInit {
             postalCode: stopDto.postalCode || null,
             contactPerson: stopDto.contactPerson || stopDto.contactName || null,
             phone: stopDto.phone || stopDto.contactPhone || null,
-            dateFrom: safeDate(stopDto.scheduledDate || stopDto.requestedDateFrom || stopDto.dateFrom),
-            dateTo: safeDate(stopDto.requestedDateTo || stopDto.dateTo),
-            timeFrom: stopDto.scheduledTime || stopDto.timeFrom || null,
-            timeUntil: stopDto.timeUntil || null,
+            // One normaliser for both write paths: a cleared endpoint persists as
+            // null, and no 23:59 is invented for a date-only maximum.
+            ...stopAppointmentColumns(stopDto),
             clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
             reference: stopReferenceFor(stopDto, stopDto.type || (i === 0 ? 'pickup' : 'dropoff')),
             notes: stopDto.notes || null
@@ -597,10 +597,7 @@ export class OrdersService implements OnModuleInit {
             contactPerson: stopDto.contactPerson || stopDto.contactName || null,
             phone: stopDto.phone || stopDto.contactPhone || null,
             // A cleared endpoint must persist as null: no 23:59 substitution.
-            dateFrom: safeDate(stopDto.scheduledDate || stopDto.requestedDateFrom || stopDto.dateFrom),
-            dateTo: safeDate(stopDto.requestedDateTo || stopDto.dateTo),
-            timeFrom: stopDto.scheduledTime || stopDto.timeFrom || null,
-            timeUntil: stopDto.timeUntil || null,
+            ...stopAppointmentColumns(stopDto),
             clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
             reference: stopReferenceFor(stopDto, stopDto.type || (match.index === 0 ? 'pickup' : 'dropoff')),
             notes: stopDto.notes || null,

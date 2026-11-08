@@ -39,6 +39,7 @@ import { deriveConsolidationVerdict } from './consolidation-feasibility';
 import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
 import { planOrderStopSync } from './stop-sync';
 import { buildRouteSchedule } from './route-schedule';
+import { resolvePlannedEta } from './planned-eta';
 import { evaluateInsertion } from './stop-insertion';
 import { buildConsolidationProposal } from './consolidation-proposal';
 import {
@@ -4883,7 +4884,9 @@ export class PlanningService {
     stops.forEach((stop, index) => {
       const scheduled = schedule.stops[index];
       if (!scheduled) return;
-      if (!stop.plannedEta) stop.plannedEta = scheduled.arrival as any;
+      // The schedule owns the planned ETA: a recomputed arrival replaces the
+      // stale one instead of being ignored because a value already exists.
+      stop.plannedEta = resolvePlannedEta(scheduled.arrival, stop) as any;
       stop.calculatedEta = scheduled.arrival as any;
       stop.etd = scheduled.departure as any;
     });

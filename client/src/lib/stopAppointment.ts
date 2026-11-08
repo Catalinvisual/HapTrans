@@ -20,7 +20,9 @@ export interface AppointmentSummary {
   time: string | null;
   /** For a flexible window only. */
   endDate: string | null;
+  /** Null when only a maximum date was entered — no clock is invented. */
   endTime: string | null;
+  endTimeAssumed?: boolean;
   endBeforeStart: boolean;
 }
 
@@ -53,16 +55,21 @@ export function summariseAppointment(input: AppointmentInput | null | undefined)
   }
 
   const endDate = dateTo || dateFrom;
-  const endTime = timeUntil || (dateTo ? '23:59' : '00:00');
+  // A date-only maximum is a real entered date, not a clock time: never invent
+  // 23:59 for it. The window simply ends with that day.
+  const endTime = timeUntil || null;
   const startMinutes = (Number((timeFrom || '00:00').slice(0, 2)) * 60) + Number((timeFrom || '00:00').slice(3, 5));
-  const endMinutes = (Number(endTime.slice(0, 2)) * 60) + Number(endTime.slice(3, 5));
-  const endBeforeStart = endDate === dateFrom && endMinutes < startMinutes;
+  const endMinutes = endTime
+    ? (Number(endTime.slice(0, 2)) * 60) + Number(endTime.slice(3, 5))
+    : null;
+  const endBeforeStart = endDate === dateFrom && endMinutes !== null && endMinutes < startMinutes;
   return {
     kind: endBeforeStart ? 'invalid' : 'window',
     date: dateFrom,
     time: timeFrom || '00:00',
     endDate,
     endTime,
+    endTimeAssumed: !endTime,
     endBeforeStart,
   };
 }

@@ -629,6 +629,9 @@ function TripBlock({
         // extend past the end of the timeline and be clipped by the scroll box.
         left: `${pos.left}%`,
         width: `${Math.max(1.5, Math.min(pos.width, 100 - pos.left))}%`,
+        // A short trip must still be readable: keep a legible floor instead of
+        // collapsing the card to a 34px sliver, and let the lane scroll.
+        minWidth: isVeryNarrow ? 96 : 0,
         top: `${cardTop}px`, height: `${cardHeight}px`,
         zIndex: isSelected ? 20 : 5,
       }}
