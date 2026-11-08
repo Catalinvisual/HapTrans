@@ -2017,23 +2017,21 @@ export class TripsService {
   async handleOrderUpdated(order: any) {
     if (order.trip && order.trip.id) {
       try {
-        // 1. Find all StopTasks for this order and delete them
-        await this.repo.manager.delete('StopTask', { order: { id: order.id } });
-        
-        // 2. Delete empty stops for this trip
+        // An order that is already represented on this trip is maintained in
+        // place by PlanningService.syncOrderStopsToTrip. Re-assigning it here
+        // deleted its stop tasks and appended a fresh pickup/delivery pair on
+        // top of the updated stops, so every save of an assigned order added
+        // another set of stops/tasks to the trip.
         const trip = await this.repo.findOne({ where: { id: order.trip.id }, relations: ['stops', 'stops.tasks'] });
-        if (trip && trip.stops) {
-          for (const s of trip.stops) {
-            if (!s.tasks || s.tasks.length === 0) {
-              await this.repo.manager.delete('Stop', { id: s.id });
-            }
-          }
+        if (!trip) return;
+        const represented = (trip.stops || []).some((stop: any) =>
+          (stop.tasks || []).some((task: any) => String(task.order?.id || task.orderId) === String(order.id)),
+        );
+        if (!represented) {
+          // Genuinely new assignment: create the stops and tasks once.
+          await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id], true);
         }
-        
-        // 3. Re-assign order to trip to recreate the tasks and stops silently (without emails)
-        await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id], true);
 
-        // 4. Recalculate trip distance and duration
         await this.recalculateTripMetrics(order.trip.id);
       } catch (err) {
         console.error('Error in handleOrderUpdated:', err);

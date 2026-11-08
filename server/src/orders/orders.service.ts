@@ -14,6 +14,7 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { validateStopAppointment } from '../planning/stop-appointment';
+import { planOrderStopMatch } from './order-stop-identity';
 
 /**
  * The reference stored on a stop belongs to that stop's own direction.
@@ -568,16 +569,24 @@ export class OrdersService implements OnModuleInit {
 
       await this.repo.update(id, updateData);
 
-      // Recreate stops if provided
+      // Update stops in place. Deleting and re-inserting them on every save gave
+      // each edit new primary keys, so the trip stop representing the same
+      // operation had no stable anchor and repeated edits/syncs could end up
+      // with two records for one pickup. Matched rows keep their id; only rows
+      // whose logical stop genuinely disappeared are removed.
       if (processedStops.length > 0) {
-        await this.stopRepo.delete({ order: { id } });
-        for (let i = 0; i < processedStops.length; i++) {
-          const stopDto = processedStops[i];
-          const stop = this.stopRepo.create({
-            order: { id } as any,
+        const existingStops = await this.stopRepo.find({
+          where: { order: { id } },
+          order: { sequence: 'ASC' },
+        });
+        const matchPlan = planOrderStopMatch(existingStops as any[], processedStops);
+        const byId = new Map(existingStops.map((row: any) => [String(row.id), row]));
+        for (const match of matchPlan.matches) {
+          const stopDto = processedStops[match.index];
+          const fields: any = {
             company: dto.companyId ? { id: dto.companyId } as any : null,
-            sequence: i + 1,
-            type: stopDto.type || (i === 0 ? 'pickup' : 'dropoff'),
+            sequence: match.index + 1,
+            type: stopDto.type || (match.index === 0 ? 'pickup' : 'dropoff'),
             companyName: stopDto.companyName || null,
             address: stopDto.address || null,
             latitude: safeNum(stopDto.latitude),
@@ -587,16 +596,27 @@ export class OrdersService implements OnModuleInit {
             postalCode: stopDto.postalCode || null,
             contactPerson: stopDto.contactPerson || stopDto.contactName || null,
             phone: stopDto.phone || stopDto.contactPhone || null,
+            // A cleared endpoint must persist as null: no 23:59 substitution.
             dateFrom: safeDate(stopDto.scheduledDate || stopDto.requestedDateFrom || stopDto.dateFrom),
             dateTo: safeDate(stopDto.requestedDateTo || stopDto.dateTo),
             timeFrom: stopDto.scheduledTime || stopDto.timeFrom || null,
             timeUntil: stopDto.timeUntil || null,
             clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
-            reference: stopReferenceFor(stopDto, stopDto.type || (i === 0 ? 'pickup' : 'dropoff')),
+            reference: stopReferenceFor(stopDto, stopDto.type || (match.index === 0 ? 'pickup' : 'dropoff')),
             notes: stopDto.notes || null,
-          } as any);
-          await this.stopRepo.save(stop);
+          };
+          const target = match.existingId ? byId.get(match.existingId) : null;
+          if (target) {
+            Object.assign(target, fields);
+            await this.stopRepo.save(target);
+          } else {
+            await this.stopRepo.save(this.stopRepo.create({ order: { id } as any, ...fields } as any));
+          }
         }
+        const surplus = matchPlan.surplusIds
+          .map((surplusId) => byId.get(surplusId))
+          .filter(Boolean) as any[];
+        if (surplus.length > 0) await this.stopRepo.remove(surplus);
       }
 
       // Recreate cargo if provided
