@@ -40,6 +40,7 @@ import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
 import { planOrderStopSync } from './stop-sync';
 import { buildRouteSchedule } from './route-schedule';
 import { resolvePlannedEta } from './planned-eta';
+import { dedupeOrderStops, dedupeRebuildOrders } from './rebuild-dedupe';
 import { evaluateInsertion } from './stop-insertion';
 import { buildConsolidationProposal } from './consolidation-proposal';
 import {
@@ -3537,7 +3538,7 @@ export class PlanningService {
     });
     if (!trip) throw new NotFoundException('Trip not found.');
 
-    let orders = (trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled');
+    let orders = dedupeRebuildOrders((trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled'));
     if (!orders.length) {
       // Legacy assignments wrote stop tasks without the orders.tripId link, so
       // trip.orders can be empty on a trip that genuinely has stops. Rebuilding
@@ -3553,7 +3554,7 @@ export class PlanningService {
         const order = task?.order;
         if (order?.id) byOrderId.set(String(order.id), order);
       }
-      orders = [...byOrderId.values()].filter((o) => String(o.status) !== 'cancelled') as any;
+      orders = dedupeRebuildOrders([...byOrderId.values()].filter((o) => String(o.status) !== 'cancelled'));
     }
 
     // The stops (and their tasks) are recreated below, so the delete must run
@@ -3561,7 +3562,7 @@ export class PlanningService {
     await this.stopRepoFor(manager).delete({ trip: { id: tripId } });
     const collected: any[] = [];
     for (const order of orders) {
-      const os = (order.stops || [])
+      const os = dedupeOrderStops(order.stops || [])
         .slice()
         .sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
       for (let i = 0; i < os.length; i++) {

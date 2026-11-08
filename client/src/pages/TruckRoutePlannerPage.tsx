@@ -15,6 +15,7 @@ import api from '../lib/api';
 import { statusBadgeClass as statusBadgeFromLib } from '../lib/statusColors';
 import { planningApi } from '../lib/planningApi';
 import { OPERATIONAL_TIME_ZONE } from '../lib/stopAppointment';
+import { dedupePlanStops } from '../lib/planStops';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import OrderWizard from '../components/orders/OrderWizard';
@@ -338,7 +339,7 @@ export default function TruckRoutePlannerPage() {
   }, [routePlan, orderColorMap, ORDER_COLOR_THEMES]);
 
   const sortedStops = useMemo(() => {
-    const raw = [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+    const raw = dedupePlanStops([...(routePlan?.stops || [])]).sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
 
     const orderCargo = new Map<string, { pal: number; wt: number; ldm: number; vol: number }>();
     raw.forEach((s: any) => {
