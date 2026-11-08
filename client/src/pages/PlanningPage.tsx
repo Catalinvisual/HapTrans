@@ -1092,7 +1092,7 @@ function TripDetailDrawer({
   loadingAction, refreshKey,
 }: {
   tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[]; hosSummary?: Record<string, any>;
-  onClose: () => void; onAction: (action: string, tripId: string, payload?: any) => void;
+  onClose: () => void; onAction: (action: string, tripId: string, payload?: any) => any;
   onReorderStops: (tripId: string, stopIds: string[]) => void;
   onEditOrder?: (orderId: string, initialStep?: number, highlight?: string) => void;
   onSplitTrip?: (trip: any) => void;
@@ -2091,7 +2091,15 @@ function TripDetailDrawer({
                               cancelText: t('cancel', 'Cancel'),
                             });
                             if (ok) {
-                              onAction('unassign-order', tripId, { orderId: o.id });
+                              const result: any = await onAction('unassign-order', tripId, { orderId: o.id });
+                              // Drop the row from the open drawer immediately instead of
+                              // waiting for the board refresh; a failed call returns no
+                              // `ok`, so the order stays visible with its error toast.
+                              if (result?.ok) {
+                                setTripDetail((prev: any) => prev
+                                  ? { ...prev, orders: (prev.orders || []).filter((x: any) => String(x.id) !== String(o.id)) }
+                                  : prev);
+                              }
                             }
                           }}
                           className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-xs"
@@ -2815,10 +2823,14 @@ export default function PlanningPage() {
         toast.success(t('jsx_sentOk', 'Trip dispatched to driver'));
       } else if (action === 'unassign-order') {
         const orderId = payload?.orderId;
-        if (!orderId) return;
-        await planningApi.unassignOrder(tripId, orderId);
+        if (!orderId) return { ok: false };
+        const response: any = await planningApi.unassignOrder(tripId, orderId);
+        // The toast is raised only after the backend confirmed the change.
         toast.success(t('order_unassigned_ok', 'Order unassigned from trip'));
         setDrawerRefreshKey(k => k + 1);
+        if (response?.deleted) setSelectedTripId(null);
+        await loadData();
+        return { ok: true, deleted: Boolean(response?.deleted) };
       } else if (action === 'unplan-trip') {
         await planningApi.unplanTrip(tripId);
         toast.success(t('trip_unplanned_ok', 'Trip unplanned and removed'));
@@ -2828,9 +2840,11 @@ export default function PlanningPage() {
         if (tr) setSplitTripTarget(tr);
         return;
       }
-      loadData();
+      await loadData();
+      return { ok: true };
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('jsx_actionError', 'Action failed'));
+      return { ok: false };
     } finally {
       setLoadingAction(null);
     }

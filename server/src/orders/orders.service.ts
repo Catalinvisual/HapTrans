@@ -649,6 +649,18 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
+      // A trip stop is a projection of this order's stops. Recreating only the
+      // order rows left an assigned trip on its old appointment, so push the
+      // edited appointment (and address/contact) onto the trip stop and let the
+      // planning service recalculate the trip schedule.
+      const assigned = await this.repo.findOne({ where: { id }, relations: ['trip'] } as any);
+      const assignedTripId = (assigned as any)?.trip?.id || null;
+      if (assignedTripId) {
+        // PlanningModule already imports OrdersModule, so the update is handed to
+        // the planning listener instead of importing it here (no module cycle).
+        this.eventEmitter.emit('order.stops.updated', { orderId: id, tripId: assignedTripId });
+      }
+
       // Re-evaluate ADR status and 1,000 points calculation on update
       await this.evaluateAndSaveAdr(id);
 

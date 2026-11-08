@@ -78,6 +78,7 @@ import {
 } from './truck-availability';
 import { appointmentBounds, resolveStopAppointment } from './stop-appointment';
 import { operationalTimeZone, wallClockToInstant } from '../common/operational-time';
+import { OnEvent } from '@nestjs/event-emitter';
 import {
   missingVehicleRestrictions,
   resolveRouteRestrictionsState,
@@ -3410,6 +3411,115 @@ export class PlanningService {
   }
 
   // ─── Stop rebuild ───────────────────────────────────────────────────────────
+
+  /**
+   * Propagates an edited order onto the trip stops that already carry it.
+   *
+   * Order stops and trip stops are separate rows: a trip stop is a projection of
+   * the order stop with operational state (ATA, completion, tasks) attached. An
+   * order edit used to recreate only the order stops, so an assigned trip kept
+   * the old appointment and every ETA, window and conflict derived from it.
+   * This updates the matching trip stop in place — its id and any recorded
+   * operational fact survive — and recalculates the trip schedule.
+   */
+  /**
+   * OrdersService emits this after it recreated an order's stops. The event keeps
+   * the dependency one-way (OrdersModule is already imported by PlanningModule).
+   */
+  @OnEvent('order.stops.updated')
+  async handleOrderStopsUpdated(payload: { orderId?: string }) {
+    if (!payload?.orderId) return;
+    try {
+      await this.syncOrderStopsToTrip(payload.orderId);
+    } catch {
+      // The trip keeps `validationOutdated`, so the board shows stale results
+      // instead of presenting them as freshly calculated.
+    }
+  }
+
+  async syncOrderStopsToTrip(orderId: string) {
+    const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['stops', 'trip'] });
+    if (!order) return { updated: 0, tripId: null, skipped: 'order_missing' };
+    const tripId = (order as any).trip?.id || (order as any).tripId || null;
+    if (!tripId) return { updated: 0, tripId: null, skipped: 'not_assigned' };
+
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['stops', 'stops.tasks', 'orders'],
+    });
+    if (!trip) return { updated: 0, tripId, skipped: 'trip_missing' };
+    if (!(ACTIVE_TRIP_STATUSES as readonly string[]).includes(String(trip.status))) {
+      return { updated: 0, tripId, skipped: 'trip_not_active' };
+    }
+
+    const orderStops = ((order as any).stops || [])
+      .slice()
+      .sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    const tripStops = ((trip as any).stops || []).filter((stop: any) =>
+      (stop.tasks || []).some((task: any) => String(task.order?.id || task.orderId) === String(orderId)),
+    );
+    if (!orderStops.length || !tripStops.length) {
+      return { updated: 0, tripId, skipped: 'no_matching_stops' };
+    }
+
+    const used = new Set<string>();
+    let updated = 0;
+    let historyPreserved = false;
+    for (let index = 0; index < orderStops.length; index += 1) {
+      const orderStop: any = orderStops[index];
+      const wantedType = orderStops.length === 1
+        ? null
+        : index === 0 ? 'pickup' : index === orderStops.length - 1 ? 'delivery' : 'stop';
+      const target = (wantedType
+        ? tripStops.find((stop: any) => !used.has(stop.id) && String(stop.type || '').toLowerCase() === wantedType)
+        : null) || tripStops.find((stop: any) => !used.has(stop.id));
+      if (!target) continue;
+      used.add(target.id);
+
+      const appointment = resolveStopAppointment(orderStop);
+      const completed = Boolean(target.ata || target.completedAt || String(target.status || '').toLowerCase() === 'completed');
+      const patch: any = {
+        address: orderStop.address ?? target.address,
+        city: orderStop.city ?? target.city,
+        postalCode: orderStop.postalCode ?? target.postalCode,
+        country: orderStop.country ?? target.country,
+        companyName: orderStop.companyName ?? target.companyName,
+        contactPerson: orderStop.contactPerson ?? target.contactPerson,
+        phone: orderStop.phone ?? target.phone,
+        latitude: orderStop.latitude ?? target.latitude,
+        longitude: orderStop.longitude ?? target.longitude,
+        reference: orderStop.reference ?? target.reference,
+        notes: orderStop.notes ?? target.notes,
+      };
+      if (completed) {
+        // Never rewrite the appointment of work that already happened. The
+        // change has to go through the operational exception workflow instead.
+        historyPreserved = true;
+      } else {
+        patch.timeWindowMin = appointment.start;
+        patch.timeWindowMax = appointment.end;
+        // The appointment is a constraint, not a route estimate: keep a planned
+        // ETA that dispatch already set.
+        if (!target.eta) patch.eta = appointment.start;
+      }
+      Object.assign(target, patch);
+      await this.stopRepoFor().save(target);
+      updated += 1;
+    }
+
+    if (updated > 0) {
+      await this.tripRepo.update(tripId, { validationOutdated: true } as any);
+      if (!historyPreserved) {
+        try {
+          await this.recalculateTrip(tripId);
+        } catch {
+          // A failed recalculation keeps `validationOutdated` set, so the board
+          // reports the results as stale instead of presenting them as fresh.
+        }
+      }
+    }
+    return { updated, tripId, stops: tripStops.length, historyPreserved };
+  }
 
   async rebuildStops(tripId: string, manager?: EntityManager) {
     const trip = await this.tripRepoFor(manager).findOne({
