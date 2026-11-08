@@ -5153,7 +5153,10 @@ export class PlanningService {
 
     // The provider's legs are the route truth. If a rebuild wrote the stop legs
     // but not the plan totals, the totals are reconciled from those legs rather
-    // than serving a distance that belongs to a previous sequence.
+    // than serving a distance that belongs to a previous sequence. Any failure in
+    // this tail must not turn a readable plan into a 500: the persisted stops are
+    // what the dispatcher needs, the warning explains the rest.
+    try {
     if (routePlan?.stops?.length && String(routePlan.routeStatus) === 'calculated') {
       const legSum = routePlan.stops.reduce((sum, stop) => sum + (Number(stop.distanceFromPreviousKm) || 0), 0);
       const drivingSum = routePlan.stops.reduce((sum, stop) => sum + (Number(stop.durationFromPreviousMin) || 0), 0);
@@ -5190,6 +5193,20 @@ export class PlanningService {
         routePlan.routeWarnings = [
           ...asJsonArray(routePlan.routeWarnings),
           { code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE', severity: 'warning', message: (routePlan as any).routeRefreshError.message },
+        ];
+      }
+    }
+    } catch (error) {
+      // The plan itself is already loaded; report the failed refresh instead of
+      // answering 500 and leaving the planner with no stops at all.
+      if (routePlan) {
+        (routePlan as any).routeRefreshError = {
+          code: 'ROUTE_PLAN_REFRESH_FAILED',
+          message: `The persisted plan was kept, but its refresh failed: ${(error as any)?.message || 'unknown error'}.`,
+        };
+        routePlan.routeWarnings = [
+          ...asJsonArray(routePlan.routeWarnings),
+          { code: 'ROUTE_PLAN_REFRESH_FAILED', severity: 'warning', message: (routePlan as any).routeRefreshError.message },
         ];
       }
     }
