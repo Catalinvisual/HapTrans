@@ -37,6 +37,36 @@ export function dedupeRebuildOrders(orders: any[] | null | undefined): any[] {
   return uniqueRowsById((orders || []).filter((order) => order && order.id));
 }
 
+/**
+ * Planner-level identity: one order operation at one place.
+ *
+ * Trip stops written by the old rebuild carry their own sequence numbers, so two
+ * copies of the same delivery are sequence 1 and sequence 2 — the sequence is
+ * therefore not part of the identity here. Two genuinely different deliveries
+ * of one order differ by city/address and are both kept.
+ */
+export function dedupePlannerStops(stops: any[] | null | undefined): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const stop of (stops || []).filter(Boolean)) {
+    const orderId = stop?.orderId || stop?.order?.id || stop?.tasks?.[0]?.order?.id || null;
+    if (!orderId) {
+      out.push(stop);
+      continue;
+    }
+    const key = [
+      String(orderId),
+      String(stop?.type || '').toLowerCase(),
+      String(stop?.city || '').trim().toLowerCase(),
+      String(stop?.address || '').trim().toLowerCase(),
+    ].join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(stop);
+  }
+  return out;
+}
+
 export function dedupeOrderStops(stops: any[] | null | undefined): any[] {
   // Duplicated order stops were written as separate records, so two rows can
   // share an operation (type + sequence) while carrying different ids. The

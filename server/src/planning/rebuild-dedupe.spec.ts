@@ -1,4 +1,4 @@
-import { dedupeOrderStops, dedupeRebuildOrders, uniqueRowsById } from './rebuild-dedupe';
+import { dedupeOrderStops, dedupePlannerStops, dedupeRebuildOrders, uniqueRowsById } from './rebuild-dedupe';
 
 describe('rebuild de-duplication', () => {
   it('collapses a trip that carries the same order six times', () => {
@@ -39,6 +39,31 @@ describe('rebuild de-duplication', () => {
       { id: 'b', type: 'stop', sequence: 3 },
     ];
     expect(dedupeOrderStops(rows)).toHaveLength(2);
+  });
+
+  it('collapses duplicate trip stops that carry different trip sequences', () => {
+    // The production shape: five copies of one delivery, sequences 1..5.
+    const copies = Array.from({ length: 5 }, (_, i) => ({
+      id: `t-${i}`,
+      orderId: 'ord',
+      type: 'delivery',
+      city: 'Luttelgeest',
+      address: '1 Weg',
+      sequence: i + 1,
+      timeWindowMin: '2026-11-07T08:00:00.000Z',
+    }));
+    const pickup = { id: 'p', orderId: 'ord', type: 'pickup', city: 'Kalisz', address: '2 Ulica', sequence: 6 };
+    const result = dedupePlannerStops([...copies, pickup]);
+    expect(result).toHaveLength(2);
+    expect(result.map((s: any) => s.type)).toEqual(['delivery', 'pickup']);
+  });
+
+  it('keeps two deliveries of one order at different places', () => {
+    const rows = [
+      { orderId: 'ord', type: 'delivery', city: 'Soest', address: '2 Markt' },
+      { orderId: 'ord', type: 'delivery', city: 'Berlin', address: '3 Strasse' },
+    ];
+    expect(dedupePlannerStops(rows)).toHaveLength(2);
   });
 
   it('never treats a freshly created row without an id as a duplicate', () => {

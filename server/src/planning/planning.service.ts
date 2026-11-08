@@ -40,7 +40,7 @@ import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
 import { planOrderStopSync } from './stop-sync';
 import { buildRouteSchedule } from './route-schedule';
 import { resolvePlannedEta } from './planned-eta';
-import { dedupeOrderStops, dedupeRebuildOrders } from './rebuild-dedupe';
+import { dedupeOrderStops, dedupePlannerStops, dedupeRebuildOrders } from './rebuild-dedupe';
 import { evaluateInsertion } from './stop-insertion';
 import { buildConsolidationProposal } from './consolidation-proposal';
 import {
@@ -4859,7 +4859,10 @@ export class PlanningService {
     const ordered = [...((trip.stops || []) as any[])].sort((a, b) =>
       (Number(a.sequence) || Number(a.stopOrder) || 0) - (Number(b.sequence) || Number(b.stopOrder) || 0),
     );
-    return mergePlannerStops(ordered, (trip.orders || []) as any[]);
+    // Duplicated trip stops are separate records with distinct sequences, so the
+    // planner would route (and persist) the same delivery several times. The
+    // operation is the identity here, not the row.
+    return dedupePlannerStops(mergePlannerStops(ordered, (trip.orders || []) as any[]));
   }
 
   private applyRouteSchedule(routePlan: TruckRoutePlan, stops: RoutePlanStop[]) {
