@@ -2,6 +2,15 @@
 FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
+
+# Railway exposes the commit as a build-time variable for Docker builds. The
+# build-identity plugin reads it, so the served HTML keeps naming the release
+# instead of falling back to "unknown" (the build context has no .git).
+ARG RAILWAY_GIT_COMMIT_SHA
+ARG SOURCE_VERSION
+ENV RAILWAY_GIT_COMMIT_SHA=$RAILWAY_GIT_COMMIT_SHA \
+    SOURCE_VERSION=$SOURCE_VERSION
+
 COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-fund
 
