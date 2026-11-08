@@ -101,7 +101,12 @@ export default defineConfig({
           }
         ],
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // A new deployment must take over without leaving old precaches behind
+        // or waiting for every tab to close.
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true
       }
     })
   ],
