@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, ConflictException, ServiceUnavailableException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull, Not, Brackets, DataSource, EntityManager } from 'typeorm';
 import { buildOverrideAudit, isAcceptableReviewedSequence, normalizeConfirmationKey, validateInsertionSequence } from './assignment-confirmation';
@@ -5072,7 +5072,17 @@ export class PlanningService {
     }
 
     if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
-      routePlan = await this.createRoutePlanFromTrip(tripId);
+      try {
+        routePlan = await this.createRoutePlanFromTrip(tripId);
+      } catch (error) {
+        // Nothing is persisted yet, so there is nothing to preserve. Surface the
+        // real reason (no truck, provider down, incomplete data) instead of a 500.
+        if ((error as any)?.response?.code) throw error;
+        throw new ServiceUnavailableException({
+          message: `Route plan could not be built: ${(error as any)?.message || 'unknown error'}. The trip was not modified — retry once the cause is resolved.`,
+          code: 'ROUTE_PLAN_BUILD_FAILED',
+        });
+      }
     } else {
       // This is the read path the planner screen uses, so it is where a plan
       // created before an Order was added must be reconciled. Serving the
@@ -5130,15 +5140,38 @@ export class PlanningService {
     // that state, so the route is recalculated instead of serving the previous
     // distance and waiting time forever.
     if (routePlan?.stops?.length && Number(routePlan.stopCount) !== routePlan.stops.length) {
-      await this.applyRoadRoute(routePlan, routePlan.stops);
-      for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
-      routePlan.stopCount = routePlan.stops.length;
-      await this.routePlanRepo.save(routePlan);
+      // A failed refresh must never destroy a readable plan. The persisted legs
+      // stay untouched and the failure is reported as a retryable state.
+      try {
+        await this.applyRoadRoute(routePlan, routePlan.stops);
+        for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+        routePlan.stopCount = routePlan.stops.length;
+        await this.routePlanRepo.save(routePlan);
+      } catch (error) {
+        const message = (error as any)?.message || 'Routing provider did not return a route';
+        (routePlan as any).routeRefreshError = {
+          code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE',
+          message: `Route refresh failed: ${message}. The last persisted geometry is unchanged.`,
+        };
+        routePlan.routeWarnings = [
+          ...asJsonArray(routePlan.routeWarnings),
+          { code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE', severity: 'warning', message: (routePlan as any).routeRefreshError.message },
+        ];
+      }
     }
 
     // Normalize every persisted array before callers spread or filter it. A
     // string value here used to throw after the plan had loaded successfully.
     trip.validationIssues = tripValidationIssues;
+    const missingCoordinates = (routePlan?.stops || [])
+      .filter((stop) => stop.latitude == null || stop.longitude == null)
+      .map((stop) => stop.city || `#${stop.sequence}`);
+    if (missingCoordinates.length > 0) {
+      (routePlan as any).routeRefreshError = {
+        code: 'ROUTE_PLAN_MISSING_COORDINATES',
+        message: `No road geometry was fabricated for ${missingCoordinates.length} stop(s) without coordinates: ${missingCoordinates.join(', ')}. Set the address on the stop and reload.`,
+      };
+    }
     routePlan.routeWarnings = asJsonArray(routePlan.routeWarnings);
     routePlan.warnings = asJsonArray(routePlan.warnings);
     routePlan.conflicts = asJsonArray(routePlan.conflicts);
@@ -5904,7 +5937,12 @@ export class PlanningService {
     }
     const truckId = truck?.id || (trip as any).truckId || targetTruckId;
     if (!truckId) {
-      throw new BadRequestException('Cannot create route plan for a trip without an assigned truck.');
+      // The planner screen used to show this as an unexplained "Failed to load
+      // route plan". Give the UI a code it can turn into an actionable state.
+      throw new BadRequestException({
+        message: 'Route planning needs an assigned truck. Assign a truck to this trip, then reload the route plan.',
+        code: 'ROUTE_PLAN_NO_TRUCK',
+      });
     }
 
     const planningDate = customPlanningDate || (trip.plannedDeparture ? new Date(trip.plannedDeparture).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);

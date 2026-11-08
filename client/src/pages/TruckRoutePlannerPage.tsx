@@ -140,6 +140,7 @@ export default function TruckRoutePlannerPage() {
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorCode, setLoadErrorCode] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showLoadPanel, setShowLoadPanel] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -218,6 +219,7 @@ export default function TruckRoutePlannerPage() {
       }
       setRoutePlan(plan);
       setLoadError(null);
+      setLoadErrorCode(null);
       setDirty(false);
       setProposedPlan(null);
       setShowProposal(false);
@@ -234,18 +236,25 @@ export default function TruckRoutePlannerPage() {
     } catch (err: any) {
       if (!isLatestRequest()) return;
       const status = Number(err?.response?.status) || null;
+      const rawCode = String(err?.response?.data?.code || '');
       if (status === 404) {
         setRoutePlan(null);
         setLoadError(null);
+        setLoadErrorCode(null);
       } else {
         const message = err?.response?.data?.message || err?.message || t('pln_load_error', 'Failed to load route plan');
-        const context = status ? `${status} — ${message}` : String(message);
+        const code = rawCode || (status && status >= 500 ? 'ROUTE_PLAN_SERVER_ERROR' : status ? `HTTP_${status}` : 'NETWORK_ERROR');
         setRoutePlan(null);
-        setLoadError(context);
-        if (import.meta.env.DEV) {
-          console.error('[RoutePlanner] load failed', { status, message, url: err?.config?.url });
+        setLoadError(`${code}: ${message}`);
+        setLoadErrorCode(code);
+        if (!import.meta.env.PROD) {
+          console.warn('[RoutePlanner] load failed', { status, code, message, url: err?.config?.url });
         }
-        toast.error(t('pln_load_error', 'Failed to load route plan'));
+        toast.error(
+          code === 'ROUTE_PLAN_NO_TRUCK'
+            ? t('pln_no_truck_title', 'Assign a truck to plan this route')
+            : t('pln_load_error', 'Failed to load route plan'),
+        );
       }
     } finally {
       if (isLatestRequest()) setLoading(false);
@@ -1444,10 +1453,25 @@ export default function TruckRoutePlannerPage() {
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 space-y-2">
                 <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span>{t('pln_load_error', 'Failed to load route plan')}</span>
+                  <span>
+                    {loadErrorCode === 'ROUTE_PLAN_NO_TRUCK'
+                      ? t('pln_no_truck_title', 'Assign a truck to plan this route')
+                      : loadErrorCode?.startsWith('ROUTE_PLAN_PROVIDER')
+                        ? t('pln_provider_down_title', 'Routing provider unavailable')
+                        : t('pln_load_error', 'Failed to load route plan')}
+                  </span>
                 </div>
-                <p className="text-[11px] text-red-600/90 leading-snug">{t('pln_load_error_hint', 'The planner could not load the persisted route plan. No route or fallback is being shown.')}</p>
-                {import.meta.env.DEV && <p className="text-[10px] font-mono text-red-500/80 break-words">{loadError}</p>}
+                <p className="text-[11px] text-red-600/90 leading-snug">
+                  {loadErrorCode === 'ROUTE_PLAN_NO_TRUCK'
+                    ? t('pln_no_truck_hint', 'This trip has no assigned truck, so no road route can be built. Assign a truck in Planning, then retry — the trip is unchanged.')
+                    : loadErrorCode?.startsWith('ROUTE_PLAN_PROVIDER')
+                      ? t('pln_provider_down_hint', 'The routing provider did not return a route. Any previously persisted geometry is kept; retry when the provider is reachable.')
+                      : t('pln_load_error_hint', 'The planner could not load the persisted route plan. No route or fallback is being shown.')}
+                </p>
+                <details className="text-[10px] text-red-600/80">
+                  <summary className="cursor-pointer font-semibold">{t('pln_technical_details', 'Technical details')}</summary>
+                  <p className="font-mono break-words mt-1">{loadError}</p>
+                </details>
                 <button
                   type="button"
                   onClick={() => loadPlan(date)}
