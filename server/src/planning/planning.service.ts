@@ -37,6 +37,8 @@ import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } f
 import { etaDeviations } from './eta-deviation';
 import { deriveConsolidationVerdict } from './consolidation-feasibility';
 import { mergePlannerStops, plannerStopReconciliationSignature } from './route-plan-stops';
+import { planStopWindowPatch, plannerStopWindow } from './route-plan-windows';
+import { plannerStopTaskCargo, taskCargoMetrics } from './route-plan-cargo';
 import { planOrderStopSync } from './stop-sync';
 import { buildRouteSchedule } from './route-schedule';
 import { resolvePlannedEta } from './planned-eta';
@@ -3441,7 +3443,7 @@ export class PlanningService {
   }
 
   async syncOrderStopsToTrip(orderId: string) {
-    const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['stops', 'trip'] });
+    const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['stops', 'trip', 'cargoItems'] });
     if (!order) return { updated: 0, tripId: null, skipped: 'order_missing' };
     const tripId = (order as any).trip?.id || (order as any).tripId || null;
     if (!tripId) return { updated: 0, tripId: null, skipped: 'not_assigned' };
@@ -3507,6 +3509,14 @@ export class PlanningService {
       }
       Object.assign(target, patch);
       await this.stopRepoFor().save(target);
+      if (!completed) {
+        // Cargo is part of what an Order edit changes. Leaving the tasks on the
+        // previous quantities kept the planner's pallets/weight/LDM/volume
+        // stale while the Order and the trip totals were already updated.
+        const stopType = String(target.type || orderStop.type || '').toLowerCase();
+        const isLoad = stopType === 'pickup' || stopType === 'load' || stopType === 'loading';
+        await this.syncTripStopCargo(target, order, isLoad);
+      }
       updated += 1;
     }
 
@@ -3520,6 +3530,15 @@ export class PlanningService {
           // reports the results as stale instead of presenting them as fresh.
         }
       }
+      try {
+        // Push the edited appointment onto the persisted planner copy after the
+        // trip's own schedule is recalculated, so the plan and the trip share
+        // the same departure: the board and the route planner must agree with
+        // the Order without waiting for the screen to be reopened.
+        await this.reconcileTripRoutePlanWindows(tripId);
+      } catch {
+        // The read path reconciles the same windows from the trip stops.
+      }
     }
     return {
       updated,
@@ -3529,6 +3548,55 @@ export class PlanningService {
       duplicates: syncPlan.duplicates,
       unmatchedTripStops: syncPlan.unmatchedTripStopIds,
     };
+  }
+
+  /**
+   * Mirrors the Order's cargo items onto the load/unload tasks of one trip stop.
+   *
+   * A trip stop's tasks are a projection of the Order's cargo and the route plan
+   * inherits its pallets/weight/LDM/volume from them. Cargo rows are recreated
+   * on every Order save, so their ids cannot be matched; the items are compared
+   * by position, exactly like the tasks that were created from them. The stop is
+   * guaranteed to have no operational history by the caller, which is what makes
+   * replacing rows safe when items were added or removed.
+   */
+  private async syncTripStopCargo(target: any, order: any, isLoad: boolean): Promise<boolean> {
+    const cargoItems = ((order?.cargoItems || []) as any[]).filter(Boolean);
+    const tasks = ((target?.tasks || []) as any[]).filter(
+      (task) => String(task?.order?.id || '') === String(order?.id || ''),
+    );
+    if (!cargoItems.length && !tasks.length) return false;
+
+    if (tasks.length === cargoItems.length) {
+      let changed = false;
+      for (let i = 0; i < tasks.length; i++) {
+        const next = taskCargoMetrics(cargoItems[i], isLoad) as Record<string, any>;
+        const task = tasks[i];
+        const differs = Object.keys(next).some((key) => {
+          const current = task[key];
+          return typeof next[key] === 'number'
+            ? Math.abs((Number(current) || 0) - next[key]) > 0.001
+            : String(current ?? '') !== String(next[key]);
+        });
+        if (!differs) continue;
+        Object.assign(task, next);
+        await this.taskRepoFor().save(task);
+        changed = true;
+      }
+      return changed;
+    }
+
+    if (tasks.length) await this.taskRepoFor().remove(tasks);
+    const companyId = target?.company?.id || order?.companyId || null;
+    const created = cargoItems.map((cargo) => this.taskRepoFor().create({
+      stop: { id: target.id } as any,
+      order: { id: order.id } as any,
+      company: companyId ? { id: companyId } as any : null,
+      status: 'pending',
+      ...taskCargoMetrics(cargo, isLoad),
+    } as any));
+    if (created.length) await this.taskRepoFor().save(created as any);
+    return true;
   }
 
   async rebuildStops(tripId: string, manager?: EntityManager) {
@@ -4838,16 +4906,113 @@ export class PlanningService {
    * into a next-day window.
    */
   private resolveStopWindow(stop: any, fallbackDate: string) {
-    const scheduledDate = stop.dateFrom ? String(stop.dateFrom).slice(0, 10) : fallbackDate;
-    const appointment = resolveStopAppointment({ ...stop, dateFrom: stop.dateFrom || fallbackDate });
-    const start = stop.timeWindowMin ? new Date(stop.timeWindowMin) : appointment.start;
-    const end = stop.timeWindowMax ? new Date(stop.timeWindowMax) : appointment.end;
-    return {
-      scheduledDate,
-      start: start && !isNaN(start.getTime()) ? start : null,
-      end: end && !isNaN(end.getTime()) ? end : null,
-      fixed: appointment.isFixedAppointment && !stop.timeWindowMax,
-    };
+    return plannerStopWindow(stop, fallbackDate);
+  }
+
+  /**
+   * Refreshes a persisted plan stop from the trip stop it represents.
+   *
+   * Editing an Order rewrites the trip stop's appointment but leaves the stop
+   * set unchanged, so the reconciliation signature saw the plan as fresh and the
+   * planner kept showing the previous window — and every ETA derived from it.
+   * The appointment, address and coordinates are copied per sequence and the
+   * schedule is recomputed in place, without calling the routing provider.
+   */
+  private applyPlannerStopWindows(
+    routePlan: TruckRoutePlan,
+    plannerStops: any[],
+    planningDate: string,
+  ): boolean {
+    const planStops = [...((routePlan.stops || []) as RoutePlanStop[])]
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    if (!planStops.length || planStops.length !== (plannerStops || []).length) return false;
+
+    let changed = false;
+    planStops.forEach((planStop, index) => {
+      const patch = planStopWindowPatch(planStop, plannerStops[index], planningDate);
+      if (!patch) return;
+      Object.assign(planStop, patch);
+      changed = true;
+    });
+    if (!changed) return false;
+
+    this.applyRouteSchedule(routePlan, planStops);
+    routePlan.stopCount = planStops.length;
+    return true;
+  }
+
+  /**
+   * Re-derives each persisted plan stop's cargo from the trip stop it mirrors.
+   * The plan is what the planner sums into "To load" / "To unload", so an
+   * edited quantity must reach it without a rebuild or a routing call. A stop
+   * with no tasks and no loaded Order cargo keeps its persisted value instead of
+   * being zeroed on a guess.
+   */
+  private applyPlannerStopCargo(routePlan: TruckRoutePlan, plannerStops: any[]): boolean {
+    const planStops = [...((routePlan.stops || []) as RoutePlanStop[])]
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    if (!planStops.length || planStops.length !== (plannerStops || []).length) return false;
+
+    let changed = false;
+    planStops.forEach((planStop, index) => {
+      const source = plannerStops[index];
+      if (!source) return;
+
+      let totals = plannerStopTaskCargo(source.tasks);
+      if (!totals) {
+        const order = source.order?.cargoItems ? source.order : null;
+        if (!order) return;
+        const cargo = this.calculateCargo(order);
+        totals = { pallets: cargo.pallets, weightKg: cargo.weightKg, ldm: cargo.ldm, volumeCbm: cargo.volumeCbm };
+      }
+
+      const next: Record<string, number> = {
+        pallets: totals.pallets,
+        weightKg: totals.weightKg,
+        loadingMeters: totals.ldm,
+        volumeCbm: totals.volumeCbm,
+      };
+      for (const key of Object.keys(next)) {
+        if (Math.abs((Number((planStop as any)[key]) || 0) - next[key]) < 0.01) continue;
+        (planStop as any)[key] = next[key];
+        changed = true;
+      }
+    });
+
+    if (!changed) return false;
+    this.recomputeCumulativeLoads(planStops, routePlan);
+    return true;
+  }
+
+  /**
+   * Applies an order edit to the persisted plan of its trip: the trip stops are
+   * the truth, the plan is the projection the planner screen reads.
+   */
+  private async reconcileTripRoutePlanWindows(tripId: string): Promise<boolean> {
+    const plan = await this.routePlanRepo.findOne({
+      where: { tripId, isCurrent: true },
+      relations: ['stops', 'trip'],
+      order: { stops: { sequence: 'ASC' } },
+    });
+    if (!plan?.stops?.length) return false;
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.stops', 'orders.cargoItems'],
+    });
+    if (!trip) return false;
+
+    const planningDate = plan.planningDate
+      || (trip.plannedDeparture
+        ? new Date(trip.plannedDeparture).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0]);
+    const plannerStops = this.plannerStopsForTrip(trip);
+    const windowsChanged = this.applyPlannerStopWindows(plan, plannerStops, planningDate);
+    const cargoChanged = this.applyPlannerStopCargo(plan, plannerStops);
+    if (!windowsChanged && !cargoChanged) return false;
+
+    await this.routePlanStopRepo.save(plan.stops);
+    await this.routePlanRepo.save(plan);
+    return true;
   }
 
   /** Stops the planner must route for this trip, covering every attached Order. */
@@ -5151,6 +5316,20 @@ export class PlanningService {
               routePlan.stops = uniquePlanStops.map((stop, index) => ({ ...stop, sequence: index + 1 }));
               routePlan.stopCount = routePlan.stops.length;
             }
+          }
+        } else {
+          // Same stop set, possibly a different appointment: an Order edited on
+          // an assigned trip rewrites its trip stop but leaves this plan's copy
+          // untouched, so the window (and its ETA) used to stay on the old date.
+          const planPlanningDate = routePlan.planningDate
+            || (trip.plannedDeparture
+              ? new Date(trip.plannedDeparture).toISOString().split('T')[0]
+              : new Date().toISOString().split('T')[0]);
+          const windowsChanged = this.applyPlannerStopWindows(routePlan, expectedStops, planPlanningDate);
+          const cargoChanged = this.applyPlannerStopCargo(routePlan, expectedStops);
+          if (windowsChanged || cargoChanged) {
+            await this.routePlanStopRepo.save(routePlan.stops);
+            await this.routePlanRepo.save(routePlan);
           }
         }
       }
@@ -6045,9 +6224,18 @@ export class PlanningService {
 
     if (existingPlan?.stops?.length && !forceRebuild && !planIsStale) {
       existingPlan.isCurrent = true;
+      // The stop set is unchanged, but an Order edit can still have moved a
+      // window; refresh the plan stops so the read never serves the old ETA.
+      const scheduleChanged = this.applyPlannerStopWindows(existingPlan, expectedPlannerStops, planningDate);
+      // Cargo edits on an Order reach the planner the same way as appointments:
+      // the plan stop mirrors the trip stop's tasks, not the Order directly.
+      const cargoChanged = this.applyPlannerStopCargo(existingPlan, expectedPlannerStops);
       if (!existingPlan.routeGeometry && existingPlan.routeStatus !== 'failed') {
         await this.applyRoadRoute(existingPlan, existingPlan.stops);
         if (existingPlan.stops.length) await this.routePlanStopRepo.save(existingPlan.stops);
+        await this.routePlanRepo.save(existingPlan);
+      } else if (scheduleChanged || cargoChanged) {
+        await this.routePlanStopRepo.save(existingPlan.stops);
         await this.routePlanRepo.save(existingPlan);
       }
       return (await this.getRoutePlanById(existingPlan.id)) || existingPlan;

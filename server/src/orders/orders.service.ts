@@ -675,7 +675,10 @@ export class OrdersService implements OnModuleInit {
       if (assignedTripId) {
         // PlanningModule already imports OrdersModule, so the update is handed to
         // the planning listener instead of importing it here (no module cycle).
-        this.eventEmitter.emit('order.stops.updated', { orderId: id, tripId: assignedTripId });
+        // Awaited so the trip stops and the persisted route plan already carry
+        // the edited appointment when the client reloads the board — emitting
+        // without awaiting let the reload read the previous schedule.
+        await this.eventEmitter.emitAsync('order.stops.updated', { orderId: id, tripId: assignedTripId });
       }
 
       // Re-evaluate ADR status and 1,000 points calculation on update
