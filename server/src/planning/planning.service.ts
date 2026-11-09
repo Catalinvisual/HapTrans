@@ -5002,10 +5002,59 @@ export class PlanningService {
       Object.assign(planStop, patch);
       changed = true;
     });
-    if (!changed) return false;
+
+    // The appointment is not the only reason to recompute: a previous request
+    // may already have moved the window and still left the ETAs of the old
+    // schedule, because the window no longer differed and nothing else ran.
+    const scheduleChanged = this.refreshRouteSchedule(routePlan, planStops);
+    if (!changed && !scheduleChanged) return false;
+
+    routePlan.stopCount = planStops.length;
+    return true;
+  }
+
+  /**
+   * Recomputes the stop timeline from the rows the planner renders and reports
+   * whether the persisted ETA, ETD or totals were out of date.
+   *
+   * A moved appointment makes a stop's ETA follow the window, and the stops after
+   * it shift too. Without this check the schedule was only rebuilt when a window
+   * still differed, so a plan already projected once kept the ETAs of the old
+   * appointment — a delivery edited to 12 Nov 08:30 kept showing the 10 Nov
+   * driving arrival even though its window was correct.
+   */
+  private refreshRouteSchedule(routePlan: TruckRoutePlan, planStops: RoutePlanStop[]): boolean {
+    if (!planStops.length) return false;
+    // Without road legs there is no arrival to recompute yet; the route builder
+    // owns that state and reports the missing provider instead.
+    const hasLegs = planStops.some((stop, index) => index > 0 && (Number(stop.durationFromPreviousMin) || 0) > 0);
+    if (!hasLegs) return false;
+
+    const schedule = buildRouteSchedule({
+      departure: (routePlan as any).trip?.plannedDeparture || null,
+      stops: planStops.map((stop, index) => ({
+        id: stop.id,
+        sequence: index + 1,
+        city: stop.city,
+        type: stop.type,
+        timeWindowStart: stop.timeWindowStart,
+        timeWindowEnd: stop.timeWindowEnd,
+        serviceDurationMinutes: stop.serviceDurationMinutes,
+        durationFromPreviousMin: index > 0 ? stop.durationFromPreviousMin : 0,
+      })),
+    });
+
+    const stale = planStops.some((stop, index) => {
+      const scheduled = schedule.stops[index];
+      if (!scheduled) return false;
+      const eta = scheduled.serviceStart || scheduled.arrival;
+      if (!stop.calculatedEta) return true;
+      const persisted = new Date(stop.calculatedEta as any);
+      return Number.isNaN(persisted.getTime()) || persisted.getTime() !== eta.getTime();
+    }) || Math.abs((Number(routePlan.totalDurationMinutes) || 0) - schedule.elapsedMin) > 0.5;
+    if (!stale) return false;
 
     this.applyRouteSchedule(routePlan, planStops);
-    routePlan.stopCount = planStops.length;
     return true;
   }
 
@@ -5254,8 +5303,14 @@ export class PlanningService {
       if (!scheduled) return;
       // The schedule owns the planned ETA: a recomputed arrival replaces the
       // stale one instead of being ignored because a value already exists.
-      stop.plannedEta = resolvePlannedEta(scheduled.arrival, stop) as any;
-      stop.calculatedEta = scheduled.arrival as any;
+      // The ETA operators read is when the stop is actioned, not the raw
+      // driving arrival. A delivery window two days after the pickup leaves a
+      // 49h layover; publishing the pre-window arrival as "Planned ETA" made a
+      // correctly moved appointment still look like the old date.
+      const stopEta = scheduled.serviceStart || scheduled.arrival;
+      stop.eta = stopEta as any;
+      stop.plannedEta = resolvePlannedEta(stopEta, stop) as any;
+      stop.calculatedEta = stopEta as any;
       stop.etd = scheduled.departure as any;
     });
 

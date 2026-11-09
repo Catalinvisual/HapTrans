@@ -153,6 +153,31 @@ describe('buildRouteSchedule', () => {
     expect(result.elapsedMin).toBeGreaterThan(result.drivingMin + result.serviceMin);
   });
 
+  it('books a delivery ETA at its moved appointment, not at the early arrival', () => {
+    // ORD-2026-000033: fixed pickup 10 Nov 02:00, fixed delivery 12 Nov 08:30,
+    // 268 min of driving. The truck arrives on 10 Nov, so the appointment is
+    // what operators must read as the delivery ETA.
+    const result = buildRouteSchedule({
+      departure: at('2026-11-10T02:00:00Z'),
+      stops: [
+        base({ id: 'pickup', timeWindowStart: at('2026-11-10T02:00:00Z'), timeWindowEnd: at('2026-11-10T02:00:00Z') }),
+        base({
+          id: 'delivery',
+          sequence: 2,
+          city: 'Berlin',
+          timeWindowStart: at('2026-11-12T08:30:00Z'),
+          timeWindowEnd: at('2026-11-12T08:30:00Z'),
+          durationFromPreviousMin: 268,
+        }),
+      ],
+    });
+    expect(result.stops[1].arrival.toISOString()).toBe('2026-11-10T06:58:00.000Z');
+    expect(result.stops[1].serviceStart.toISOString()).toBe('2026-11-12T08:30:00.000Z');
+    expect(result.stops[1].layoverMin).toBe(2972);
+    expect(result.waitingMin).toBe(0);
+    expect(result.conflicts).toHaveLength(0);
+  });
+
   it('only waits while the gap is within the short-wait threshold', () => {
     const result = buildRouteSchedule({
       departure: at('2026-11-06T08:00:00Z'),
