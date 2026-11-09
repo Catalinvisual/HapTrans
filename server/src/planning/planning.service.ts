@@ -36,7 +36,7 @@ import { buildCargoLedger } from './cargo-ledger';
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
 import { etaDeviations } from './eta-deviation';
 import { deriveConsolidationVerdict } from './consolidation-feasibility';
-import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
+import { mergePlannerStops, plannerStopReconciliationSignature } from './route-plan-stops';
 import { planOrderStopSync } from './stop-sync';
 import { buildRouteSchedule } from './route-schedule';
 import { resolvePlannedEta } from './planned-eta';
@@ -5140,14 +5140,8 @@ export class PlanningService {
         // served forever and the planner showed the same order again and again.
         const expectedStops = dedupePlannerStops(mergePlannerStops(currentTripStops, (trip.orders || []) as any[]));
         const uniquePlanStops = dedupePlannerStops(routePlan.stops);
-        // Order matters as much as membership: a plan whose stops were sorted
-        // pickup-first routes a sequence the truck never drives.
-        const orderKey = (stop: any) => `${String(stop.type || '').toLowerCase()}:${stop.city || ''}`;
-        const expectedOrder = expectedStops.map(orderKey).join('|');
-        const actualOrder = uniquePlanStops.map(orderKey).join('|');
         if (routePlan.stops.length !== uniquePlanStops.length
-          || plannerStopSetSignature(uniquePlanStops) !== plannerStopSetSignature(expectedStops)
-          || expectedOrder !== actualOrder) {
+          || plannerStopReconciliationSignature(uniquePlanStops) !== plannerStopReconciliationSignature(expectedStops)) {
           try {
             routePlan = await this.createRoutePlanFromTrip(tripId);
           } catch {
@@ -5178,7 +5172,7 @@ export class PlanningService {
       if (drivingMismatch) routePlan.totalDrivingTimeMinutes = drivingSum;
       if (distanceMismatch || drivingMismatch || !breakdown) {
         this.applyRouteSchedule(routePlan, routePlan.stops);
-        for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+        if (routePlan.stops.length) await this.routePlanStopRepo.save(routePlan.stops);
         await this.routePlanRepo.save(routePlan);
       }
     }
@@ -5192,7 +5186,7 @@ export class PlanningService {
       // stay untouched and the failure is reported as a retryable state.
       try {
         await this.applyRoadRoute(routePlan, routePlan.stops);
-        for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+        if (routePlan.stops.length) await this.routePlanStopRepo.save(routePlan.stops);
         routePlan.stopCount = routePlan.stops.length;
         await this.routePlanRepo.save(routePlan);
       } catch (error) {
@@ -5266,7 +5260,7 @@ export class PlanningService {
     if (routePlan.stops?.length && !routePlan.routeGeometry && routePlan.routeStatus !== 'failed') {
       try {
         await this.applyRoadRoute(routePlan, routePlan.stops);
-        for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+        if (routePlan.stops.length) await this.routePlanStopRepo.save(routePlan.stops);
         await this.routePlanRepo.save(routePlan);
       } catch (error) {
         (routePlan as any).routeRefreshError = {
@@ -6039,15 +6033,21 @@ export class PlanningService {
     // A persisted plan must match the trip's current stop set. An Order added
     // after the plan was created changes that set; serving the old plan hid the
     // new Order and calculated the route over a partial stop sequence.
-    const currentStopsSignature = plannerStopSetSignature(this.plannerStopsForTrip(trip));
+    const expectedPlannerStops = this.plannerStopsForTrip(trip);
+    // Compare the plan with the projection the builder writes. Fingerprinting the
+    // raw trip stopped made intermediate and consolidated stops look stale on
+    // every open, which rebuilt the plan and called the routing provider each
+    // time the planner page was opened.
+    const currentStopsSignature = plannerStopReconciliationSignature(expectedPlannerStops);
     const planIsStale = !!existingPlan?.stops?.length
-      && plannerStopSetSignature(existingPlan.stops) !== currentStopsSignature;
+      && (existingPlan.stops.length !== expectedPlannerStops.length
+        || plannerStopReconciliationSignature(existingPlan.stops) !== currentStopsSignature);
 
     if (existingPlan?.stops?.length && !forceRebuild && !planIsStale) {
       existingPlan.isCurrent = true;
       if (!existingPlan.routeGeometry && existingPlan.routeStatus !== 'failed') {
         await this.applyRoadRoute(existingPlan, existingPlan.stops);
-        for (const stop of existingPlan.stops) await this.routePlanStopRepo.save(stop);
+        if (existingPlan.stops.length) await this.routePlanStopRepo.save(existingPlan.stops);
         await this.routePlanRepo.save(existingPlan);
       }
       return (await this.getRoutePlanById(existingPlan.id)) || existingPlan;
@@ -6107,7 +6107,7 @@ export class PlanningService {
     let cumulativeVolume = 0;
     let pickupCount = 0;
     let deliveryCount = 0;
-    const savedStops: RoutePlanStop[] = [];
+    const pendingStops: RoutePlanStop[] = [];
 
     for (let i = 0; i < stopList.length; i++) {
       const stop = stopList[i];
@@ -6196,8 +6196,14 @@ export class PlanningService {
       routePlanStop.cumulativeLdm = cumulativeLdm;
       routePlanStop.cumulativeVolumeCbm = cumulativeVolume;
 
-      savedStops.push(await this.routePlanStopRepo.save(routePlanStop));
+      pendingStops.push(routePlanStop);
     }
+    // One INSERT per stop sequence instead of a database round trip per stop:
+    // opening the planner on a network-latent database paid that cost on every
+    // plan creation.
+    const savedStops: RoutePlanStop[] = pendingStops.length
+      ? await this.routePlanStopRepo.save(pendingStops)
+      : [];
 
     // Recompute the authoritative cargo profile, then request the real HGV
     // road route for the complete stop sequence.
@@ -6228,7 +6234,7 @@ export class PlanningService {
         stop.calculatedEta = null as any;
       }
     }
-    for (const stop of savedStops) await this.routePlanStopRepo.save(stop);
+    if (savedStops.length) await this.routePlanStopRepo.save(savedStops);
 
     savedPlan.stopCount = stopList.length;
     savedPlan.pickupCount = pickupCount;
@@ -6243,9 +6249,7 @@ export class PlanningService {
       const rule = (trip.truck?.loadingRule) || (await this.getDefaultProfile()).defaultLoadingRule || LoadingRule.LIFO;
       const allStops = await this.routePlanStopRepo.find({ where: { routePlanId: savedPlan.id } });
       this.computeLoadingSequence(allStops, rule);
-      for (const s of allStops) {
-        await this.routePlanStopRepo.save(s);
-      }
+      if (allStops.length) await this.routePlanStopRepo.save(allStops);
       savedPlan.optimizationMetadata = { ...(savedPlan.optimizationMetadata || {}), loadingRule: rule };
     } catch {
       // loading sequence is best-effort on plan creation
@@ -6374,7 +6378,7 @@ export class PlanningService {
         if (!routePlan.routeGeometry && routePlan.routeStatus !== 'failed') {
           try {
             await this.applyRoadRoute(routePlan, routePlan.stops);
-            for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+            if (routePlan.stops.length) await this.routePlanStopRepo.save(routePlan.stops);
             await this.routePlanRepo.save(routePlan);
           } catch (error) {
             // A provider failure must not surface as a 500 on the planner's
@@ -6446,9 +6450,7 @@ export class PlanningService {
     }
 
     // Persist stops (cascade would do it, but explicit keeps order stable)
-    for (const stop of stops) {
-      await this.routePlanStopRepo.save(stop);
-    }
+    if (stops.length) await this.routePlanStopRepo.save(stops);
 
     routePlan.conflicts = validation.conflicts;
     routePlan.warnings = validation.warnings;
@@ -6914,9 +6916,7 @@ export class PlanningService {
     this.computeLoadingSequence(routePlan.stops, loadingRule);
     await this.applyRoadRoute(routePlan, routePlan.stops);
 
-    for (const stop of routePlan.stops) {
-      await this.routePlanStopRepo.save(stop);
-    }
+    if (routePlan.stops.length) await this.routePlanStopRepo.save(routePlan.stops);
 
     routePlan.optimizationMetadata = {
       ...(routePlan.optimizationMetadata || {}),

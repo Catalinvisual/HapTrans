@@ -1,4 +1,4 @@
-import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
+import { mergePlannerStops, plannerStopReconciliationSignature, plannerStopSetSignature } from './route-plan-stops';
 
 const orderA = 'order-a';
 const orderB = 'order-b';
@@ -73,5 +73,67 @@ describe('planner stop reconciliation', () => {
     const a = [{ id: 'x', type: 'pickup', city: 'Emmeloord', latitude: 52.71, longitude: 5.75 }];
     const b = [{ id: 'x', type: 'delivery', city: 'Emmeloord', latitude: 52.71, longitude: 5.75 }];
     expect(plannerStopSetSignature(a)).not.toBe(plannerStopSetSignature(b));
+  });
+});
+
+describe('planner plan/stops reconciliation', () => {
+  const tripStop = (city: string, type: string, tasks: any[], lat = 52.1, lng = 5.1) => ({
+    type, city, latitude: lat, longitude: lng, tasks,
+  });
+  const planStop = (city: string, type: string, orderId: string, lat = 52.1, lng = 5.1) => ({
+    type, city, latitude: lat, longitude: lng, orderId,
+  });
+
+  it('matches a plan the builder generated from the same stops', () => {
+    const tripStops = [
+      tripStop('Kalisz', 'pickup', [{ order: { id: 'o1' } }]),
+      tripStop('Soest', 'delivery', [{ order: { id: 'o1' } }], 51.57, 8.11),
+    ];
+    const planStops = [
+      planStop('Kalisz', 'pickup', 'o1'),
+      planStop('Soest', 'delivery', 'o1', 51.57, 8.11),
+    ];
+    expect(plannerStopReconciliationSignature(planStops))
+      .toBe(plannerStopReconciliationSignature(tripStops));
+  });
+
+  it('does not report an intermediate stop as stale just because the plan stores it as a delivery', () => {
+    // The builder maps every non-pickup stop to a delivery; an intermediate
+    // `stop` would otherwise make the plan look stale on every single open.
+    const tripStops = [
+      tripStop('Kalisz', 'pickup', [{ order: { id: 'o1' } }]),
+      tripStop('Poznań', 'stop', [{ order: { id: 'o1' } }], 52.4, 16.9),
+      tripStop('Berlin', 'delivery', [{ order: { id: 'o1' } }], 52.52, 13.4),
+    ];
+    const planStops = [
+      planStop('Kalisz', 'pickup', 'o1'),
+      planStop('Poznań', 'delivery', 'o1', 52.4, 16.9),
+      planStop('Berlin', 'delivery', 'o1', 52.52, 13.4),
+    ];
+    expect(plannerStopReconciliationSignature(planStops))
+      .toBe(plannerStopReconciliationSignature(tripStops));
+  });
+
+  it('matches a consolidated stop that both trip and plan key on the first order', () => {
+    const tripStops = [
+      tripStop('Soest', 'delivery', [{ order: { id: 'o1' } }, { order: { id: 'o2' } }]),
+      tripStop('Berlin', 'pickup', [{ order: { id: 'o2' } }], 52.52, 13.4),
+    ];
+    const planStops = [
+      planStop('Soest', 'delivery', 'o1'),
+      planStop('Berlin', 'pickup', 'o2', 52.52, 13.4),
+    ];
+    expect(plannerStopReconciliationSignature(planStops))
+      .toBe(plannerStopReconciliationSignature(tripStops));
+  });
+
+  it('still reports duplicated plan rows as stale', () => {
+    const tripStops = [tripStop('Kalisz', 'pickup', [{ order: { id: 'o1' } }])];
+    const duplicated = [
+      planStop('Kalisz', 'pickup', 'o1'),
+      planStop('Kalisz', 'pickup', 'o1'),
+    ];
+    expect(plannerStopReconciliationSignature(duplicated))
+      .not.toBe(plannerStopReconciliationSignature(tripStops));
   });
 });

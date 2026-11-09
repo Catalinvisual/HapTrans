@@ -66,6 +66,30 @@ export function plannerStopSetSignature(stops: PlannerStopLike[]): string {
 }
 
 /**
+ * Fingerprint of the stop set as the plan builder writes it.
+ *
+ * `plannerStopSetSignature` fingerprints the trip's stop list, but the route
+ * plan stores a projection of it: every non-pickup stop becomes a delivery and
+ * a stop with several tasks keeps the first task's order. Comparing the raw
+ * trip signature with the projection therefore never matched for trips with an
+ * intermediate stop or a consolidated stop — every open of the planner looked
+ * stale, rebuilt the plan and called the routing provider again. This signature
+ * is computed from the same projection on both sides, so a freshly built plan
+ * compares equal.
+ */
+export function plannerStopReconciliationSignature(stops: PlannerStopLike[]): string {
+  const parts = (stops || []).map((stop) => [
+    isPickupType(stop.type) ? 'pickup' : 'delivery',
+    coord(stop.latitude),
+    coord(stop.longitude),
+    place(stop),
+    // The builder stores one order per plan stop: the first task's order.
+    String(stop.tasks?.[0]?.order?.id || stop.tasks?.[0]?.orderId || stop.orderId || stop.order?.id || ''),
+  ].join('|'));
+  return createHash('sha1').update(parts.join(';')).digest('hex');
+}
+
+/**
  * The trip's stops are the routing truth. Some legacy trips only carry the
  * stops of the Orders that were attached when the trip was created, so any
  * Order of the trip that has no stop represented at all is appended from its
