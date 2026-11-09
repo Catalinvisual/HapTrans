@@ -1,7 +1,7 @@
 name: hapcargo_driver
 description: HapCargo Driver Mobile App
 publish_to: 'none'
-version: 1.0.30+30
+version: 1.0.31+31
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -35,6 +35,7 @@ dependencies:
   
   # Utils
   intl: ^0.20.2
+  timezone: ^0.9.4
   jwt_decoder: ^2.0.1
   
   # Camera & files
