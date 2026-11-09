@@ -562,21 +562,6 @@ export default function ConsolidationWizard({
                           {presented.action && (
                             <p className="mt-1 font-semibold text-amber-800 dark:text-amber-300">{presented.action}</p>
                           )}
-                          {presented.technical.length > 0 && (
-                            <details className="mt-1">
-                              <summary className="cursor-pointer text-[9px] font-black uppercase tracking-wide text-text-muted">
-                                {t('cf_technical', 'Technical details')}
-                              </summary>
-                              <dl className="mt-1 space-y-0.5 font-mono text-[9px] text-muted-foreground">
-                                {presented.technical.map((entry: any) => (
-                                  <div key={`${entry.label}-${entry.value}`} className="flex gap-1">
-                                    <dt className="shrink-0 text-text-muted">{entry.label}:</dt>
-                                    <dd className="break-all">{entry.value}</dd>
-                                  </div>
-                                ))}
-                              </dl>
-                            </details>
-                          )}
                         </div>
                       </div>
                       {conflict.orderId && (
