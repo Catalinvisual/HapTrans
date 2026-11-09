@@ -8,7 +8,7 @@ import {
   Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
-  Printer, Maximize2, Minimize2, RotateCcw, List, FileText, Pencil,
+  Printer, Maximize2, Minimize2, RotateCcw, List, FileText, Pencil, CalendarDays,
   BookmarkPlus, Save, Trash2, GitMerge, Wand2, Clock3,
   ZoomIn, ZoomOut, Unplug, Link as LinkIcon, ArrowRightLeft, Building2, Euro,
 } from 'lucide-react';
@@ -124,6 +124,13 @@ function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220,
 const dayStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+/** Step the board's date anchor by one period of the active view. */
+const shiftPeriod = (value: string, mode: string, dir: number) => {
+  const d = parseDay(value);
+  if (mode === 'month') return dayStr(new Date(d.getFullYear(), d.getMonth() + dir, 1));
+  if (mode === 'week') return dayStr(addDays(d, dir * 7));
+  return dayStr(addDays(d, dir));
+};
 const parseDay = (s: string) => {
   const [y, m, d] = (s || '').split('-').map(Number);
   return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1);
@@ -2536,7 +2543,7 @@ export default function PlanningPage() {
   const [selectedDate, setSelectedDate] = useState<string>(() => dayStr(new Date()));
   // A week is the only range where a dispatch card is still readable at 100%
   // zoom in the workspace width the board actually gets.
-  const [viewMode, setViewMode] = useState<'all' | 'day' | 'week' | 'timeline' | 'map'>('week');
+  const [viewMode, setViewMode] = useState<'all' | 'day' | 'week' | 'timeline' | 'month' | 'map'>('week');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [truckFilter, setTruckFilter] = useState('');
@@ -2731,6 +2738,13 @@ export default function PlanningPage() {
       const start = curr;
       return { from: dayStr(start), to: dayStr(addDays(start, 6)), totalMinutes: 7 * 24 * 60, hoursVisible: 7, fromDateObj: start };
     }
+    if (viewMode === 'month') {
+      // The monthly board is the whole calendar month, so the first column is
+      // always the 1st and the last is always the month's final day.
+      const start = new Date(curr.getFullYear(), curr.getMonth(), 1);
+      const days = new Date(curr.getFullYear(), curr.getMonth() + 1, 0).getDate();
+      return { from: dayStr(start), to: dayStr(addDays(start, days - 1)), totalMinutes: days * 24 * 60, hoursVisible: days, fromDateObj: start };
+    }
     // day / timeline / map — same range
     return { from: selectedDate, to: selectedDate, totalMinutes: 24 * 60, hoursVisible: 24, fromDateObj: curr };
   }, [selectedDate, viewMode]);
@@ -2749,7 +2763,9 @@ export default function PlanningPage() {
   const totalTimelineWidth = useMemo(() => hoursVisible * colWidth, [hoursVisible, colWidth]);
   const rangeLabel = viewMode === 'day' || viewMode === 'timeline'
     ? new Date(selectedDate + 'T00:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
-    : `${fmtShort(from)} – ${fmtShort(to)}`;
+    : viewMode === 'month'
+      ? fromDateObj.toLocaleDateString([], { month: 'long', year: 'numeric' })
+      : `${fmtShort(from)} – ${fmtShort(to)}`;
   const nowMinutes = (nowTick - parseDay(from).getTime()) / 60000;
   const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
 
@@ -3496,7 +3512,7 @@ export default function PlanningPage() {
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface shrink-0 print:hidden overflow-x-auto min-h-[44px]">
         {/* Left: Views & Grouping */}
         <div className="flex bg-card p-0.5 rounded-lg border border-border shadow-sm shrink-0">
-          {([['all', t('jsx_all','All'), List],['day', t('jsx_day','Day'), Clock],['week', t('jsx_week','Week'), Calendar],['timeline', t('view_timeline','Timeline'), LayoutGrid],['map', t('jsx_map','Map'), MapIcon]] as [string, string, any][]).map(([id, label, Icon]) => (
+          {([['all', t('jsx_all','All'), List],['day', t('jsx_day','Day'), Clock],['week', t('jsx_week','Week'), Calendar],['timeline', t('view_timeline','Timeline'), LayoutGrid],['month', t('jsx_month','Month'), CalendarDays],['map', t('jsx_map','Map'), MapIcon]] as [string, string, any][]).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setViewMode(id as any)} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === id ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:text-text-primary'}`} title={label}>
               <Icon className="w-3.5 h-3.5" />
             </button>
@@ -3942,11 +3958,15 @@ export default function PlanningPage() {
                             <div className="flex items-center justify-between">
                               <span className="text-[8px] font-black uppercase tracking-widest text-text-muted">{t('timeline_fleet_time', 'Fleet / time')}</span>
                               <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[9px] font-bold text-primary hover:text-primary/80 px-1 rounded hover:bg-primary/10">
-                                {viewMode === 'week' ? t('jsx_dateThisWeek','This week') : t('jsx_today','Today')}
+                                {viewMode === 'week'
+                                  ? t('jsx_dateThisWeek','This week')
+                                  : viewMode === 'month'
+                                    ? t('jsx_dateThisMonth','This month')
+                                    : t('jsx_today','Today')}
                               </button>
                             </div>
                             <div className="flex items-center gap-1">
-                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? -7 : -1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_previous', 'Previous period')}>
+                              <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, -1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_previous', 'Previous period')}>
                                 <ChevronLeft className="w-3.5 h-3.5" />
                               </button>
                               <Flatpickr
@@ -3955,7 +3975,7 @@ export default function PlanningPage() {
                                 options={{ dateFormat: 'Y-m-d' }}
                                 className="w-20 text-[11px] font-bold text-center bg-transparent border-none focus:ring-0 cursor-pointer text-text-primary p-0"
                               />
-                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? 7 : 1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_next', 'Next period')}>
+                              <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, 1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_next', 'Next period')}>
                                 <ChevronRight className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -3967,7 +3987,6 @@ export default function PlanningPage() {
                               const isToday = colDateStr === dayStr(new Date());
                               const isWeekendDay = viewMode !== 'day' && viewMode !== 'timeline' && [0, 6].includes(colDate.getDay());
                               const isNightHour = (viewMode === 'day' || viewMode === 'timeline') && (h < 6 || h >= 21);
-                              const showHourLabel = viewMode !== 'day' && viewMode !== 'timeline' || h % 2 === 0;
                               return (
                                 <div
                                   key={h}
@@ -3976,20 +3995,15 @@ export default function PlanningPage() {
                                   } ${(viewMode === 'day' || viewMode === 'timeline') && h % 6 === 0 ? 'border-l border-l-border/60' : ''}`}
                                   style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
                                 >
-                                  {viewMode === 'all' ? (
+                                  {viewMode === 'day' || viewMode === 'timeline' ? (
                                     <>
-                                      <span className="text-[8px] uppercase tracking-wide opacity-70">{colDate.toLocaleDateString([], { weekday: 'short' })}</span>
-                                      <span className="text-[10px] font-black">{colDate.getDate()} {colDate.toLocaleDateString([], { month: 'short' })}</span>
-                                    </>
-                                  ) : viewMode === 'week' ? (
-                                    <>
-                                      <span className="text-[8px] uppercase tracking-wide opacity-70">{colDate.toLocaleDateString([], { weekday: 'short' })}</span>
-                                      <span className="text-[10px] font-black">{colDate.getDate()} {colDate.toLocaleDateString([], { month: 'short' })}</span>
+                                      <span className="text-[10px] font-black">{String(h).padStart(2, '0')}:00</span>
+                                      {isToday && <span className="text-[7px] uppercase tracking-wide">{t('timeline_now', 'Now')}</span>}
                                     </>
                                   ) : (
                                     <>
-                                      <span className={`text-[10px] font-black ${showHourLabel ? 'opacity-100' : 'opacity-0'}`}>{String(h).padStart(2,'0')}:00</span>
-                                      {isToday && <span className="text-[7px] uppercase tracking-wide">{t('timeline_now', 'Now')}</span>}
+                                      <span className="text-[8px] uppercase tracking-wide opacity-70">{colDate.toLocaleDateString([], { weekday: 'short' })}</span>
+                                      <span className="text-[10px] font-black">{colDate.getDate()} {colDate.toLocaleDateString([], { month: 'short' })}</span>
                                     </>
                                   )}
                                 </div>
