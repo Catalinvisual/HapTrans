@@ -136,13 +136,14 @@ const parseDay = (s: string) => {
   return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1);
 };
 /**
- * Wall clock in the operational zone. Reading the browser's own hours put the
- * now marker at whatever time the client's zone had, which is not the time the
- * dispatchers plan against.
+ * "Now" on the board is the Netherlands wall clock, whatever zone the machine
+ * that happens to be looking at it is set to.
  */
+const TIMELINE_NOW_ZONE = 'Europe/Amsterdam';
+
 function operationalNow(ts: number) {
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: OPERATIONAL_TIME_ZONE,
+    timeZone: TIMELINE_NOW_ZONE,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).formatToParts(new Date(ts));
