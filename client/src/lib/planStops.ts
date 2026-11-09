@@ -8,12 +8,27 @@
  * (those differ by sequence).
  */
 
+const norm = (value: unknown) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+const kindOf = (type: unknown): string => {
+  const value = String(type || '').toLowerCase();
+  if (value === 'pickup' || value === 'load' || value === 'loading') return 'pickup';
+  if (value === 'delivery' || value === 'dropoff' || value === 'drop' || value === 'unload' || value === 'unloading') return 'delivery';
+  return value;
+};
+
 const keyOf = (stop: any): string | null => {
-  // Duplicated rows are different records with different ids, so the operation
-  // is the identity: one order, one kind, one sequence.
+  // Duplicated rows are different records with different ids and sequence
+  // numbers, so the operation is the identity: one order, one kind, one place.
+  // The city decides the place because copies written at different times can
+  // disagree on the street while describing the same operation.
   const orderId = stop?.orderId || stop?.order?.id;
-  if (orderId) return `op:${orderId}:${stop?.type || ''}:${stop?.sequence ?? ''}`;
-  return stop?.id ? `id:${stop.id}` : null;
+  if (!orderId) return stop?.id ? `id:${stop.id}` : null;
+  const kind = kindOf(stop?.type);
+  const place = norm(stop?.city) || norm(stop?.postalCode) || norm(stop?.address) || norm(stop?.companyName);
+  return kind === 'stop'
+    ? `op:${orderId}:${kind}:${stop?.sequence ?? ''}`
+    : `op:${orderId}:${kind}:${place}`;
 };
 
 export function dedupePlanStops(stops: any[] | null | undefined): any[] {

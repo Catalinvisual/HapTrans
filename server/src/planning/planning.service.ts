@@ -31,7 +31,7 @@ import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
 import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
 import { withRoutePlanInitLock } from './route-plan-init-lock';
-import { asJsonArray } from './route-plan-json';
+import { asJsonArray, toDateOnly, toFiniteNumber, toRouteStopStatus, toSafeDate } from './route-plan-json';
 import { buildCargoLedger } from './cargo-ledger';
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
 import { etaDeviations } from './eta-deviation';
@@ -5134,18 +5134,29 @@ export class PlanningService {
       // With no stops loaded there is nothing authoritative to compare against,
       // so the readable plan is kept instead of rebuilding on a guess.
       if (currentTripStops.length > 0) {
-        const expectedStops = mergePlannerStops(currentTripStops, (trip.orders || []) as any[]);
+        // A trip whose stops were written twice for the same operation must be
+        // compared with the de-duplicated expectation. Comparing against the
+        // raw list made the stale, duplicated plan look correct, so it was
+        // served forever and the planner showed the same order again and again.
+        const expectedStops = dedupePlannerStops(mergePlannerStops(currentTripStops, (trip.orders || []) as any[]));
+        const uniquePlanStops = dedupePlannerStops(routePlan.stops);
         // Order matters as much as membership: a plan whose stops were sorted
         // pickup-first routes a sequence the truck never drives.
         const orderKey = (stop: any) => `${String(stop.type || '').toLowerCase()}:${stop.city || ''}`;
         const expectedOrder = expectedStops.map(orderKey).join('|');
-        const actualOrder = routePlan.stops.map(orderKey).join('|');
-        if (plannerStopSetSignature(routePlan.stops) !== plannerStopSetSignature(expectedStops)
+        const actualOrder = uniquePlanStops.map(orderKey).join('|');
+        if (routePlan.stops.length !== uniquePlanStops.length
+          || plannerStopSetSignature(uniquePlanStops) !== plannerStopSetSignature(expectedStops)
           || expectedOrder !== actualOrder) {
           try {
             routePlan = await this.createRoutePlanFromTrip(tripId);
           } catch {
-            // Keep the readable plan if the rebuild cannot run (e.g. no vehicle).
+            // Keep a readable plan if the rebuild cannot run (e.g. no vehicle),
+            // but never serve the duplicated rows it was meant to replace.
+            if (routePlan.stops.length !== uniquePlanStops.length) {
+              routePlan.stops = uniquePlanStops.map((stop, index) => ({ ...stop, sequence: index + 1 }));
+              routePlan.stopCount = routePlan.stops.length;
+            }
           }
         }
       }
@@ -5249,11 +5260,24 @@ export class PlanningService {
 
     // Existing plans created before road routing was introduced have no
     // geometry. Calculate it once on first open rather than leaving a fake
-    // Haversine distance or a straight line in the planner.
+    // Haversine distance or a straight line in the planner. A provider that
+    // throws (timeout, DNS, quota) must not turn a readable plan into the
+    // generic "Failed to load route plan" screen without any stops.
     if (routePlan.stops?.length && !routePlan.routeGeometry && routePlan.routeStatus !== 'failed') {
-      await this.applyRoadRoute(routePlan, routePlan.stops);
-      for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
-      await this.routePlanRepo.save(routePlan);
+      try {
+        await this.applyRoadRoute(routePlan, routePlan.stops);
+        for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+        await this.routePlanRepo.save(routePlan);
+      } catch (error) {
+        (routePlan as any).routeRefreshError = {
+          code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE',
+          message: `The route could not be calculated: ${(error as any)?.message || 'routing provider unavailable'}. The stop sequence is still readable.`,
+        };
+        routePlan.routeWarnings = [
+          ...asJsonArray(routePlan.routeWarnings),
+          { code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE', severity: 'warning', message: (routePlan as any).routeRefreshError.message },
+        ];
+      }
     }
 
     return this.decorateVehicleRestrictionStatus(routePlan);
@@ -6146,22 +6170,26 @@ export class PlanningService {
       routePlanStop.city = stop.city || '';
       routePlanStop.country = stop.country || '';
       routePlanStop.postalCode = stop.postalCode || '';
-      routePlanStop.latitude = stop.latitude ? Number(stop.latitude) : (undefined as any);
-      routePlanStop.longitude = stop.longitude ? Number(stop.longitude) : (undefined as any);
+      routePlanStop.latitude = toFiniteNumber(stop.latitude) as any;
+      routePlanStop.longitude = toFiniteNumber(stop.longitude) as any;
       const stopWindow = this.resolveStopWindow(stop, planningDate);
-      routePlanStop.scheduledDate = stopWindow.scheduledDate;
-      routePlanStop.timeWindowStart = stopWindow.start as any;
-      routePlanStop.timeWindowEnd = stopWindow.end as any;
+      routePlanStop.scheduledDate = toDateOnly(stopWindow.scheduledDate, planningDate) as any;
+      routePlanStop.timeWindowStart = toSafeDate(stopWindow.start) as any;
+      routePlanStop.timeWindowEnd = toSafeDate(stopWindow.end) as any;
       routePlanStop.timeWindowSoft = false;
-      routePlanStop.eta = stop.eta ? new Date(stop.eta) : (stopWindow.start as any);
-      routePlanStop.plannedEta = stop.eta ? new Date(stop.eta) : (stopWindow.start as any);
+      const stopEta = toSafeDate(stop.eta) || toSafeDate(stopWindow.start);
+      routePlanStop.eta = stopEta as any;
+      routePlanStop.plannedEta = stopEta as any;
       routePlanStop.calculatedEta = null as any;
       routePlanStop.serviceDurationMinutes = 30;
       routePlanStop.pallets = stopPallets;
       routePlanStop.weightKg = stopWeight;
       routePlanStop.loadingMeters = stopLdm;
       routePlanStop.volumeCbm = stopVolume;
-      routePlanStop.status = (stop.status as RouteStopStatus) || RouteStopStatus.PENDING;
+      // `stops.status` carries driver progress such as loading/unloading, which
+      // is not a value of the route-plan stop enum. Normalize it instead of
+      // letting the insert fail with a 500.
+      routePlanStop.status = toRouteStopStatus(stop.status) as RouteStopStatus;
       routePlanStop.locked = false;
       routePlanStop.cumulativePallets = cumulativePallets;
       routePlanStop.cumulativeWeightKg = cumulativeWeight;
@@ -6174,7 +6202,32 @@ export class PlanningService {
     // Recompute the authoritative cargo profile, then request the real HGV
     // road route for the complete stop sequence.
     this.recomputeCumulativeLoads(savedStops, savedPlan);
-    await this.applyRoadRoute(savedPlan, savedStops);
+    // Persist the stop sequence even when the provider throws. Failing the
+    // whole build left the planner with nothing to show for a trip that does
+    // have a valid stop order; the missing route is reported as a warning.
+    try {
+      await this.applyRoadRoute(savedPlan, savedStops);
+    } catch (error) {
+      savedPlan.routeGeometry = null;
+      savedPlan.routeProvider = null;
+      savedPlan.routeStatus = 'failed';
+      savedPlan.totalDistanceKm = 0 as any;
+      savedPlan.totalDrivingTimeMinutes = 0;
+      savedPlan.totalDurationMinutes = 0;
+      savedPlan.routeWarnings = [
+        ...asJsonArray(savedPlan.routeWarnings),
+        {
+          code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE',
+          severity: 'error',
+          message: `The route could not be calculated: ${(error as any)?.message || 'routing provider unavailable'}. The stop sequence is still readable.`,
+        },
+      ];
+      for (const stop of savedStops) {
+        stop.distanceFromPreviousKm = null as any;
+        stop.durationFromPreviousMin = null as any;
+        stop.calculatedEta = null as any;
+      }
+    }
     for (const stop of savedStops) await this.routePlanStopRepo.save(stop);
 
     savedPlan.stopCount = stopList.length;
@@ -6282,7 +6335,15 @@ export class PlanningService {
       );
 
       if (matchingTrip) {
-        routePlan = await this.createRoutePlanFromTrip(matchingTrip.id, planningDate);
+        // Building from a trip can still fail (for example a provider timeout
+        // while saving). The planner must not answer 500 and blank the screen;
+        // report the plan as unavailable instead.
+        try {
+          routePlan = await this.createRoutePlanFromTrip(matchingTrip.id, planningDate);
+        } catch (error) {
+          this.logger.warn(`Route plan build failed for trip ${matchingTrip.id}: ${(error as Error).message}`);
+          routePlan = null;
+        }
       } else {
         routePlan = await this.getOrCreateRoutePlan(truckId, planningDate, undefined, userCompanyId);
       }
@@ -6311,14 +6372,27 @@ export class PlanningService {
       if (routePlan.stops && routePlan.stops.length > 0) {
         this.recomputeCumulativeLoads(routePlan.stops, routePlan);
         if (!routePlan.routeGeometry && routePlan.routeStatus !== 'failed') {
-          await this.applyRoadRoute(routePlan, routePlan.stops);
-          for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
-          await this.routePlanRepo.save(routePlan);
+          try {
+            await this.applyRoadRoute(routePlan, routePlan.stops);
+            for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+            await this.routePlanRepo.save(routePlan);
+          } catch (error) {
+            // A provider failure must not surface as a 500 on the planner's
+            // truck read path; the stop sequence stays usable.
+            (routePlan as any).routeRefreshError = {
+              code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE',
+              message: `The route could not be calculated: ${(error as any)?.message || 'routing provider unavailable'}. The stop sequence is still readable.`,
+            };
+            routePlan.routeWarnings = [
+              ...asJsonArray(routePlan.routeWarnings),
+              { code: 'ROUTE_PLAN_PROVIDER_UNAVAILABLE', severity: 'warning', message: (routePlan as any).routeRefreshError.message },
+            ];
+          }
         }
       }
     }
 
-    return this.decorateVehicleRestrictionStatus(routePlan);
+    return routePlan ? this.decorateVehicleRestrictionStatus(routePlan) : null;
   }
 
   async saveRoutePlan(

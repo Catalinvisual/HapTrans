@@ -37,13 +37,31 @@ export function dedupeRebuildOrders(orders: any[] | null | undefined): any[] {
   return uniqueRowsById((orders || []).filter((order) => order && order.id));
 }
 
+const placeKey = (stop: any): string => {
+  const norm = (value: unknown) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  // Duplicate rows were written at different times and can disagree on the
+  // address (one carries the street, another only the company). The city is
+  // what identifies the place; the more detailed fields are only consulted
+  // when the city itself is missing.
+  return norm(stop?.city) || norm(stop?.postalCode) || norm(stop?.address) || norm(stop?.companyName);
+};
+
+const operationKind = (type: unknown): string => {
+  const value = String(type || '').toLowerCase();
+  if (value === 'pickup' || value === 'load' || value === 'loading') return 'pickup';
+  if (value === 'delivery' || value === 'dropoff' || value === 'drop' || value === 'unload' || value === 'unloading') return 'delivery';
+  return value;
+};
+
 /**
  * Planner-level identity: one order operation at one place.
  *
  * Trip stops written by the old rebuild carry their own sequence numbers, so two
  * copies of the same delivery are sequence 1 and sequence 2 — the sequence is
  * therefore not part of the identity here. Two genuinely different deliveries
- * of one order differ by city/address and are both kept.
+ * of one order differ by city and are both kept. Intermediate `stop`s of the
+ * same order in one city are real legs of the tour, so their sequence stays
+ * part of the identity.
  */
 export function dedupePlannerStops(stops: any[] | null | undefined): any[] {
   const seen = new Set<string>();
@@ -54,11 +72,11 @@ export function dedupePlannerStops(stops: any[] | null | undefined): any[] {
       out.push(stop);
       continue;
     }
+    const kind = operationKind(stop?.type);
     const key = [
       String(orderId),
-      String(stop?.type || '').toLowerCase(),
-      String(stop?.city || '').trim().toLowerCase(),
-      String(stop?.address || '').trim().toLowerCase(),
+      kind,
+      kind === 'stop' ? String(stop?.sequence ?? '') : placeKey(stop),
     ].join('|');
     if (seen.has(key)) continue;
     seen.add(key);

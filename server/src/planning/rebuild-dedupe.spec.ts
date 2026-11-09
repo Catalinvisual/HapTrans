@@ -66,6 +66,29 @@ describe('rebuild de-duplication', () => {
     expect(dedupePlannerStops(rows)).toHaveLength(2);
   });
 
+  it('collapses copies of one operation that disagree on the street', () => {
+    // Copies written at different times can carry a different address (one
+    // edited, one blank). They are still the same pickup in the same city.
+    const rows = [
+      { orderId: 'ord', type: 'pickup', city: 'Pobiedziska', address: '1 Rynek', sequence: 1 },
+      { orderId: 'ord', type: 'pickup', city: 'Pobiedziska', address: '', sequence: 3 },
+      { orderId: 'ord', type: 'delivery', city: 'Berlin', address: '2 Strasse', sequence: 2 },
+      { orderId: 'ord', type: 'delivery', city: 'Berlin', address: 'Other 9', sequence: 4 },
+    ];
+    const result = dedupePlannerStops(rows);
+    expect(result).toHaveLength(2);
+    expect(result.map((s: any) => `${s.type}:${s.city}`)).toEqual(['pickup:Pobiedziska', 'delivery:Berlin']);
+  });
+
+  it('treats the same operation without a city as one place by its address', () => {
+    const rows = [
+      { orderId: 'ord', type: 'delivery', address: 'One Road 1', sequence: 1 },
+      { orderId: 'ord', type: 'delivery', address: 'One Road 1', sequence: 2 },
+      { orderId: 'ord', type: 'delivery', address: 'Two Road 2', sequence: 3 },
+    ];
+    expect(dedupePlannerStops(rows)).toHaveLength(2);
+  });
+
   it('never treats a freshly created row without an id as a duplicate', () => {
     const created = { type: 'pickup' } as any;
     expect(uniqueRowsById([created, created])).toHaveLength(2);

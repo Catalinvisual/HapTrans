@@ -1,5 +1,5 @@
 import { withRoutePlanInitLock } from './route-plan-init-lock';
-import { asJsonArray } from './route-plan-json';
+import { asJsonArray, toDateOnly, toFiniteNumber, toRouteStopStatus, toSafeDate } from './route-plan-json';
 
 /**
  * Regression coverage for the planner's first-open initialization. Before the
@@ -22,6 +22,35 @@ describe('route plan JSON normalization', () => {
     expect(asJsonArray(null)).toEqual([]);
     expect(asJsonArray('not-json')).toEqual([]);
     expect(asJsonArray({ code: 'warning' })).toEqual([]);
+  });
+});
+
+describe('planner stop value normalization', () => {
+  it('maps driver progress onto the route-plan stop enum', () => {
+    // These are the values stops.status actually holds while a driver works the
+    // trip; writing them raw made the PostgreSQL enum reject the row (HTTP 500).
+    expect(toRouteStopStatus('loading')).toBe('arrived');
+    expect(toRouteStopStatus('unloading')).toBe('arrived');
+    expect(toRouteStopStatus('arrived')).toBe('arrived');
+    expect(toRouteStopStatus('completed')).toBe('completed');
+    expect(toRouteStopStatus('delivered')).toBe('completed');
+    expect(toRouteStopStatus('skipped')).toBe('skipped');
+    expect(toRouteStopStatus(undefined)).toBe('pending');
+    expect(toRouteStopStatus('planned')).toBe('pending');
+  });
+
+  it('never returns an invalid Date or calendar date', () => {
+    expect(toSafeDate('not-a-date')).toBeNull();
+    expect(toSafeDate(null)).toBeNull();
+    expect(toDateOnly('not-a-date', '2026-11-09')).toBe('2026-11-09');
+    expect(toDateOnly('2026-11-10T02:00:00.000Z')).toBe('2026-11-10');
+    expect(toDateOnly(new Date('2026-11-11T04:00:00.000Z'))).toBe('2026-11-11');
+  });
+
+  it('never passes NaN to a decimal column', () => {
+    expect(toFiniteNumber('51.9234')).toBe(51.9234);
+    expect(toFiniteNumber('abc')).toBeNull();
+    expect(toFiniteNumber(undefined)).toBeNull();
   });
 });
 
