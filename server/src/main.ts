@@ -340,8 +340,13 @@ async function bootstrap() {
     if (!filename || !filename.endsWith('.apk')) {
       return next();
     }
-    const apkPath = join(__dirname, '..', 'uploads', filename);
-    if (fs.existsSync(apkPath)) {
+    // The published APK is committed under apk/, which the image keeps;
+    // uploads/ is excluded from the build and stays as a local fallback.
+    const apkPath = [
+      join(__dirname, '..', 'apk', filename),
+      join(__dirname, '..', 'uploads', filename),
+    ].find((candidate) => fs.existsSync(candidate));
+    if (apkPath) {
       const stat = fs.statSync(apkPath);
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Content-Type', 'application/vnd.android.package-archive');

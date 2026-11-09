@@ -31,8 +31,16 @@ export class AuthController {
    * corrupted or tampered download before offering installation. */
   private apkSha256(file: string): string | null {
     try {
-      const path = join(process.cwd(), 'uploads', file);
-      if (!existsSync(path)) return null;
+      // The published APK lives in apk/, which survives the image build;
+      // uploads/ is excluded from it and is only a local fallback.
+      const candidates = [
+        join(process.cwd(), 'apk', file),
+        join(process.cwd(), 'uploads', file),
+        join(__dirname, '..', '..', 'apk', file),
+        join(__dirname, '..', '..', 'uploads', file),
+      ];
+      const path = candidates.find((candidate) => existsSync(candidate));
+      if (!path) return null;
       return createHash('sha256').update(readFileSync(path)).digest('hex');
     } catch {
       return null;
