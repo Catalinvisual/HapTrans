@@ -483,13 +483,6 @@ export default function TruckRoutePlannerPage() {
   // customer waiting; days between windows are layover, and breaks/rests are
   // separate. The panel shows each component instead of one "waiting" number.
   const scheduleBreakdown: any = (routePlan as any)?.optimizationMetadata?.scheduleBreakdown || null;
-  // The schedule timeline is the only place that keeps the raw driving arrival
-  // and the scheduled service start apart. When a layover separates them (a
-  // delivery moved two days out) the card must show both times, otherwise a
-  // correct appointment is indistinguishable from a stale date.
-  const scheduleTimeline: any[] = Array.isArray((routePlan as any)?.optimizationMetadata?.scheduleTimeline)
-    ? (routePlan as any).optimizationMetadata.scheduleTimeline
-    : [];
   const routeFallbackReason = routePlan?.optimizationMetadata?.routeFallbackReason || null;
   const routeWarnings = asArray(routePlan?.routeWarnings);
   const reportedMissingRestrictions: string[] = routeWarnings
@@ -1536,11 +1529,6 @@ export default function TruckRoutePlannerPage() {
               const etaDeviationMin = plannedEta && calculatedEta
                 ? Math.round((new Date(calculatedEta).getTime() - new Date(plannedEta).getTime()) / 60000)
                 : null;
-              const timelineStop = scheduleTimeline.find((entry: any) => entry?.id && String(entry.id) === String(stop.id))
-                || scheduleTimeline.find((entry: any) => Number(entry?.sequence) === Number(stop.sequence))
-                || null;
-              const layoverMin = Number(timelineStop?.layoverMin || 0);
-              const showScheduleGap = layoverMin > 0 && !!timelineStop?.arrival && !!timelineStop?.serviceStart;
 
               return (
                 <div key={stop.id} id={`planner-stop-${stop.id}`} className="space-y-1.5">
@@ -1668,21 +1656,6 @@ export default function TruckRoutePlannerPage() {
                         </p>
                       )}
                     </div>
-                    {showScheduleGap && (
-                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 min-w-0 sm:col-span-2">
-                        <p className="text-amber-700 dark:text-amber-300 uppercase font-bold text-[8px]">
-                          {t('pln_sched_gap_title', 'Arrival and appointment')}
-                        </p>
-                        <p className="font-bold text-text-primary break-words">
-                          {t('pln_sched_arrival', 'Arrives')} {fmtDate(timelineStop.arrival)}
-                          <span className="mx-1 text-amber-600">→</span>
-                          {t('pln_sched_appointment', 'appointment')} {fmtDate(timelineStop.serviceStart)}
-                        </p>
-                        <p className="text-[9px] font-bold text-amber-700 dark:text-amber-300">
-                          {t('sched_layover', 'Layover / schedule gap')}: {Math.floor(layoverMin / 60)}h {Math.round(layoverMin % 60)}m
-                        </p>
-                      </div>
-                    )}
                     <div className="rounded-lg bg-surface px-2 py-1.5 min-w-0">
                       <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_window', 'Window')}</p>
                       <p className="font-bold text-text-primary break-words">{formatStopWindow(stop.timeWindowStart, stop.timeWindowEnd)}</p>

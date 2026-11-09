@@ -984,50 +984,6 @@ const finalPlanningLabels: Record<string, Record<string, string>> = {
   },
 };
 
-// A stop whose appointment is hours or days after the physical arrival shows
-// both times, so a moved window can never be read as a stale date.
-const scheduleGapLabels: Record<string, Record<string, string>> = {
-  en: {
-    pln_sched_gap_title: 'Arrival and appointment',
-    pln_sched_arrival: 'Arrives',
-    pln_sched_appointment: 'appointment',
-  },
-  ro: {
-    pln_sched_gap_title: 'Sosire și programare',
-    pln_sched_arrival: 'Sosește',
-    pln_sched_appointment: 'programare',
-  },
-  nl: {
-    pln_sched_gap_title: 'Aankomst en afspraak',
-    pln_sched_arrival: 'Aankomst',
-    pln_sched_appointment: 'afspraak',
-  },
-  de: {
-    pln_sched_gap_title: 'Ankunft und Termin',
-    pln_sched_arrival: 'Ankunft',
-    pln_sched_appointment: 'Termin',
-  },
-  fr: {
-    pln_sched_gap_title: 'Arrivée et rendez-vous',
-    pln_sched_arrival: 'Arrivée',
-    pln_sched_appointment: 'rendez-vous',
-  },
-  es: {
-    pln_sched_gap_title: 'Llegada y cita',
-    pln_sched_arrival: 'Llegada',
-    pln_sched_appointment: 'cita',
-  },
-  pl: {
-    pln_sched_gap_title: 'Przyjazd i termin',
-    pln_sched_arrival: 'Przyjazd',
-    pln_sched_appointment: 'termin',
-  },
-};
-
-for (const [locale, labels] of Object.entries(scheduleGapLabels)) {
-  Object.assign((planningUpgradeResources as any)[locale].translation, labels);
-}
-
 for (const [locale, labels] of Object.entries(finalPlanningLabels)) {
   Object.assign((planningUpgradeResources as any)[locale].translation, labels);
 }
