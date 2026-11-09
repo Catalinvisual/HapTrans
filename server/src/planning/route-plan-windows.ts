@@ -71,13 +71,15 @@ const timeOf = (value: unknown): number | null => {
 };
 
 /**
- * Patch for a trip stop that is older than the Order stop it projects.
+ * Patch that moves a trip stop onto the appointment of the Order stop it
+ * projects.
  *
  * The Order owns the appointment until someone works the stop. Returns null
- * when the stop is being worked, when the Order has no appointment, when the
- * Order stop is not newer (a dispatch adjustment makes the trip stop newer and
- * wins) or when the two already agree — so a read can run this over every stop
- * without writing.
+ * when the stop is being worked, when the Order has no appointment or when the
+ * two already agree — so a read can run this over every stop without writing.
+ * There is deliberately no timestamp comparison: writing the trip stop later
+ * is exactly what a missed synchronization or a stale rebuild leaves behind,
+ * and the Order has to win.
  */
 export function pendingOrderStopWindowPatch(orderStop: any, tripStop: any): Record<string, any> | null {
   if (!orderStop || !tripStop) return null;
@@ -86,10 +88,6 @@ export function pendingOrderStopWindowPatch(orderStop: any, tripStop: any): Reco
 
   const appointment = resolveStopAppointment(orderStop);
   if (!appointment.start) return null;
-
-  const orderTouched = timeOf(orderStop.updatedAt);
-  const stopTouched = timeOf(tripStop.updatedAt);
-  if (!orderTouched || (stopTouched !== null && orderTouched <= stopTouched)) return null;
 
   const nextStart = appointment.start;
   const nextEnd = appointment.end;

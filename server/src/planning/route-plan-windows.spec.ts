@@ -91,10 +91,11 @@ describe('pendingOrderStopWindowPatch', () => {
     expect(new Date(patch?.timeWindowMax).toISOString()).toBe('2026-11-12T06:30:00.000Z');
   });
 
-  it('keeps a trip stop that dispatch adjusted after the order', () => {
-    const adjusted = { ...olderTripStop, updatedAt: new Date('2026-11-09T13:00:00Z') };
+  it('applies the order even when the trip stop was written later', () => {
+    const writtenLater = { ...olderTripStop, updatedAt: new Date('2026-11-09T13:00:00Z') };
 
-    expect(pendingOrderStopWindowPatch(orderStop, adjusted)).toBeNull();
+    expect(new Date(pendingOrderStopWindowPatch(orderStop, writtenLater)?.timeWindowMin).toISOString())
+      .toBe('2026-11-12T06:30:00.000Z');
   });
 
   it('never rewrites a stop that is already being worked', () => {

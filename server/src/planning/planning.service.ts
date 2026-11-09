@@ -82,7 +82,7 @@ import {
   tripOccupancyFromTimeline,
 } from './truck-availability';
 import { appointmentBounds, resolveStopAppointment } from './stop-appointment';
-import { operationalTimeZone, wallClockToInstant } from '../common/operational-time';
+import { instantToWallClockString, operationalTimeZone, wallClockToInstant } from '../common/operational-time';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   missingVehicleRestrictions,
@@ -5076,7 +5076,11 @@ export class PlanningService {
     const plannerStops = this.plannerStopsForTrip(trip);
     const windowsChanged = this.applyPlannerStopWindows(plan, plannerStops, planningDate);
     const cargoChanged = this.applyPlannerStopCargo(plan, plannerStops);
-    if (!windowsChanged && !cargoChanged) return false;
+    const appointmentsChanged = this.applyOrderStopAppointments(
+      plan,
+      await this.loadOrdersForPlan(plan, trip),
+    );
+    if (!windowsChanged && !cargoChanged && !appointmentsChanged) return false;
 
     await this.routePlanStopRepo.save(plan.stops);
     await this.routePlanRepo.save(plan);
@@ -5109,9 +5113,9 @@ export class PlanningService {
       const syncPlan = planOrderStopSync(orderStops as any[], stopsOfOrder as any[]);
       for (const { orderStop, tripStop } of syncPlan.pairs) {
         if (!tripStop) continue;
-        // Only a trip stop older than the Order stop is a projection that
-        // missed the edit; when the trip stop is newer, dispatch changed it on
-        // purpose and the Order must not revert that change behind their back.
+        // The Order owns a pending stop's appointment. A trip stop written
+        // later is not evidence of a deliberate change: it is exactly what a
+        // missed synchronization or a stale rebuild leaves behind.
         const patch = pendingOrderStopWindowPatch(orderStop, tripStop);
         if (!patch) continue;
         Object.assign(tripStop, patch);
@@ -5120,6 +5124,92 @@ export class PlanningService {
       }
     }
     return changed;
+  }
+
+  /**
+   * Projects each pending plan stop's appointment from the Order stop it
+   * belongs to.
+   *
+   * The planner renders these rows, and every earlier hop (order stop → trip
+   * stop → plan stop) can be missed; a missed hop is why a delivery edited to
+   * 12 Nov still displayed 10 Nov. Applying the Order here, on the rows the
+   * screen reads, makes the edited window independent of the save-time sync.
+   * Worked, skipped or locked stops keep the window they recorded.
+   */
+  private applyOrderStopAppointments(routePlan: TruckRoutePlan, orders: any[]): boolean {
+    const planStops = [...((routePlan.stops || []) as RoutePlanStop[])]
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    if (!planStops.length) return false;
+
+    let changed = false;
+    for (const order of (orders || [])) {
+      if (!order?.id || !Array.isArray(order.stops)) continue;
+      const orderStops = dedupeOrderStops(order.stops)
+        .slice()
+        .sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+      if (!orderStops.length) continue;
+      const stopsOfOrder = planStops.filter((stop) =>
+        String((stop as any).orderId || (stop as any).order?.id || '') === String(order.id));
+      if (!stopsOfOrder.length) continue;
+
+      const pairs = planOrderStopSync(orderStops as any[], stopsOfOrder as any[]).pairs;
+      for (const { orderStop, tripStop: planStop } of pairs) {
+        if (!planStop) continue;
+        const status = String(planStop.status || '').toLowerCase();
+        if (planStop.locked || status === 'arrived' || status === 'completed' || status === 'skipped') continue;
+
+        const appointment = resolveStopAppointment(orderStop);
+        if (!appointment.start) continue;
+        const wall = instantToWallClockString(appointment.start, operationalTimeZone());
+        const scheduledDate = wall ? wall.slice(0, 10) : planStop.scheduledDate;
+        const nextStart = appointment.start;
+        const nextEnd = appointment.end;
+
+        const currentStart = planStop.timeWindowStart ? new Date(planStop.timeWindowStart as any).getTime() : null;
+        const currentEnd = planStop.timeWindowEnd ? new Date(planStop.timeWindowEnd as any).getTime() : null;
+        if (currentStart === nextStart.getTime()
+          && currentEnd === (nextEnd ? nextEnd.getTime() : null)
+          && String(planStop.scheduledDate || '').slice(0, 10) === scheduledDate) {
+          continue;
+        }
+
+        planStop.scheduledDate = scheduledDate as any;
+        planStop.timeWindowStart = nextStart as any;
+        planStop.timeWindowEnd = nextEnd as any;
+        changed = true;
+      }
+    }
+
+    if (!changed) return false;
+    // The window is an input of the schedule: a moved stop must move its ETA
+    // and the stops after it, exactly like a rebuild would.
+    this.applyRouteSchedule(routePlan, planStops);
+    return true;
+  }
+
+  /** The Orders a plan refers to, including ones no longer attached to the trip. */
+  private async loadOrdersForPlan(routePlan: TruckRoutePlan, trip: Trip): Promise<any[]> {
+    const known = new Map<string, any>();
+    for (const order of ((trip?.orders || []) as any[])) {
+      if (order?.id) known.set(String(order.id), order);
+    }
+    const missing: string[] = [];
+    for (const stop of ((routePlan?.stops || []) as any[])) {
+      const id = String(stop?.orderId || stop?.order?.id || '');
+      if (id && !known.has(id) && !missing.includes(id)) missing.push(id);
+    }
+    if (missing.length) {
+      try {
+        const found = await this.orderRepo.find({
+          where: missing.map((id) => ({ id })) as any,
+          relations: ['stops'],
+        });
+        for (const order of found as any[]) if (order?.id) known.set(String(order.id), order);
+      } catch {
+        // The projection is best effort; the persisted plan stays readable.
+      }
+    }
+    return [...known.values()];
   }
 
   /** Stops the planner must route for this trip, covering every attached Order. */
@@ -5443,7 +5533,14 @@ export class PlanningService {
               : new Date().toISOString().split('T')[0]);
           const windowsChanged = this.applyPlannerStopWindows(routePlan, expectedStops, planPlanningDate);
           const cargoChanged = this.applyPlannerStopCargo(routePlan, expectedStops);
-          if (windowsChanged || cargoChanged) {
+          // The rows this screen renders take their appointment from the Order
+          // last, so the plan is correct even when an earlier projection was
+          // missed. This is what moves a delivery edited to 12 Nov off 10 Nov.
+          const appointmentsChanged = this.applyOrderStopAppointments(
+            routePlan,
+            await this.loadOrdersForPlan(routePlan, trip),
+          );
+          if (windowsChanged || cargoChanged || appointmentsChanged) {
             await this.routePlanStopRepo.save(routePlan.stops);
             await this.routePlanRepo.save(routePlan);
           }
