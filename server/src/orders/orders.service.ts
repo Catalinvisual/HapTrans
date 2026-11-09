@@ -672,14 +672,16 @@ export class OrdersService implements OnModuleInit {
       // planning service recalculate the trip schedule.
       const assigned = await this.repo.findOne({ where: { id }, relations: ['trip'] } as any);
       const assignedTripId = (assigned as any)?.trip?.id || null;
-      if (assignedTripId) {
-        // PlanningModule already imports OrdersModule, so the update is handed to
-        // the planning listener instead of importing it here (no module cycle).
-        // Awaited so the trip stops and the persisted route plan already carry
-        // the edited appointment when the client reloads the board — emitting
-        // without awaiting let the reload read the previous schedule.
-        await this.eventEmitter.emitAsync('order.stops.updated', { orderId: id, tripId: assignedTripId });
-      }
+      // Emitted even without `orders.tripId`: a forced or legacy assignment
+      // records the allocation on the stop tasks only, and the planning
+      // listener discovers the trips that carry the Order from there. Gating
+      // the event on the trip link left exactly those Orders unsynced.
+      // PlanningModule already imports OrdersModule, so the update is handed to
+      // the planning listener instead of importing it here (no module cycle).
+      // Awaited so the trip stops and the persisted route plan already carry
+      // the edited appointment when the client reloads the board — emitting
+      // without awaiting let the reload read the previous schedule.
+      await this.eventEmitter.emitAsync('order.stops.updated', { orderId: id, tripId: assignedTripId });
 
       // Re-evaluate ADR status and 1,000 points calculation on update
       await this.evaluateAndSaveAdr(id);

@@ -65,6 +65,45 @@ const comparable = (value: unknown): string => {
   return isNaN(num) ? text.trim().toLowerCase() : String(num);
 };
 
+const timeOf = (value: unknown): number | null => {
+  const date = toDate(value);
+  return date ? date.getTime() : null;
+};
+
+/**
+ * Patch for a trip stop that is older than the Order stop it projects.
+ *
+ * The Order owns the appointment until someone works the stop. Returns null
+ * when the stop is being worked, when the Order has no appointment, when the
+ * Order stop is not newer (a dispatch adjustment makes the trip stop newer and
+ * wins) or when the two already agree — so a read can run this over every stop
+ * without writing.
+ */
+export function pendingOrderStopWindowPatch(orderStop: any, tripStop: any): Record<string, any> | null {
+  if (!orderStop || !tripStop) return null;
+  if (tripStop.ata || tripStop.completedAt) return null;
+  if (String(tripStop.status || '').toLowerCase() === 'completed') return null;
+
+  const appointment = resolveStopAppointment(orderStop);
+  if (!appointment.start) return null;
+
+  const orderTouched = timeOf(orderStop.updatedAt);
+  const stopTouched = timeOf(tripStop.updatedAt);
+  if (!orderTouched || (stopTouched !== null && orderTouched <= stopTouched)) return null;
+
+  const nextStart = appointment.start;
+  const nextEnd = appointment.end;
+  if (timeOf(tripStop.timeWindowMin) === nextStart.getTime()
+    && timeOf(tripStop.timeWindowMax) === (nextEnd ? nextEnd.getTime() : null)) {
+    return null;
+  }
+
+  const patch: Record<string, any> = { timeWindowMin: nextStart, timeWindowMax: nextEnd };
+  // A planned ETA that dispatch already set survives; an empty one follows.
+  if (!tripStop.eta) patch.eta = nextStart;
+  return patch;
+}
+
 /**
  * Fields of a persisted plan stop that no longer match the trip stop it
  * represents. Returns null when the plan stop is already current, so callers can

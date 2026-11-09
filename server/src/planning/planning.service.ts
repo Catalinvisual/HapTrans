@@ -37,7 +37,7 @@ import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } f
 import { etaDeviations } from './eta-deviation';
 import { deriveConsolidationVerdict } from './consolidation-feasibility';
 import { mergePlannerStops, plannerStopReconciliationSignature } from './route-plan-stops';
-import { planStopWindowPatch, plannerStopWindow } from './route-plan-windows';
+import { pendingOrderStopWindowPatch, planStopWindowPatch, plannerStopWindow } from './route-plan-windows';
 import { plannerStopTaskCargo, taskCargoMetrics } from './route-plan-cargo';
 import { planOrderStopSync } from './stop-sync';
 import { buildRouteSchedule } from './route-schedule';
@@ -3445,26 +3445,93 @@ export class PlanningService {
   async syncOrderStopsToTrip(orderId: string) {
     const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['stops', 'trip', 'cargoItems'] });
     if (!order) return { updated: 0, tripId: null, skipped: 'order_missing' };
-    const tripId = (order as any).trip?.id || (order as any).tripId || null;
-    if (!tripId) return { updated: 0, tripId: null, skipped: 'not_assigned' };
-
-    const trip = await this.tripRepo.findOne({
-      where: { id: tripId },
-      relations: ['stops', 'stops.tasks', 'orders'],
-    });
-    if (!trip) return { updated: 0, tripId, skipped: 'trip_missing' };
-    if (!(ACTIVE_TRIP_STATUSES as readonly string[]).includes(String(trip.status))) {
-      return { updated: 0, tripId, skipped: 'trip_not_active' };
-    }
-
     const orderStops = ((order as any).stops || [])
       .slice()
       .sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    if (!orderStops.length) return { updated: 0, tripId: null, skipped: 'no_order_stops' };
+
+    // `orders.tripId` is not the only record of an allocation: a forced or
+    // legacy assignment wrote the stop tasks alone. Reading the allocations
+    // makes the trips that actually carry the Order theirs to update, instead
+    // of returning `not_assigned` for an Order the planner and the driver app
+    // already show on a trip.
+    let allocations: any[] = [];
+    try {
+      allocations = (await this.taskRepoFor().find({
+        where: { order: { id: orderId } },
+        relations: ['stop', 'stop.trip'],
+      })) || [];
+    } catch {
+      allocations = [];
+    }
+    const allocatedStopIds = new Set<string>();
+    const tripIds: string[] = [];
+    const addTrip = (value: unknown) => {
+      const id = String(value || '');
+      if (id && !tripIds.includes(id)) tripIds.push(id);
+    };
+    addTrip((order as any).trip?.id || (order as any).tripId);
+    for (const task of allocations) {
+      const stopId = String(task?.stop?.id || '');
+      if (stopId) allocatedStopIds.add(stopId);
+      addTrip(task?.stop?.trip?.id);
+    }
+    if (!tripIds.length) return { updated: 0, tripId: null, skipped: 'not_assigned' };
+
+    let updated = 0;
+    let historyPreserved = false;
+    const duplicates: any[] = [];
+    const unmatchedTripStops: string[] = [];
+    let syncedTripId: string | null = null;
+    for (const tripId of tripIds) {
+      const result = await this.syncOrderStopsIntoTrip(
+        orderId,
+        order as any,
+        orderStops as any[],
+        tripId,
+        allocatedStopIds,
+      );
+      if (result.skipped) continue;
+      updated += result.updated;
+      historyPreserved = historyPreserved || result.historyPreserved;
+      duplicates.push(...result.duplicates);
+      unmatchedTripStops.push(...result.unmatchedTripStops);
+      if (result.updated > 0) syncedTripId = tripId;
+    }
+    return {
+      updated,
+      tripId: syncedTripId || tripIds[0],
+      trips: tripIds,
+      historyPreserved,
+      duplicates,
+      unmatchedTripStops,
+    };
+  }
+
+  /** One trip's share of {@link syncOrderStopsToTrip}. */
+  private async syncOrderStopsIntoTrip(
+    orderId: string,
+    order: any,
+    orderStops: any[],
+    tripId: string,
+    allocatedStopIds: Set<string>,
+  ) {
+    const empty = { updated: 0, skipped: 'skipped', historyPreserved: false, duplicates: [] as any[], unmatchedTripStops: [] as string[] };
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['stops', 'stops.tasks', 'stops.tasks.order', 'orders'],
+    });
+    if (!trip) return { ...empty, skipped: 'trip_missing' };
+    if (!(ACTIVE_TRIP_STATUSES as readonly string[]).includes(String(trip.status))) {
+      return { ...empty, skipped: 'trip_not_active' };
+    }
+
     const tripStops = ((trip as any).stops || []).filter((stop: any) =>
-      (stop.tasks || []).some((task: any) => String(task.order?.id || task.orderId) === String(orderId)),
+      allocatedStopIds.has(String(stop.id))
+      || (stop.tasks || []).some((task: any) => String(task?.order?.id || task?.orderId || '') === String(orderId)),
     );
     if (!orderStops.length || !tripStops.length) {
-      return { updated: 0, tripId, skipped: 'no_matching_stops' };
+      return { ...empty, skipped: 'no_matching_stops' };
     }
 
     // Idempotent matching: the same order and trip must always resolve to the
@@ -3542,6 +3609,7 @@ export class PlanningService {
     }
     return {
       updated,
+      skipped: null as string | null,
       tripId,
       stops: tripStops.length,
       historyPreserved,
@@ -5015,6 +5083,45 @@ export class PlanningService {
     return true;
   }
 
+  /**
+   * Repairs the trip stops a planner read is about to project from the Orders
+   * they carry.
+   *
+   * The Order owns a stop's appointment until someone works that stop. When the
+   * save-time synchronization missed the trip — a legacy allocation without
+   * `orders.tripId`, a listener failure, a save that raced the read — the trip
+   * stop kept the previous appointment and the plan mirrored it, so a delivery
+   * moved to 12 Nov still displayed 10 Nov. A trip stop adjusted after the Order
+   * (newer `updatedAt`) is a deliberate dispatch change and is left alone.
+   */
+  private async healPendingTripStopWindows(trip: Trip, tripStops: any[]): Promise<boolean> {
+    const orders = ((trip?.orders || []) as any[]).filter((order) => order?.id && Array.isArray(order.stops));
+    if (!orders.length || !tripStops?.length) return false;
+
+    let changed = false;
+    for (const order of orders) {
+      const orderStops = dedupeOrderStops(order.stops || [])
+        .slice()
+        .sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+      if (!orderStops.length) continue;
+      const stopsOfOrder = tripStops.filter((stop) => (stop.tasks || []).some((task: any) =>
+        String(task?.order?.id || task?.orderId || '') === String(order.id)));
+      const syncPlan = planOrderStopSync(orderStops as any[], stopsOfOrder as any[]);
+      for (const { orderStop, tripStop } of syncPlan.pairs) {
+        if (!tripStop) continue;
+        // Only a trip stop older than the Order stop is a projection that
+        // missed the edit; when the trip stop is newer, dispatch changed it on
+        // purpose and the Order must not revert that change behind their back.
+        const patch = pendingOrderStopWindowPatch(orderStop, tripStop);
+        if (!patch) continue;
+        Object.assign(tripStop, patch);
+        await this.stopRepoFor().save(tripStop);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   /** Stops the planner must route for this trip, covering every attached Order. */
   private plannerStopsForTrip(trip: Trip): any[] {
     // TypeORM returns loaded relations in no guaranteed order (a real trip came
@@ -5299,6 +5406,15 @@ export class PlanningService {
       // With no stops loaded there is nothing authoritative to compare against,
       // so the readable plan is kept instead of rebuilding on a guess.
       if (currentTripStops.length > 0) {
+        try {
+          // An Order edit is authoritative for a stop nobody has worked yet.
+          // Repairing the trip stops here means a synchronization that was
+          // missed (legacy allocation, listener failure) cannot leave this read
+          // serving the previous window and ETA.
+          await this.healPendingTripStopWindows(trip, currentTripStops);
+        } catch {
+          // A failed repair must not fail the read; the persisted plan is served.
+        }
         // A trip whose stops were written twice for the same operation must be
         // compared with the de-duplicated expectation. Comparing against the
         // raw list made the stale, duplicated plan look correct, so it was
@@ -6208,6 +6324,14 @@ export class PlanningService {
         relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer'],
         order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
       });
+    }
+    // A rebuild projects the trip stops; repairing them from their Orders first
+    // stops an edit that missed the save-time sync from being frozen into the
+    // new plan (the reason a moved delivery kept its old window and ETA).
+    try {
+      await this.healPendingTripStopWindows(trip, (trip as any).stops || []);
+    } catch {
+      // The rebuild still proceeds from the persisted trip stops.
     }
     // A persisted plan must match the trip's current stop set. An Order added
     // after the plan was created changes that set; serving the old plan hid the

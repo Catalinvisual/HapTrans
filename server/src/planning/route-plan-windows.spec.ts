@@ -1,4 +1,4 @@
-import { planStopWindowPatch, plannerStopWindow } from './route-plan-windows';
+import { pendingOrderStopWindowPatch, planStopWindowPatch, plannerStopWindow } from './route-plan-windows';
 
 describe('plannerStopWindow', () => {
   it('dates the stop from its own window, not from the trip departure date', () => {
@@ -68,5 +68,63 @@ describe('plannerStopWindow', () => {
 
     expect(patch?.scheduledDate).toBe('2026-11-12');
     expect(new Date(patch?.timeWindowStart).toISOString()).toBe('2026-11-12T06:30:00.000Z');
+  });
+});
+
+describe('pendingOrderStopWindowPatch', () => {
+  const orderStop = {
+    dateFrom: '2026-11-12',
+    timeFrom: '08:30',
+    updatedAt: new Date('2026-11-09T12:00:00Z'),
+  };
+  const olderTripStop = {
+    status: 'pending',
+    timeWindowMin: new Date('2026-11-10T06:30:00Z'),
+    timeWindowMax: new Date('2026-11-10T06:30:00Z'),
+    updatedAt: new Date('2026-11-09T10:00:00Z'),
+  };
+
+  it('moves a pending trip stop that is older than the edited order stop', () => {
+    const patch = pendingOrderStopWindowPatch(orderStop, olderTripStop);
+
+    expect(new Date(patch?.timeWindowMin).toISOString()).toBe('2026-11-12T06:30:00.000Z');
+    expect(new Date(patch?.timeWindowMax).toISOString()).toBe('2026-11-12T06:30:00.000Z');
+  });
+
+  it('keeps a trip stop that dispatch adjusted after the order', () => {
+    const adjusted = { ...olderTripStop, updatedAt: new Date('2026-11-09T13:00:00Z') };
+
+    expect(pendingOrderStopWindowPatch(orderStop, adjusted)).toBeNull();
+  });
+
+  it('never rewrites a stop that is already being worked', () => {
+    const arrived = { ...olderTripStop, ata: new Date('2026-11-10T06:00:00Z'), status: 'arrived' };
+    const completed = { ...olderTripStop, completedAt: new Date('2026-11-10T07:00:00Z') };
+
+    expect(pendingOrderStopWindowPatch(orderStop, arrived)).toBeNull();
+    expect(pendingOrderStopWindowPatch(orderStop, completed)).toBeNull();
+  });
+
+  it('reports nothing when the trip stop already carries the order appointment', () => {
+    const current = {
+      ...olderTripStop,
+      timeWindowMin: new Date('2026-11-12T06:30:00Z'),
+      timeWindowMax: new Date('2026-11-12T06:30:00Z'),
+    };
+
+    expect(pendingOrderStopWindowPatch(orderStop, current)).toBeNull();
+  });
+
+  it('keeps both endpoints of a flexible window', () => {
+    const patch = pendingOrderStopWindowPatch({
+      dateFrom: '2026-11-12',
+      timeFrom: '08:00',
+      dateTo: '2026-11-12',
+      timeUntil: '16:00',
+      updatedAt: new Date('2026-11-09T12:00:00Z'),
+    }, olderTripStop);
+
+    expect(new Date(patch?.timeWindowMin).toISOString()).toBe('2026-11-12T06:00:00.000Z');
+    expect(new Date(patch?.timeWindowMax).toISOString()).toBe('2026-11-12T14:00:00.000Z');
   });
 });
