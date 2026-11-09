@@ -808,24 +808,34 @@ function ResourceRow({
   const renderedRowHeight = isBucketRow ? Math.min(rowHeight, 156) : rowHeight;
   const nowMinutes = (now - parseDay(fromDate).getTime()) / 60000;
   const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
-  const nextTrip = [...trips]
+  // Every board state change (opening a drawer or wizard, the minute tick)
+  // re-renders every row. Keep these per-row trip scans out of that path.
+  const nextTrip = useMemo(() => [...trips]
     .filter((tr: any) => tr.plannedDeparture && new Date(tr.plannedDeparture).getTime() >= now)
-    .sort((a: any, b: any) => new Date(a.plannedDeparture).getTime() - new Date(b.plannedDeparture).getTime())[0];
-  const activeTrips = trips.filter((tr: any) => !['completed', 'closed', 'cancelled'].includes(tr.status));
-  const tripPeaks = activeTrips.map((tr: any) => tripCargoPeak(tr)).filter(Boolean) as Array<{ weight: number; pallets: number; ldm: number; volume: number }>;
+    .sort((a: any, b: any) => new Date(a.plannedDeparture).getTime() - new Date(b.plannedDeparture).getTime())[0], [trips, now]);
+  const activeTrips = useMemo(
+    () => trips.filter((tr: any) => !['completed', 'closed', 'cancelled'].includes(tr.status)),
+    [trips],
+  );
+  const tripPeaks = useMemo(
+    () => activeTrips.map((tr: any) => tripCargoPeak(tr)).filter(Boolean) as Array<{ weight: number; pallets: number; ldm: number; volume: number }>,
+    [activeTrips],
+  );
   // Capacity is compared with the simultaneous peak. Summing every order on the
   // resource showed 25/24 plt for a trip whose real peak is 24/24: the single
   // pallet delivered at Soest was already off the truck before the 24 loaded.
-  const assignedCargo = sumCargo(activeTrips.flatMap((tr: any) => tr.orders || []));
-  const peakCargo = tripPeaks.length
-    ? tripPeaks.reduce((best, item) => ({
-      weight: Math.max(best.weight, item.weight),
-      pallets: Math.max(best.pallets, item.pallets),
-      ldm: Math.max(best.ldm, item.ldm),
-      volume: Math.max(best.volume, item.volume),
-    }), { weight: 0, pallets: 0, ldm: 0, volume: 0 })
-    : null;
-  const cargo = peakCargo || assignedCargo;
+  const cargo = useMemo(() => {
+    const assignedCargo = sumCargo(activeTrips.flatMap((tr: any) => tr.orders || []));
+    const peakCargo = tripPeaks.length
+      ? tripPeaks.reduce((best, item) => ({
+        weight: Math.max(best.weight, item.weight),
+        pallets: Math.max(best.pallets, item.pallets),
+        ldm: Math.max(best.ldm, item.ldm),
+        volume: Math.max(best.volume, item.volume),
+      }), { weight: 0, pallets: 0, ldm: 0, volume: 0 })
+      : null;
+    return peakCargo || assignedCargo;
+  }, [activeTrips, tripPeaks]);
   // Use the same capacity the server ledger and conflict engine use. Never
   // invent 24000 kg / 33 pallets: an unknown limit must read as unknown.
   const mwValue = resource.capacity?.maxWeightKg ?? resource.payloadCapacity ?? resource.maxWeightKg;
@@ -2532,6 +2542,14 @@ export default function PlanningPage() {
   const [truckFilter, setTruckFilter] = useState('');
   const [driverFilter, setDriverFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  // The board endpoint is a full re-query. Filtering the pool is instant on the
+  // client, so the server only needs the search term once typing pauses instead
+  // of on every keystroke.
+  const [boardSearch, setBoardSearch] = useState(search);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBoardSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const [boardData, setBoardData] = useState<any>(null);
   const [mapData, setMapData] = useState<any>(null);
@@ -2642,9 +2660,7 @@ export default function PlanningPage() {
   useEffect(() => {
     planningApi.getViews().then(views => {
       if (Array.isArray(views)) setSavedViews(views);
-    }).catch(err => {
-      console.warn('Failed to load saved views:', err);
-    });
+    }).catch(() => undefined);
   }, []);
 
   const handleApplySavedView = (view: any) => {
@@ -2796,9 +2812,14 @@ export default function PlanningPage() {
   }, []);
 
   // ── Load data ──
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setFetchError(null);
+  const loadData = useCallback(async (silent = false) => {
+    // A silent refresh keeps the current board on screen. Background refreshes
+    // (live updates, the reload after an action) used to blank the pool with a
+    // spinner, which read as a delay even though the data was already there.
+    if (!silent) {
+      setIsLoading(true);
+      setFetchError(null);
+    }
     try {
       // Operational filters are applied against the canonical status returned
       // by the board, not the legacy persistence status. Sending an operational
@@ -2808,28 +2829,36 @@ export default function PlanningPage() {
           params: {
             from,
             to,
-            search: search || undefined,
+            search: boardSearch || undefined,
             status: undefined,
             vehicleId: truckFilter || undefined,
             driverId: driverFilter || undefined,
             priority: priorityFilter || undefined,
           },
         }),
-        api.get('/planning/map-data', { params: { from, to } }).catch(() => api.get('/planning/map', { params: { from, to } })),
+        // The map payload carries geometry for every trip and is only consumed
+        // by the map view. Requesting it on every board refresh (each action,
+        // each live update) added latency the board never used.
+        viewMode === 'map'
+          ? api.get('/planning/map-data', { params: { from, to } }).catch(() => api.get('/planning/map', { params: { from, to } }))
+          : Promise.resolve(null),
       ]);
 
       if (boardRes.status === 'fulfilled') setBoardData(boardRes.value.data);
       else {
         const msg = boardRes.reason?.response?.data?.message || boardRes.reason?.message || 'Failed to load board data';
-        setFetchError(msg); toast.error(msg);
+        setFetchError(msg);
+        if (!silent) toast.error(msg);
       }
-      if (mapRes.status === 'fulfilled') setMapData(mapRes.value.data);
-      else console.warn('Map data unavailable:', mapRes.reason);
+      if (mapRes.status === 'fulfilled' && mapRes.value) setMapData(mapRes.value.data);
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Failed to load planning data';
-      setFetchError(msg); toast.error(msg);
-    } finally { setIsLoading(false); }
-  }, [from, to, search, statusFilter, truckFilter, driverFilter, priorityFilter]);
+      setFetchError(msg);
+      if (!silent) toast.error(msg);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, [from, to, boardSearch, statusFilter, truckFilter, driverFilter, priorityFilter, viewMode]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -2840,7 +2869,7 @@ export default function PlanningPage() {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const refresh = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => loadData(), 250);
+      timer = setTimeout(() => loadData(true), 250);
     };
     window.addEventListener('hapcargo:operational-update', refresh);
     return () => {
@@ -2878,7 +2907,9 @@ export default function PlanningPage() {
         toast.success(t('order_unassigned_ok', 'Order unassigned from trip'));
         setDrawerRefreshKey(k => k + 1);
         if (response?.deleted) setSelectedTripId(null);
-        await loadData();
+        // Refresh in the background: the action is already committed, and
+        // awaiting the full board re-query kept the button spinner alive.
+        void loadData(true);
         return { ok: true, deleted: Boolean(response?.deleted) };
       } else if (action === 'unplan-trip') {
         await planningApi.unplanTrip(tripId);
@@ -2889,7 +2920,7 @@ export default function PlanningPage() {
         if (tr) setSplitTripTarget(tr);
         return;
       }
-      await loadData();
+      void loadData();
       return { ok: true };
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('jsx_actionError', 'Action failed'));
@@ -2905,7 +2936,7 @@ export default function PlanningPage() {
       await planningApi.autoOrderStops(tripId);
       toast.success(t('auto_order_stops_success', 'Stops reordered and optimized successfully'));
       setDrawerRefreshKey(k => k + 1);
-      loadData();
+      void loadData(true);
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('auto_order_stops_failed', 'Failed to auto-order stops'));
     } finally {
@@ -2919,7 +2950,7 @@ export default function PlanningPage() {
       await planningApi.reorderTripStops(tripId, stopIds);
       toast.success(t('stops_reordered', 'Stops reordered'));
       setDrawerRefreshKey(k => k + 1);
-      loadData();
+      void loadData(true);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to reorder stops');
     } finally {
@@ -3661,7 +3692,7 @@ export default function PlanningPage() {
             <button onClick={() => setShowExportModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('export_planning', 'Export')}>
               <ExcelIcon className="w-3.5 h-3.5" />
             </button>
-            <button onClick={loadData} disabled={isLoading} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_recalc','Refresh')}>
+            <button onClick={() => loadData()} disabled={isLoading} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_recalc','Refresh')}>
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-primary' : ''}`} />
             </button>
             <button onClick={() => setShowOptimizeModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_optimize','AI Auto-plan')}>
@@ -3787,7 +3818,7 @@ export default function PlanningPage() {
                     <AlertTriangle className="w-6 h-6 text-amber-500 mx-auto mb-2" />
                     <p className="text-xs font-bold text-text-primary">{t('error_loading_orders', 'Error loading orders')}</p>
                     <p className="text-[10px] text-text-secondary mb-2">{fetchError}</p>
-                    <button onClick={loadData} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 mx-auto"><RefreshCw className="w-3 h-3" />{t('jsx_retry', 'Retry')}</button>
+                    <button onClick={() => loadData()} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 mx-auto"><RefreshCw className="w-3 h-3" />{t('jsx_retry', 'Retry')}</button>
                   </div>
                 ) : sortedOrders.length === 0 ? (
                   <div className="text-center py-8">
@@ -3901,7 +3932,7 @@ export default function PlanningPage() {
                     <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-3"><AlertTriangle className="w-6 h-6" /></div>
                     <p className="font-bold text-text-primary text-base">{t('unable_load_planning', 'Unable to load planning data')}</p>
                     <p className="text-xs text-text-secondary max-w-sm mt-1 mb-4">{fetchError}</p>
-                    <button onClick={loadData} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"><RefreshCw className="w-3.5 h-3.5" /><span>{t('jsx_retry', 'Retry')}</span></button>
+                    <button onClick={() => loadData()} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"><RefreshCw className="w-3.5 h-3.5" /><span>{t('jsx_retry', 'Retry')}</span></button>
                   </div>
                 ) : (
                   <div className="w-full" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>

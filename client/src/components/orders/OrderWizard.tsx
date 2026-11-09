@@ -145,6 +145,43 @@ const isSameLocation = (
   return false;
 };
 
+// The wizard is mounted fresh each time it opens (its key includes the order,
+// step and highlight). Re-requesting the whole client list and the diesel price
+// on every open delayed the modal, so both are reused for the session.
+let clientsCache: any[] | null = null;
+let clientsRequest: Promise<any[]> | null = null;
+
+function fetchClientsCached(): Promise<any[]> {
+  if (clientsCache) return Promise.resolve(clientsCache);
+  if (!clientsRequest) {
+    clientsRequest = api.get('/clients')
+      .then((res) => {
+        clientsCache = Array.isArray(res.data) ? res.data : [];
+        return clientsCache;
+      })
+      .catch((error) => {
+        clientsRequest = null;
+        throw error;
+      });
+  }
+  return clientsRequest;
+}
+
+const DIESEL_PRICE_TTL_MS = 10 * 60 * 1000;
+let dieselPriceCache: { value: number | null; at: number } | null = null;
+
+function fetchDieselPriceCached(): Promise<number | null> {
+  if (dieselPriceCache && Date.now() - dieselPriceCache.at < DIESEL_PRICE_TTL_MS) {
+    return Promise.resolve(dieselPriceCache.value);
+  }
+  return api.get('/routing/diesel-prices').then((res) => {
+    const raw = res.data?.find((p: any) => p.country === 'NL')?.price;
+    const value = raw == null ? null : Number(raw);
+    dieselPriceCache = { value: Number.isFinite(value as number) ? value : null, at: Date.now() };
+    return dieselPriceCache.value;
+  });
+}
+
 // Using CustomDatePicker instead of inline DateTimeInput
 
 export default function OrderWizard({
@@ -275,14 +312,13 @@ export default function OrderWizard({
   useEffect(() => {
     if (isOpen) {
       if (!isPortal) {
-        api.get('/clients').then(res => setClients(res.data)).catch(console.error);
+        fetchClientsCached().then(setClients).catch(() => undefined);
       }
 
       if (!isPortal) {
-        api.get('/routing/diesel-prices').then(res => {
-          const nlPrice = res.data?.find((p: any) => p.country === 'NL')?.price;
+        fetchDieselPriceCached().then((nlPrice) => {
           if (nlPrice) setFuelPrice(nlPrice);
-        }).catch(err => console.warn('Failed to fetch diesel prices', err));
+        }).catch(() => undefined);
       }
 
       if (orderId) {
@@ -414,8 +450,7 @@ export default function OrderWizard({
               tollCost: 0
             });
           }
-        }).catch(err => {
-            console.error("Error fetching order data:", err);
+        }).catch(() => {
             toast.error("Failed to load order details.");
           });
         })();
@@ -427,8 +462,9 @@ export default function OrderWizard({
             const res = await refApi.get(`${endpoint}?t=${Date.now()}`);
             const nextRef = res.data?.nextReference || '';
             setForm(prev => ({ ...prev, internalReference: nextRef, orderNumber: nextRef }));
-          } catch (err) {
-            console.warn('Failed to fetch next reference', err);
+          } catch {
+            // The reference is assigned by the server on save; a failed
+            // preview must not write anything to the console.
           }
         })();
 

@@ -1106,8 +1106,9 @@ export default function PlanningResultsPanel({
           });
           doc.save(`${fileBase}.pdf`);
         }
-      } catch (error) {
-        console.error('Planning results export failed', error);
+      } catch {
+        // The export is user-triggered and the control restores itself below;
+        // a failed download is not an application error worth the console.
       } finally {
         setExporting(null);
       }

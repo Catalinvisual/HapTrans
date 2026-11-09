@@ -54,8 +54,9 @@ export default function PWAReloadPrompt() {
       });
       window.addEventListener('online', poll);
     },
-    onRegisterError(error) {
-      console.error('SW registration error', error);
+    onRegisterError() {
+      // Service-worker registration can be unavailable (private mode, an
+      // unsupported browser) while the app keeps working; not a console error.
     },
   });
 

@@ -12,7 +12,7 @@ import './lib/i18n';
 // known-benign patterns; every other rejection still surfaces.
 window.addEventListener('unhandledrejection', (e) => {
   const msg = e?.reason && e.reason?.message ? String(e.reason.message) : String(e.reason || '');
-  if (/listener indicated an asynchronous response by returning true|message channel closed before a response was received|message port closed before a response was received/.test(msg)) {
+  if (/listener indicated an asynchronous response|message (channel|port) closed before a response was received/i.test(msg)) {
     e.preventDefault();
   }
 });

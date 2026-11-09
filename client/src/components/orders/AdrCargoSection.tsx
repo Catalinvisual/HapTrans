@@ -210,8 +210,8 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
         });
         setSearchResults(res.data?.items || []);
         setIsDropdownOpen(true);
-      } catch (err) {
-        console.warn('ADR catalog search error:', err);
+      } catch {
+        // Catalog search is advisory; a failed request leaves the typed value.
       } finally {
         setIsSearching(false);
       }

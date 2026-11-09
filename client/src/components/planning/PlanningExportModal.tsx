@@ -182,8 +182,7 @@ export default function PlanningExportModal({
 
       toast.success(t('export_success', `Exported ${trips.length} trips successfully`));
       onClose();
-    } catch (err) {
-      console.error('Export error:', err);
+    } catch {
       toast.error(t('export_error', 'Export failed.'));
     } finally {
       setExporting(false);
