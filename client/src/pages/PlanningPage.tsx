@@ -135,6 +135,27 @@ const parseDay = (s: string) => {
   const [y, m, d] = (s || '').split('-').map(Number);
   return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1);
 };
+/**
+ * Wall clock in the operational zone. Reading the browser's own hours put the
+ * now marker at whatever time the client's zone had, which is not the time the
+ * dispatchers plan against.
+ */
+function operationalNow(ts: number) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: OPERATIONAL_TIME_ZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date(ts));
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '';
+  const hour = Number(get('hour')) % 24;
+  const minute = Number(get('minute')) % 60;
+  return {
+    dateKey: `${get('year')}-${get('month')}-${get('day')}`,
+    hour,
+    minute,
+    minutesOfDay: hour * 60 + minute,
+  };
+}
 
 // Trip stop timestamps are UTC instants; render them in the operational zone so
 // 08:00 entered is 08:00 displayed, whatever the browser zone is.
@@ -795,13 +816,13 @@ function CapacityIndicator({ icon: Icon, text, pct, tooltip }: {
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
   resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder, onOpenPlanner,
-  hosSummary = {}, grouping = 'truck', colWidth = 52, timelineWidth, now = Date.now(),
+  hosSummary = {}, grouping = 'truck', colWidth = 52, timelineWidth, now = Date.now(), nowOffsetMinutes,
 }: {
   resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
   onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string, orderId?: string) => void; draggingId: string | null; draggingOrder?: any;
   onOpenPlanner: (resource: any) => void;
   hosSummary?: Record<string, any>; grouping?: 'truck' | 'driver' | 'trailer';
-  colWidth?: number; timelineWidth?: number; now?: number;
+  colWidth?: number; timelineWidth?: number; now?: number; nowOffsetMinutes?: number;
 }) {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -813,7 +834,9 @@ function ResourceRow({
   // out of the viewport, which read as "no truck rows at all".
   const isBucketRow = resource.id === '__unassigned_trips__';
   const renderedRowHeight = isBucketRow ? Math.min(rowHeight, 156) : rowHeight;
-  const nowMinutes = (now - parseDay(fromDate).getTime()) / 60000;
+  const todayKey = operationalNow(now).dateKey;
+  // The board owns the operational clock; the row only needs its offset.
+  const nowMinutes = nowOffsetMinutes ?? (now - parseDay(fromDate).getTime()) / 60000;
   const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
   // Every board state change (opening a drawer or wizard, the minute tick)
   // re-renders every row. Keep these per-row trip scans out of that path.
@@ -1013,7 +1036,7 @@ function ResourceRow({
         <div className="absolute inset-0 flex pointer-events-none" style={{ minWidth: `${calcTimelineWidth}px` }}>
           {Array.from({ length: hoursVisible }, (_, h) => {
             const colDate = addDays(parseDay(fromDate), h);
-            const isToday = dayStr(colDate) === dayStr(new Date());
+            const isToday = dayStr(colDate) === todayKey;
             const isWeekendDay = !isHourScale && [0, 6].includes(colDate.getDay());
             const isNightHour = isHourScale && (h < 6 || h >= 21);
             return (
@@ -2766,7 +2789,12 @@ export default function PlanningPage() {
     : viewMode === 'month'
       ? fromDateObj.toLocaleDateString([], { month: 'long', year: 'numeric' })
       : `${fmtShort(from)} – ${fmtShort(to)}`;
-  const nowMinutes = (nowTick - parseDay(from).getTime()) / 60000;
+  const operationalClock = useMemo(() => operationalNow(nowTick), [nowTick]);
+  // Minutes from the range's first column to the current operational instant.
+  const nowMinutes = useMemo(() => {
+    const dayOffset = Math.round((parseDay(operationalClock.dateKey).getTime() - parseDay(from).getTime()) / 86400000);
+    return dayOffset * 1440 + operationalClock.minutesOfDay;
+  }, [operationalClock, from]);
   const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
 
   useEffect(() => {
@@ -3982,11 +4010,14 @@ export default function PlanningPage() {
                           </div>
                           <div className="flex flex-1 relative" style={{ minWidth: `${totalTimelineWidth}px` }}>
                             {Array.from({ length: hoursVisible }, (_, h) => {
+                              const hourScale = viewMode === 'day' || viewMode === 'timeline';
                               const colDate = addDays(fromDateObj, h);
-                              const colDateStr = dayStr(colDate);
-                              const isToday = colDateStr === dayStr(new Date());
-                              const isWeekendDay = viewMode !== 'day' && viewMode !== 'timeline' && [0, 6].includes(colDate.getDay());
-                              const isNightHour = (viewMode === 'day' || viewMode === 'timeline') && (h < 6 || h >= 21);
+                              // In an hour view every column is an hour of the selected
+                              // day, so "today" is the day and "now" is one hour column.
+                              const isToday = !hourScale && dayStr(colDate) === operationalClock.dateKey;
+                              const isNowHour = hourScale && dayStr(fromDateObj) === operationalClock.dateKey && h === operationalClock.hour;
+                              const isWeekendDay = !hourScale && [0, 6].includes(colDate.getDay());
+                              const isNightHour = hourScale && (h < 6 || h >= 21);
                               return (
                                 <div
                                   key={h}
@@ -3998,7 +4029,7 @@ export default function PlanningPage() {
                                   {viewMode === 'day' || viewMode === 'timeline' ? (
                                     <>
                                       <span className="text-[10px] font-black">{String(h).padStart(2, '0')}:00</span>
-                                      {isToday && <span className="text-[7px] uppercase tracking-wide">{t('timeline_now', 'Now')}</span>}
+                                      {isNowHour && <span className="text-[7px] uppercase tracking-wide">{t('timeline_now', 'Now')}</span>}
                                     </>
                                   ) : (
                                     <>
@@ -4054,6 +4085,7 @@ export default function PlanningPage() {
                                 colWidth={colWidth}
                                 timelineWidth={totalTimelineWidth}
                                 now={nowTick}
+                                nowOffsetMinutes={nowMinutes}
                                 onOpenPlanner={(r) => {
                                   if (r.id === '__unassigned_trips__') {
                                     if (resTrips[0]?.id) setSelectedTripId(resTrips[0].id);
