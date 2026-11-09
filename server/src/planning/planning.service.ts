@@ -5191,7 +5191,9 @@ export class PlanningService {
   private async loadOrdersForPlan(routePlan: TruckRoutePlan, trip: Trip): Promise<any[]> {
     const known = new Map<string, any>();
     for (const order of ((trip?.orders || []) as any[])) {
-      if (order?.id) known.set(String(order.id), order);
+      // A relation loaded without its stops cannot be projected, so it counts
+      // as missing and is reloaded with them below.
+      if (order?.id && Array.isArray(order.stops)) known.set(String(order.id), order);
     }
     const missing: string[] = [];
     for (const stop of ((routePlan?.stops || []) as any[])) {
@@ -6371,6 +6373,23 @@ export class PlanningService {
       }
     }
 
+    // The by-truck planner reads this row too: project the Order appointment
+    // here so the window it displays cannot lag behind an edited Order.
+    if (routePlan?.stops?.length) {
+      try {
+        const changed = this.applyOrderStopAppointments(
+          routePlan,
+          await this.loadOrdersForPlan(routePlan, routePlan.trip as any),
+        );
+        if (changed) {
+          await this.routePlanStopRepo.save(routePlan.stops);
+          await this.routePlanRepo.save(routePlan);
+        }
+      } catch {
+        // Best effort: the persisted plan stays readable.
+      }
+    }
+
     return routePlan;
   }
 
@@ -6929,7 +6948,25 @@ export class PlanningService {
       relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer', 'trip.driver'],
       order: { stops: { sequence: 'ASC' } },
     });
-    return routePlan ? this.decorateVehicleRestrictionStatus(routePlan) : routePlan;
+    if (!routePlan) return routePlan;
+
+    // Save responses and every by-id read pass through here, so the Order
+    // appointment is projected onto the rows that leave the API.
+    if (routePlan.stops?.length) {
+      try {
+        const changed = this.applyOrderStopAppointments(
+          routePlan,
+          await this.loadOrdersForPlan(routePlan, routePlan.trip as any),
+        );
+        if (changed) {
+          await this.routePlanStopRepo.save(routePlan.stops);
+          await this.routePlanRepo.save(routePlan);
+        }
+      } catch {
+        // The persisted plan stays readable if the projection cannot run.
+      }
+    }
+    return this.decorateVehicleRestrictionStatus(routePlan);
   }
 
   // Incoming JSON from the client carries dates as ISO strings — coerce to Date
