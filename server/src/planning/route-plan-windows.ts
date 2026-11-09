@@ -97,8 +97,9 @@ export function pendingOrderStopWindowPatch(orderStop: any, tripStop: any): Reco
   }
 
   const patch: Record<string, any> = { timeWindowMin: nextStart, timeWindowMax: nextEnd };
-  // A planned ETA that dispatch already set survives; an empty one follows.
-  if (!tripStop.eta) patch.eta = nextStart;
+  // The ETA follows the appointment the TMS presents; keeping an older one made
+  // the driver app show the previous time after the planner moved the stop.
+  patch.eta = nextStart;
   return patch;
 }
 

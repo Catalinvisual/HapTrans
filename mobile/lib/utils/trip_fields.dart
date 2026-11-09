@@ -170,8 +170,18 @@ String? stopWindow(Map<String, dynamic> stop) {
   final to = stop['timeWindowMax']?.toString();
   final eta = stop['eta']?.toString();
   if (from == null && to == null) return eta == null ? null : eta;
-  if (from != null && to != null) return '$from → $to';
+  // A fixed appointment is stored with both ends equal; printing it twice
+  // reads as a window the order never had.
+  if (from != null && to != null) return sameInstant(from, to) ? from : '$from → $to';
   return from ?? to;
+}
+
+/// Whether two ISO timestamps denote the same instant.
+bool sameInstant(String a, String b) {
+  final first = DateTime.tryParse(a)?.toUtc();
+  final second = DateTime.tryParse(b)?.toUtc();
+  if (first != null && second != null) return first == second;
+  return a.trim() == b.trim();
 }
 
 String stopFullAddress(Map<String, dynamic> stop) {

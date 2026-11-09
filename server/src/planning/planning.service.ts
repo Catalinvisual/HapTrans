@@ -3570,9 +3570,10 @@ export class PlanningService {
       } else {
         patch.timeWindowMin = appointment.start;
         patch.timeWindowMax = appointment.end;
-        // The appointment is a constraint, not a route estimate: keep a planned
-        // ETA that dispatch already set.
-        if (!target.eta) patch.eta = appointment.start;
+        // The appointment is the time the TMS presents, so the stop's ETA follows
+        // it: keeping an older ETA left the driver app showing the previous time
+        // after a planner moved the appointment.
+        patch.eta = appointment.start;
       }
       Object.assign(target, patch);
       await this.stopRepoFor().save(target);

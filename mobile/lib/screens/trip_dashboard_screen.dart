@@ -44,6 +44,7 @@ class TripDashboardScreen extends StatefulWidget {
 
 class _TripDashboardScreenState extends State<TripDashboardScreen> {
   late Map<String, dynamic> tripData;
+  late final TripProvider _tripProvider;
   Future<List<Map<String, dynamic>>>? _history;
   Future<List<Map<String, dynamic>>?>? _documents;
   Future<List<Map<String, dynamic>>>? _incidents;
@@ -53,9 +54,28 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   void initState() {
     super.initState();
     tripData = widget.trip;
-    _documents = context.read<TripProvider>().documentsForTrip(widget.token, tripData['id'].toString());
-    _history = context.read<TripProvider>().statusHistory(widget.token, tripData['id'].toString());
-    _incidents = context.read<TripProvider>().deliveryIncidents(widget.token, tripData['id'].toString());
+    _tripProvider = context.read<TripProvider>();
+    // The rest of the app polls the server every few seconds. Without this the
+    // open trip kept the copy it was opened with, so an appointment or ETA
+    // changed in the TMS never reached the driver until a manual refresh.
+    _tripProvider.addListener(_syncTripFromProvider);
+    _documents = _tripProvider.documentsForTrip(widget.token, tripData['id'].toString());
+    _history = _tripProvider.statusHistory(widget.token, tripData['id'].toString());
+    _incidents = _tripProvider.deliveryIncidents(widget.token, tripData['id'].toString());
+  }
+
+  @override
+  void dispose() {
+    _tripProvider.removeListener(_syncTripFromProvider);
+    super.dispose();
+  }
+
+  /// Keeps this screen on the same trip data the provider just polled.
+  void _syncTripFromProvider() {
+    if (!mounted) return;
+    final updated = _tripProvider.tripById(widget.trip['id'].toString());
+    if (updated == null) return;
+    setState(() => tripData = updated);
   }
 
   Future<void> _refreshTrip() async {
@@ -660,11 +680,16 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   String _windowText(Map<String, dynamic> stop) {
     final from = stop['timeWindowMin']?.toString();
     final to = stop['timeWindowMax']?.toString();
-    if (from != null && from.isNotEmpty && to != null && to.isNotEmpty) {
+    final hasFrom = from != null && from.isNotEmpty;
+    final hasTo = to != null && to.isNotEmpty;
+    if (hasFrom && hasTo) {
+      // A single fixed time is stored as both ends of the window; a driver
+      // needs to read it once, and a range only when it really is one.
+      if (sameInstant(from, to)) return formatAppDateTime(from);
       return '${formatAppDateTime(from)} → ${formatAppTime(to)}';
     }
-    if (from != null && from.isNotEmpty) return formatAppDateTime(from);
-    if (to != null && to.isNotEmpty) return formatAppDateTime(to);
+    if (hasFrom) return formatAppDateTime(from);
+    if (hasTo) return formatAppDateTime(to);
     final eta = stop['eta']?.toString();
     return (eta == null || eta.isEmpty) ? '—' : formatAppDateTime(eta);
   }
