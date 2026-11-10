@@ -10,7 +10,10 @@ export class UsersController {
   constructor(private service: UsersService) {}
 
   @Get()
-  findAll() {
+  findAll(@Request() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only administrators can list users.');
+    }
     return this.service.findAll();
   }
 
@@ -23,7 +26,11 @@ export class UsersController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @Request() req: any) {
+    // Admins can read any profile; users can read their own.
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      throw new ForbiddenException('You can only read your own profile.');
+    }
     return this.service.findOne(id);
   }
 
@@ -33,9 +40,13 @@ export class UsersController {
     if (req.user.role !== 'admin' && req.user.id !== id) {
       throw new ForbiddenException('You can only edit your own profile.');
     }
-    // Only admin can change roles
-    if (dto.role && req.user.role !== 'admin') {
+    // Page permissions, roles and activation are administrative decisions.
+    // Dropping them here stops a user from granting themselves extra modules
+    // through their own profile update.
+    if (req.user.role !== 'admin') {
       delete dto.role;
+      delete (dto as any).allowedPages;
+      delete (dto as any).isActive;
     }
     return this.service.update(id, dto);
   }

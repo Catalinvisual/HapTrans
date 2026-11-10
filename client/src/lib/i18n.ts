@@ -14,6 +14,7 @@ import { langOverrides } from './langOverrides';
 import { adrResources } from './adrI18n';
 import { operationalResources } from './operationalI18n';
 import { usersPageResources } from './usersI18n';
+import { usersRolesResources } from './usersRolesI18n';
 
 const resources = {
   ro: { translation: {
@@ -11256,6 +11257,12 @@ for (const lng of Object.keys(langOverrides)) {
 for (const lng of Object.keys(usersPageResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, usersPageResources[lng]);
+}
+
+// Job roles and page-group labels for the account wizard.
+for (const lng of Object.keys(usersRolesResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, usersRolesResources[lng]);
 }
 
 export const archivingResources: Record<string, Record<string, string>> = {

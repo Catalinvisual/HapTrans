@@ -38,7 +38,7 @@ export class AnalyticsController {
   // -------------------------------------------------------------------------
   // Financial intelligence
   // -------------------------------------------------------------------------
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.ACCOUNTANT)
   @Get('financial')
   getFinancial(@Query() filters: AnalyticsFilters, @Req() req: any) {
     return this.service.getFinancial(filters, AnalyticsController.role(req.user));

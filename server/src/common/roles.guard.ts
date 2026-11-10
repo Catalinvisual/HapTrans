@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
-import { UserRole } from '../users/user.entity';
+import { OFFICE_ROLES, UserRole } from '../users/user.entity';
 
 /**
  * Role-based access guard used by the analytics & reporting modules.
@@ -27,7 +27,14 @@ export class RolesGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest();
     const user = req.user as { role?: UserRole } | undefined;
-    if (!user || !user.role || !required.includes(user.role)) {
+    if (!user || !user.role) {
+      throw new ForbiddenException('Insufficient permissions for this operation');
+    }
+    // Operational analytics and ADR checks are shared by the office team.
+    // Page permissions (allowedPages) remain the finer-grained restriction.
+    const officeAccess =
+      required.includes(UserRole.DISPATCHER) && OFFICE_ROLES.includes(user.role);
+    if (!required.includes(user.role) && !officeAccess) {
       throw new ForbiddenException('Insufficient permissions for this operation');
     }
     return true;

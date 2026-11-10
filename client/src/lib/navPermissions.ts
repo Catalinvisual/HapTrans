@@ -69,28 +69,48 @@ export const MODULE_LEGACY_KEYS: Record<string, string[]> = {
   euTransit: ['euTransit', 'ifta'],
 };
 
-const RESTRICTED_FOR_DISPATCHER = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings', 'telematics'];
+// Explicit defaults for legacy dispatcher rows saved before page templates.
+// These match the dispatcher role template used by the account wizard.
+const DISPATCHER_DEFAULT_PAGES = new Set([
+  'dashboard', 'trips', 'orders', 'planning', 'liveMap', 'chat', 'documents',
+  'fleet', 'drivers', 'clients', 'reports',
+]);
+const ADMIN_ONLY_PAGES = new Set(['users', 'settings']);
 
 // Grants/keeps a section (tab) inside an integrated module visible.
 // legacyKey is the pre-refactor sidebar key that used to control that page.
 export function canModule(user: UserLike, moduleKey: string): boolean {
+  const role = String(user?.role || '').toLowerCase();
+  if (!role) return false;
+  // Administrators are the only accounts with unconditional full access.
+  if (role === 'admin') return true;
+  // Driver accounts are mobile-only; they must not gain a web menu by accident.
+  if (role === 'driver') return false;
+  // Account and company administration is never delegated through a page box.
+  if (ADMIN_ONLY_PAGES.has(moduleKey)) return false;
   const ap = user?.allowedPages;
   if (ap && ap.length > 0) {
     const legacy = MODULE_LEGACY_KEYS[moduleKey];
     return legacy ? legacy.some(k => ap.includes(k)) : ap.includes(moduleKey);
   }
-  if (user?.role === 'dispatcher') return !RESTRICTED_FOR_DISPATCHER.includes(moduleKey);
-  return true;
+  // Legacy dispatcher rows predate explicit page selections.
+  if (role === 'dispatcher') return DISPATCHER_DEFAULT_PAGES.has(moduleKey);
+  // New office roles always receive an explicit page set from their template.
+  return false;
 }
 
 // Granular section visibility within an integrated module.
 // A user explicitly restricted to e.g. "trucks" only gets the Trucks tab,
 // not the whole Fleet module.
 export function canSection(user: UserLike, legacyKey: string, moduleKey: string): boolean {
+  const role = String(user?.role || '').toLowerCase();
+  if (role === 'admin') return true;
+  if (role === 'driver') return false;
+  if (ADMIN_ONLY_PAGES.has(moduleKey)) return false;
   const ap = user?.allowedPages;
   if (ap && ap.length > 0) return ap.includes(legacyKey);
-  if (user?.role === 'dispatcher') return !RESTRICTED_FOR_DISPATCHER.includes(moduleKey);
-  return true;
+  if (role === 'dispatcher') return DISPATCHER_DEFAULT_PAGES.has(moduleKey);
+  return false;
 }
 
 export function filterNavItems(user: UserLike, navItems: NavItem[]): NavItem[] {

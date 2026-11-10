@@ -13,7 +13,7 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
-import { navItems, filterNavItems, canSection } from '../lib/navPermissions';
+import { navItems, filterNavItems, canSection, canModule } from '../lib/navPermissions';
 import { io } from 'socket.io-client';
 
 let deferredPrompt: any = null;
@@ -482,6 +482,22 @@ export default function Layout() {
   const profileRef = useRef<HTMLDivElement>(null);
 
   const filteredNavItems = filterNavItems(user, navItems);
+  const fallbackPath = filteredNavItems[0]?.to || '/dashboard';
+
+  // A page hidden in the sidebar must also be unreachable by typing its URL.
+  useEffect(() => {
+    if (!user) return;
+    const segment = location.pathname.split('/').filter(Boolean)[0] || 'dashboard';
+    const legacyPage: Record<string, string> = {
+      trucks: 'fleet', trailers: 'fleet', settlements: 'payroll', ifta: 'euTransit',
+      tracking: 'liveMap', track: 'liveMap', 'website-quotes': 'orders',
+    };
+    const page = legacyPage[segment] || segment;
+    if (!navItems.some(item => item.key === page)) return;
+    if (!canModule(user, page) && location.pathname !== fallbackPath) {
+      navigate(fallbackPath, { replace: true });
+    }
+  }, [location.pathname, user, fallbackPath, navigate]);
 
   const navigateSidebar = (direction: number) => {
     if (filteredNavItems.length === 0) return;

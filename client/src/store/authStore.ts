@@ -6,7 +6,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'dispatcher' | 'driver';
+  role: string;
   language: string;
   allowedPages?: string[];
 }

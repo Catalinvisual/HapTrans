@@ -17,7 +17,6 @@ import ReportTable from '../components/analytics/ReportTable';
 import type { ReportColumn } from '../components/analytics/ReportTable';
 import EmptyState from '../components/analytics/EmptyState';
 import ReportsPanel from '../components/analytics/ReportsPanel';
-import { useAuthStore } from '../store/authStore';
 
 const BUCKET_LABELS: Record<string, string> = {
   current: 'agingBucketcurrent',
@@ -46,7 +45,6 @@ function costColor(cat: string): string {
 
 export default function FinancialPage() {
   const { t } = useTranslation();
-  const user = useAuthStore(s => s.user);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -57,14 +55,6 @@ export default function FinancialPage() {
   const [granularity, setGranularity] = useState<Granularity>('month');
   const [customFrom, setCustomFrom] = useState(now.toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(now.toISOString().slice(0, 10));
-
-  useEffect(() => {
-    if (user && user.role !== 'admin') {
-      toast.error(t('forbidden'));
-      return;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const load = (silent = false) => {
     if (silent) setRefreshing(true);

@@ -67,6 +67,12 @@ async function preFlightDbFix(): Promise<void> {
     await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "companyId" uuid`);
     await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`);
     await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`);
+    // PostgreSQL enums must be extended before an existing database can store
+    // the new office roles. The column may be varchar in legacy deployments;
+    // in that case these statements simply fail and are ignored.
+    for (const role of ['manager', 'fleet_manager', 'accountant', 'payroll_officer', 'compliance', 'customer_service', 'sales']) {
+      await client.query(`ALTER TYPE "users_role_enum" ADD VALUE IF NOT EXISTS '${role}'`).catch(() => {});
+    }
     await client.query(`ALTER TABLE IF EXISTS "users" ALTER COLUMN "updated_at" DROP NOT NULL`).catch(() => {});
     await client.query(`UPDATE "users" SET "password" = '' WHERE "password" IS NULL`);
     // Driver columns needed by the same login JOIN (phone, expiry dates, payRate, ...)

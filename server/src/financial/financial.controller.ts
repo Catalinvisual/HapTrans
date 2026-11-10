@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, ForbiddenException, Req } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FinancialService } from './financial.service';
 
@@ -9,15 +9,12 @@ export class FinancialController {
 
   @Get('summary')
   getSummary(
-    @Req() req: any,
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('clientId') clientId?: string,
     @Query('granularity') granularity?: 'month' | 'week',
   ) {
-    if (req.user.role !== 'admin') {
-      throw new ForbiddenException('Acces restricționat administratorului.');
-    }
+    // JwtAuthGuard enforces the `financial` page permission.
     return this.service.getSummary(from, to, clientId || undefined, granularity === 'week' ? 'week' : 'month');
   }
 }

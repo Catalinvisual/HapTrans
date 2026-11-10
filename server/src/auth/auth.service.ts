@@ -31,13 +31,24 @@ export class AuthService {
   ) {}
 
   async register(dto: { email: string; password: string; name: string; role?: UserRole; grossSalary?: number; dailyRate?: number }) {
-    if (dto.role === UserRole.ADMIN) {
-      throw new UnauthorizedException('Cannot register as admin through public endpoint');
+    // Office accounts are created by an administrator in Users. The public
+    // endpoint exists for driver sign-up only; otherwise anyone could register
+    // as an accountant or manager.
+    if (dto.role && dto.role !== UserRole.DRIVER) {
+      throw new UnauthorizedException('Public registration is limited to driver accounts');
     }
     const exists = await this.usersRepo.findOne({ where: { email: dto.email } });
     if (exists) throw new ConflictException('Email already in use');
     const hashed = await bcrypt.hash(dto.password, 10);
-    const user = this.usersRepo.create({ ...dto, password: hashed });
+    // Never copy the request body into the account: role and page permissions
+    // are decided by the office, not by whoever signs up.
+    const user = this.usersRepo.create({
+      email: dto.email,
+      password: hashed,
+      name: dto.name,
+      role: UserRole.DRIVER,
+      allowedPages: [],
+    });
     const saved = await this.usersRepo.save(user);
     if (saved.role === UserRole.DRIVER) {
       const driver = this.driversRepo.create({ user: saved });
@@ -92,7 +103,14 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: `${session.id}.${refreshToken}`,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, language: user.language },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        language: user.language,
+        allowedPages: user.allowedPages || [],
+      },
       expiresAt,
     };
   }

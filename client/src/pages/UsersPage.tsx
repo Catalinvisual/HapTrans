@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Plus, Trash2, Pencil, Key, Search, Users, UserCheck, ShieldCheck, Truck,
   LogOut, X, ChevronLeft, ChevronRight, Check, UserPlus, UserCog, Mail,
-  Globe, Shield, Power, AlertTriangle, Loader2,
+  Globe, Shield, Power, AlertTriangle, Loader2, RotateCcw,
 } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
@@ -14,6 +14,10 @@ import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 import { matchesSearch } from '../lib/search';
 import { navItems, aliasKeysFor } from '../lib/navPermissions';
+import {
+  ALL_PAGE_KEYS, PAGE_GROUPS, ROLE_TEMPLATES,
+  recommendedPagesForRole, samePageSet,
+} from '../lib/roleTemplates';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
@@ -40,7 +44,10 @@ const EMPTY_FORM: UserForm = {
   isActive: true,
 };
 
-const emptyForm = (): UserForm => ({ ...EMPTY_FORM, allowedPages: [] });
+const emptyForm = (): UserForm => ({
+  ...EMPTY_FORM,
+  allowedPages: recommendedPagesForRole(EMPTY_FORM.role),
+});
 
 const LANGUAGES = [
   { value: 'ro', label: 'Română' },
@@ -53,12 +60,6 @@ const LANGUAGES = [
 ];
 
 const WIZARD_STEPS = ['users_step_account', 'users_step_access', 'users_step_status'];
-
-const ROLE_OPTIONS = [
-  { value: 'admin', labelKey: 'admin', hintKey: 'users_role_admin_hint', icon: ShieldCheck, tone: 'text-purple-600' },
-  { value: 'dispatcher', labelKey: 'dispatcher', hintKey: 'users_role_dispatcher_hint', icon: Users, tone: 'text-blue-600' },
-  { value: 'driver', labelKey: 'driver', hintKey: 'users_role_driver_hint', icon: Truck, tone: 'text-emerald-600' },
-];
 
 export default function UsersPage() {
   const confirmSave = useSaveConfirm();
@@ -105,7 +106,9 @@ export default function UsersPage() {
       password: '',
       role: u.role || 'dispatcher',
       language: u.language || 'ro',
-      allowedPages: u.allowedPages || [],
+      allowedPages: (u.allowedPages && u.allowedPages.length)
+        ? u.allowedPages
+        : recommendedPagesForRole(u.role || 'dispatcher'),
       isActive: u.isActive !== false,
     });
     setWizardStep(0);
@@ -135,6 +138,9 @@ export default function UsersPage() {
   const selectedPageCount = navItems.filter(item =>
     aliasKeysFor(item.key).some(key => form.allowedPages.includes(key))
   ).length;
+  const recommendedPages = recommendedPagesForRole(form.role);
+  const permissionsRecommended = samePageSet(form.allowedPages, recommendedPages);
+  const permissionsValid = form.role === 'admin' || form.role === 'driver' || form.allowedPages.length > 0;
 
   const togglePage = (item: any) => {
     const aliases = aliasKeysFor(item.key);
@@ -150,16 +156,37 @@ export default function UsersPage() {
   };
 
   const selectAllPages = () => {
-    setForm(prev => ({ ...prev, allowedPages: navItems.map(item => item.key) }));
+    setForm(prev => ({
+      ...prev,
+      allowedPages: navItems
+        .filter(item => item.key !== 'users' && item.key !== 'settings')
+        .map(item => item.key),
+    }));
   };
 
   const clearPages = () => {
     setForm(prev => ({ ...prev, allowedPages: [] }));
   };
 
+  const applyRole = (role: string) => {
+    setForm(prev => ({
+      ...prev,
+      role,
+      allowedPages: recommendedPagesForRole(role),
+    }));
+  };
+
+  const applyRoleDefaults = () => {
+    setForm(prev => ({ ...prev, allowedPages: recommendedPagesForRole(prev.role) }));
+  };
+
   const handleNext = () => {
     if (wizardStep === 0 && !accountValid) {
       toast.error(t('users_account_required'));
+      return;
+    }
+    if (wizardStep === 1 && !permissionsValid) {
+      toast.error(t('users_permissions_required'));
       return;
     }
     setWizardStep(step => Math.min(2, step + 1));
@@ -176,6 +203,11 @@ export default function UsersPage() {
       toast.error(t('users_account_required'));
       return;
     }
+    if (!permissionsValid) {
+      setWizardStep(1);
+      toast.error(t('users_permissions_required'));
+      return;
+    }
     if (saving) return;
     if (!await confirmSave()) return;
     setSaving(true);
@@ -185,7 +217,11 @@ export default function UsersPage() {
         email: form.email.trim(),
         role: form.role,
         language: form.language,
-        allowedPages: form.role === 'driver' ? [] : form.allowedPages,
+        allowedPages: form.role === 'driver'
+          ? []
+          : form.role === 'admin'
+            ? ALL_PAGE_KEYS
+            : form.allowedPages,
         isActive: form.isActive,
       };
       if (form.password) payload.password = form.password;
@@ -258,7 +294,14 @@ export default function UsersPage() {
 
   const ROLE_BADGE: Record<string, string> = {
     admin: 'bg-purple-500/10 text-purple-700 border-purple-500/20',
+    manager: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20',
     dispatcher: 'bg-blue-500/10 text-blue-700 border-blue-500/20',
+    fleet_manager: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
+    accountant: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
+    payroll_officer: 'bg-teal-500/10 text-teal-700 border-teal-500/20',
+    compliance: 'bg-orange-500/10 text-orange-700 border-orange-500/20',
+    customer_service: 'bg-cyan-500/10 text-cyan-700 border-cyan-500/20',
+    sales: 'bg-pink-500/10 text-pink-700 border-pink-500/20',
     driver: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
   };
 
@@ -270,7 +313,7 @@ export default function UsersPage() {
   };
 
   const activeCount = users.filter(u => u.isActive).length;
-  const staffCount = users.filter(u => u.role === 'admin' || u.role === 'dispatcher').length;
+  const staffCount = users.filter(u => u.role !== 'driver').length;
   const driverCount = users.filter(u => u.role === 'driver').length;
   const filtered = users.filter(u => {
     const matchRole = roleFilter === 'all' || u.role === roleFilter;
@@ -456,15 +499,15 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {ROLE_OPTIONS.map(option => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                {ROLE_TEMPLATES.map(option => {
                   const Icon = option.icon;
                   const selected = form.role === option.value;
                   return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setForm(prev => ({ ...prev, role: option.value }))}
+                      onClick={() => applyRole(option.value)}
                       className={`text-left rounded-xl border p-3 transition-all ${
                         selected
                           ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
@@ -473,7 +516,14 @@ export default function UsersPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <Icon className={`w-4 h-4 ${selected ? 'text-primary' : option.tone}`} />
-                        {selected && <Check className="w-3.5 h-3.5 text-primary" />}
+                        <div className="flex items-center gap-1.5">
+                          {option.fullAccess && (
+                            <span className="text-[8px] font-bold uppercase tracking-wide text-purple-600">
+                              {t('users_full_access')}
+                            </span>
+                          )}
+                          {selected && <Check className="w-3.5 h-3.5 text-primary" />}
+                        </div>
                       </div>
                       <p className="text-[12px] font-bold text-text mt-2">{t(option.labelKey)}</p>
                       <p className="text-[10px] leading-snug text-text-secondary mt-1">{t(option.hintKey)}</p>
@@ -482,16 +532,36 @@ export default function UsersPage() {
                 })}
               </div>
 
-              {form.role !== 'driver' ? (
+              {form.role === 'admin' ? (
+                <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 text-[11px] text-text-secondary">
+                  {t('users_role_admin_full')}
+                </div>
+              ) : form.role === 'driver' ? (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-[11px] text-text-secondary">
+                  {t('users_driver_access_hint')}
+                </div>
+              ) : (
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
-                      <h3 className="text-sm font-bold text-text">{t('users_permissions_title')}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-bold text-text">{t('users_permissions_title')}</h3>
+                        <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border ${
+                          permissionsRecommended
+                            ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                        }`}>
+                          {permissionsRecommended ? t('users_role_recommended') : t('users_role_customized')}
+                        </span>
+                      </div>
                       <p className="text-[11px] text-text-secondary">
                         {t('users_permissions_count', { count: selectedPageCount })}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button type="button" onClick={applyRoleDefaults} className="btn-secondary !px-2.5 !py-1 text-[10px] font-bold flex items-center gap-1">
+                        <RotateCcw className="w-3 h-3" /> {t('users_role_apply_defaults')}
+                      </button>
                       <button type="button" onClick={selectAllPages} className="btn-secondary !px-2.5 !py-1 text-[10px] font-bold">
                         {t('users_select_all')}
                       </button>
@@ -500,36 +570,51 @@ export default function UsersPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
-                    {navItems.map(item => {
-                      const aliases = aliasKeysFor(item.key);
-                      const selected = aliases.some(key => form.allowedPages.includes(key));
+                  <p className="text-[10px] text-text-secondary">{t('users_permissions_group_hint')}</p>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                    {PAGE_GROUPS.filter(group => group.key !== 'admin').map(group => {
+                      const items = navItems.filter(item => group.pages.includes(item.key));
+                      const selectedInGroup = items.filter(item =>
+                        aliasKeysFor(item.key).some(key => form.allowedPages.includes(key))
+                      ).length;
                       return (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() => togglePage(item)}
-                          className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
-                            selected
-                              ? 'border-primary/40 bg-primary/5 text-primary'
-                              : 'border-border bg-card text-text hover:bg-surface/60'
-                          }`}
-                        >
-                          <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selected ? 'bg-primary border-primary text-white' : 'border-border bg-card'
-                          }`}>
-                            {selected && <Check className="w-3 h-3" />}
-                          </span>
-                          <span className="text-[11px] font-semibold truncate">{t((item as any).labelKey || item.key)}</span>
-                        </button>
+                        <div key={group.key} className="rounded-xl border border-border p-2.5">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-text-secondary">{t(group.labelKey)}</p>
+                            <span className="text-[9px] font-bold text-text-secondary">{selectedInGroup}/{items.length}</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {items.map(item => {
+                              const aliases = aliasKeysFor(item.key);
+                              const selected = aliases.some(key => form.allowedPages.includes(key));
+                              return (
+                                <button
+                                  key={item.key}
+                                  type="button"
+                                  onClick={() => togglePage(item)}
+                                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
+                                    selected
+                                      ? 'border-primary/40 bg-primary/5 text-primary'
+                                      : 'border-border bg-card text-text hover:bg-surface/60'
+                                  }`}
+                                >
+                                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                    selected ? 'bg-primary border-primary text-white' : 'border-border bg-card'
+                                  }`}>
+                                    {selected && <Check className="w-3 h-3" />}
+                                  </span>
+                                  <span className="text-[11px] font-semibold truncate">{t((item as any).labelKey || item.key)}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
-                  <p className="text-[10px] text-text-secondary">{t('users_permissions_hint')}</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-[11px] text-text-secondary">
-                  {t('users_driver_access_hint')}
+                  {!permissionsValid && (
+                    <p className="text-[10px] font-semibold text-error">{t('users_permissions_required')}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -618,7 +703,7 @@ export default function UsersPage() {
                     <span className="text-[12px] font-bold text-text truncate">
                       {form.role === 'driver'
                         ? t('users_driver_access_hint')
-                        : selectedPageCount === 0
+                        : form.role === 'admin'
                           ? t('users_full_access')
                           : t('users_permissions_count', { count: selectedPageCount })}
                     </span>
@@ -684,7 +769,7 @@ export default function UsersPage() {
     <KpiStrip dense items={[
       { key: 'total', label: t('users_total'), value: users.length, icon: Users, color: 'text-primary' },
       { key: 'active', label: t('users_active'), value: activeCount, icon: UserCheck, color: 'text-success' },
-      { key: 'staff', label: t('users_admin_dispatcher'), value: staffCount, icon: ShieldCheck, color: 'text-blue-600' },
+      { key: 'staff', label: t('users_staff'), value: staffCount, icon: ShieldCheck, color: 'text-blue-600' },
       { key: 'drivers', label: t('users_drivers'), value: driverCount, icon: Truck, color: 'text-warning' },
     ]} />
 
@@ -705,9 +790,7 @@ export default function UsersPage() {
         onChange={value => { setRoleFilter(value); setCurrentPage(1); }}
         options={[
           { value: 'all', label: t('users_all_roles') },
-          { value: 'admin', label: t('admin') },
-          { value: 'dispatcher', label: t('dispatcher') },
-          { value: 'driver', label: t('driver') },
+          ...ROLE_TEMPLATES.map(role => ({ value: role.value, label: t(role.labelKey) })),
         ]}
       />
       <CustomSelect
@@ -758,9 +841,13 @@ export default function UsersPage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-current" /> {t(u.role)}
                 </span>
                 <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[190px]">
-                  {(u.allowedPages && u.allowedPages.length)
-                    ? `${u.allowedPages.length} ${t('users_pages_access')}`
-                    : t('users_full_access')}
+                  {u.role === 'admin'
+                    ? t('users_full_access')
+                    : u.role === 'driver'
+                      ? t('driver')
+                      : (u.allowedPages && u.allowedPages.length)
+                        ? `${u.allowedPages.length} ${t('users_pages_access')}`
+                        : t('users_role_recommended')}
                 </p>
               </div>
             )

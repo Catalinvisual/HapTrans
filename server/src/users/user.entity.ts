@@ -4,9 +4,29 @@ import { Company } from '../companies/company.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
+  MANAGER = 'manager',
   DISPATCHER = 'dispatcher',
+  FLEET_MANAGER = 'fleet_manager',
+  ACCOUNTANT = 'accountant',
+  PAYROLL_OFFICER = 'payroll_officer',
+  COMPLIANCE = 'compliance',
+  CUSTOMER_SERVICE = 'customer_service',
+  SALES = 'sales',
   DRIVER = 'driver',
 }
+
+/** Office roles are staffed through the TMS; drivers use the mobile app. */
+export const OFFICE_ROLES: UserRole[] = [
+  UserRole.ADMIN,
+  UserRole.MANAGER,
+  UserRole.DISPATCHER,
+  UserRole.FLEET_MANAGER,
+  UserRole.ACCOUNTANT,
+  UserRole.PAYROLL_OFFICER,
+  UserRole.COMPLIANCE,
+  UserRole.CUSTOMER_SERVICE,
+  UserRole.SALES,
+];
 
 @Entity('users')
 export class User {

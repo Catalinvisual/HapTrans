@@ -887,6 +887,20 @@ export function getReportDef(key: string): ReportDef | undefined {
   return REPORT_CATALOG.find((d) => d.key === key);
 }
 
+// Office roles inherit a practical report set without changing the original
+// role arrays (kept for backward compatibility and for existing tests).
+const ROLE_REPORT_ACCESS: Record<string, string[]> = {
+  manager: ['executive_overview', 'fleet_performance', 'driver_performance', 'customer_service_performance', 'exceptions', 'kpi_methodology'],
+  fleet_manager: ['executive_overview', 'fleet_performance', 'driver_performance', 'exceptions', 'kpi_methodology'],
+  accountant: ['financial_position', 'customer_profitability', 'route_profitability', 'carrier_costs', 'receivables_aging', 'payables', 'cashflow', 'kpi_methodology'],
+  payroll_officer: ['driver_performance', 'kpi_methodology'],
+  compliance: ['executive_overview', 'fleet_performance', 'driver_performance', 'exceptions', 'kpi_methodology'],
+  customer_service: ['executive_overview', 'customer_service_performance', 'exceptions', 'kpi_methodology'],
+  sales: ['customer_service_performance', 'kpi_methodology'],
+};
+
 export function reportAllowedForUser(def: ReportDef, role: string | undefined): boolean {
-  return def.roles.includes((role || '') as UserRole);
+  const normalized = String(role || '').toLowerCase();
+  if (def.roles.includes(normalized as UserRole)) return true;
+  return (ROLE_REPORT_ACCESS[normalized] || []).includes(def.key);
 }

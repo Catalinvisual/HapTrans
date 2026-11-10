@@ -4855,7 +4855,9 @@ export class PlanningService {
    */
   private assertDriverOwnsTrip(trip: any, user: any) {
     const role = String(user?.role || '').toLowerCase();
-    if (role === 'admin' || role === 'dispatcher') return;
+    // Office roles plan and dispatch fleet-wide. Only the driver role is
+    // restricted to its own assigned trip.
+    if (role && role !== 'driver') return;
     const assignedUserId = resolveAssignedDriver(trip)?.user?.id || null;
     if (!user?.id || assignedUserId !== user.id) {
       throw new ForbiddenException('Trip is not assigned to this driver.');

@@ -135,9 +135,10 @@ export class TripsService {
   async findForDriver(user: any) {
     if (!user) return [];
     const userId = user.id;
-    if (user.role === 'admin' || user.role === 'dispatcher') {
+    if (user.role !== 'driver') {
       // Same decorated shape as a driver gets, so the TMS previews and any
-      // support call see exactly the state the phone works from.
+      // support call see exactly the state the phone works from. Every office
+      // role is fleet-wide; only the driver role is assignment-scoped.
       return this.decorateDriverTrips(await this.attachLastStatusEvents(await this.findAll()));
     }
     // A trip can be assigned through its own driver record or through the
