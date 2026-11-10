@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
 import { Session } from '../auth/entities/session.entity';
+import { Driver } from '../drivers/driver.entity';
+import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -10,10 +12,34 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private repo: Repository<User>,
     @InjectRepository(Session) private sessionsRepo: Repository<Session>,
+    @InjectRepository(Driver) private driversRepo: Repository<Driver>,
   ) {}
 
   findAll() { return this.repo.find({ order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id } }); }
+
+  async create(dto: CreateUserDto) {
+    const email = dto.email.trim().toLowerCase();
+    const exists = await this.repo.findOne({ where: { email } });
+    if (exists) {
+      throw new ConflictException('Această adresă de email este deja folosită de alt utilizator.');
+    }
+    const hashed = await bcrypt.hash(dto.password, 10);
+    const user = this.repo.create({
+      name: dto.name.trim(),
+      email,
+      password: hashed,
+      role: dto.role,
+      language: dto.language || 'ro',
+      allowedPages: dto.allowedPages || [],
+      isActive: dto.isActive !== false,
+    });
+    const saved = await this.repo.save(user);
+    if (saved.role === UserRole.DRIVER) {
+      await this.driversRepo.save(this.driversRepo.create({ user: saved }));
+    }
+    return saved;
+  }
   
   async findAdmin() {
     const admin = await this.repo.findOne({ where: { role: UserRole.ADMIN } });
@@ -62,7 +88,7 @@ export class UsersService {
       const saved = await this.repo.save({ id, ...dto });
       // Administrative revocation: deactivating an account or resetting its
       // password ends every existing driver session immediately.
-      if (dto.isActive === false || dto.isActive === 'false') {
+      if (dto.isActive === false) {
         await this.revokeSessions(id, 'Account deactivated');
       } else if (dto.password) {
         await this.revokeSessions(id, 'Password changed by administrator');

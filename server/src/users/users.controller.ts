@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request, 
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -11,6 +12,14 @@ export class UsersController {
   @Get()
   findAll() {
     return this.service.findAll();
+  }
+
+  @Post()
+  create(@Body() dto: CreateUserDto, @Request() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only administrators can create users.');
+    }
+    return this.service.create(dto);
   }
 
   @Get(':id')

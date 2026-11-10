@@ -1,5 +1,6 @@
-import { IsString, IsEmail, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsEnum, IsArray, IsBoolean, IsIn } from 'class-validator';
 import { UserRole } from '../user.entity';
+import { SUPPORTED_LANGUAGES } from './create-user.dto';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -25,5 +26,15 @@ export class UpdateUserDto {
   dailyRate?: number;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   allowedPages?: string[];
+
+  @IsOptional()
+  @IsIn(SUPPORTED_LANGUAGES)
+  language?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

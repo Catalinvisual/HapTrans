@@ -13,6 +13,7 @@ import { truckFormResources } from './truckFormI18n';
 import { langOverrides } from './langOverrides';
 import { adrResources } from './adrI18n';
 import { operationalResources } from './operationalI18n';
+import { usersPageResources } from './usersI18n';
 
 const resources = {
   ro: { translation: {
@@ -11249,6 +11250,12 @@ for (const lng of Object.keys(truckFormResources)) {
 for (const lng of Object.keys(langOverrides)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, langOverrides[lng as keyof typeof langOverrides]);
+}
+
+// Users page + account wizard strings, maintained together for all 7 locales.
+for (const lng of Object.keys(usersPageResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, usersPageResources[lng]);
 }
 
 export const archivingResources: Record<string, Record<string, string>> = {

@@ -922,18 +922,14 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     return _panel(
       title: l.translate('section_documents'),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(l.translate('no_documents'), style: TextStyle(fontSize: 11, color: kTextSecondary)),
-            ),
-            TextButton.icon(
-              onPressed: _busy ? null : () => _uploadTripDocument(l),
-              icon: const Icon(Icons.upload_file, size: 16),
-              label: Text(l.translate('upload_doc'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-              style: TextButton.styleFrom(foregroundColor: kPrimary, padding: const EdgeInsets.symmetric(horizontal: 6)),
-            ),
-          ],
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _busy ? null : () => _uploadTripDocument(l),
+            icon: const Icon(Icons.upload_file, size: 16),
+            label: Text(l.translate('upload_doc'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+            style: TextButton.styleFrom(foregroundColor: kPrimary, padding: const EdgeInsets.symmetric(horizontal: 6)),
+          ),
         ),
         FutureBuilder<List<Map<String, dynamic>>?>(
           future: _documents,
