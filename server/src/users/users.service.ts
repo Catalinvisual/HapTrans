@@ -2,11 +2,15 @@ import { Injectable, ConflictException, InternalServerErrorException } from '@ne
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
+import { Session } from '../auth/entities/session.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectRepository(User) private repo: Repository<User>) {}
+  constructor(
+    @InjectRepository(User) private repo: Repository<User>,
+    @InjectRepository(Session) private sessionsRepo: Repository<Session>,
+  ) {}
 
   findAll() { return this.repo.find({ order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id } }); }
@@ -55,7 +59,15 @@ export class UsersService {
       dto.password = await bcrypt.hash(dto.password, 10);
     }
     try {
-      return await this.repo.save({ id, ...dto });
+      const saved = await this.repo.save({ id, ...dto });
+      // Administrative revocation: deactivating an account or resetting its
+      // password ends every existing driver session immediately.
+      if (dto.isActive === false || dto.isActive === 'false') {
+        await this.revokeSessions(id, 'Account deactivated');
+      } else if (dto.password) {
+        await this.revokeSessions(id, 'Password changed by administrator');
+      }
+      return saved;
     } catch (error: any) {
       if (error.code === '23505' || error.message?.includes('UNIQUE constraint failed')) {
         throw new ConflictException('Această adresă de email este deja folosită de alt utilizator.');
@@ -65,4 +77,16 @@ export class UsersService {
   }
   
   remove(id: string) { return this.repo.delete(id); }
+
+  private async revokeSessions(userId: string, reason: string) {
+    try {
+      await this.sessionsRepo.createQueryBuilder()
+        .update(Session)
+        .set({ revokedAt: new Date(), revokedReason: reason })
+        .where('userId = :userId AND revokedAt IS NULL', { userId })
+        .execute();
+    } catch {
+      // The user update must not fail because the session table is unavailable.
+    }
+  }
 }

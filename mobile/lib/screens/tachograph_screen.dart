@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
+import '../services/api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/constants.dart';
 import '../utils/number_format.dart';
@@ -71,14 +71,8 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
     if (!auth.isLoggedIn) return;
 
     try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 4),
-        receiveTimeout: const Duration(seconds: 4),
-      ));
-      final res = await dio.get(
-        '$kApiUrl/telematics/mobile/my-truck',
-        options: Options(headers: {'Authorization': 'Bearer ${auth.token}'}),
-      );
+      final dio = ApiClient.create(timeout: const Duration(seconds: 4));
+      final res = await dio.get('/telematics/mobile/my-truck');
 
       if (res.statusCode == 200 && res.data != null && mounted) {
         final data = res.data;
@@ -157,11 +151,10 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
     if (!auth.isLoggedIn) return;
 
     try {
-      final dio = Dio();
+      final dio = ApiClient.create();
       await dio.post(
-        '$kApiUrl/telematics/mobile/activity',
+        '/telematics/mobile/activity',
         data: {'activity': _mapActivityToString(activity)},
-        options: Options(headers: {'Authorization': 'Bearer ${auth.token}'}),
       );
     } catch (_) {}
   }

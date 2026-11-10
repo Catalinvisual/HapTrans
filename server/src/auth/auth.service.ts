@@ -8,6 +8,11 @@ import { User, UserRole } from '../users/user.entity';
 import { Driver } from '../drivers/driver.entity';
 import { Session } from './entities/session.entity';
 
+/** Short-lived access token: renewed silently by the client through /auth/refresh. */
+export const ACCESS_TOKEN_TTL = '15m';
+/** Driver devices stay signed in for 90 days without asking for credentials again. */
+export const REFRESH_TOKEN_TTL_DAYS = 90;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -60,16 +65,13 @@ export class AuthService {
   async createSessionAndTokens(user: User, deviceInfo?: string, ipAddress?: string) {
     const accessToken = this.jwtService.sign(
       { sub: user.id, email: user.email, role: user.role },
-      { expiresIn: '12h' } // 12 hours access token
+      { expiresIn: ACCESS_TOKEN_TTL }
     );
 
     const refreshToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = await bcrypt.hash(refreshToken, 10);
 
-    // Refresh Token Mobile: 30 days, Web: 12h
-    const expiresInDays = user.role === UserRole.DRIVER ? 30 : 0.5; // 0.5 days = 12h
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + (user.role === UserRole.DRIVER ? 24 * 30 : 12));
+    const expiresAt = this.refreshTokenExpiry();
 
     const session = this.sessionsRepo.create({
       userId: user.id,
@@ -87,6 +89,11 @@ export class AuthService {
       user: { id: user.id, email: user.email, name: user.name, role: user.role, language: user.language },
       expiresAt,
     };
+  }
+
+  /** Rolling 90-day window, counted from the moment the session is issued. */
+  private refreshTokenExpiry(): Date {
+    return new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
   }
 
   async refreshToken(tokenString: string, deviceInfo?: string, ipAddress?: string) {
@@ -112,11 +119,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid session token');
     }
 
+    // The account may have been deactivated while the session was still valid.
+    // Fail before rotating, so the session is not silently replaced.
+    const user = await this.usersRepo.findOne({ where: { id: session.userId } });
+    if (!user || !user.isActive) {
+      await this.revokeAllSessions(session.userId, 'Account deactivated');
+      throw new UnauthorizedException('User inactive');
+    }
+
     // Refresh Token Rotation: Revoke old session, create a new one
     await this.revokeSession(session.id, 'Rotated');
-    
-    const user = await this.usersRepo.findOne({ where: { id: session.userId } });
-    if (!user || !user.isActive) throw new UnauthorizedException('User inactive');
 
     return this.createSessionAndTokens(user, deviceInfo || session.deviceInfo, ipAddress || session.ipAddress);
   }
@@ -128,6 +140,21 @@ export class AuthService {
     });
   }
 
+  /** Revokes the session behind a refresh token (mobile logout has no cookie). */
+  async revokeRefreshToken(tokenString: string, reason: string = 'User Logout'): Promise<boolean> {
+    if (!tokenString || !tokenString.includes('.')) return false;
+    const [sessionId] = tokenString.split('.');
+    try {
+      const session = await this.sessionsRepo.findOne({ where: { id: sessionId } });
+      if (!session) return false;
+      await this.revokeSession(session.id, reason);
+      return true;
+    } catch {
+      // A malformed identifier must never fail logout with a 500.
+      return false;
+    }
+  }
+
   async revokeAllSessions(userId: string, reason: string = 'Logout All Devices') {
     await this.sessionsRepo.createQueryBuilder()
       .update(Session)
@@ -137,7 +164,13 @@ export class AuthService {
   }
 
   async validateUser(id: string) {
-    return this.usersRepo.findOne({ where: { id }, relations: ['driver'] });
+    const user = await this.usersRepo.findOne({ where: { id }, relations: ['driver'] });
+    if (!user || !user.isActive) {
+      // A valid signature is not enough: a deactivated account loses access
+      // immediately, without waiting for its 15-minute access token to expire.
+      throw new UnauthorizedException('Contul este inactiv sau nu mai există.');
+    }
+    return user;
   }
 
   async changePassword(userId: string, oldPass: string, newPass: string) {

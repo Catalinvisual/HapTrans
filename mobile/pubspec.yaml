@@ -1,7 +1,7 @@
 name: hapcargo_driver
 description: HapCargo Driver Mobile App
 publish_to: 'none'
-version: 1.0.31+31
+version: 1.0.32+32
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -19,6 +19,8 @@ dependencies:
   # State Management
   provider: ^6.1.2
   shared_preferences: ^2.2.3
+  # Android Keystore-backed storage for the session tokens
+  flutter_secure_storage: ^9.2.4
   
   # Maps
   flutter_map: ^6.1.0

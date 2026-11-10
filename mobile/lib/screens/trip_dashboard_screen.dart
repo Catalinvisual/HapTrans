@@ -268,15 +268,11 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             _nextStepCard(l, locale),
             if (pickups.isNotEmpty) ...[
               const SizedBox(height: 18),
-              _groupTitle(l.translate('loading_label'), Icons.upload_outlined, const Color(0xFF2563EB)),
-              const SizedBox(height: 8),
               for (var i = 0; i < pickups.length; i++)
                 _stopCard(pickups[i], i + 1, pickups.length, l, locale),
             ],
             if (deliveries.isNotEmpty) ...[
               const SizedBox(height: 18),
-              _groupTitle(l.translate('unloading_label'), Icons.download_outlined, const Color(0xFF0F766E)),
-              const SizedBox(height: 8),
               for (var i = 0; i < deliveries.length; i++)
                 _stopCard(deliveries[i], i + 1, deliveries.length, l, locale),
             ],
@@ -496,19 +492,6 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
         ),
       ),
-    );
-  }
-
-  Widget _groupTitle(String title, IconData icon, Color color) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.6),
-        ),
-      ],
     );
   }
 

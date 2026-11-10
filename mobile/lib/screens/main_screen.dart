@@ -79,8 +79,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       if (auth.token != null) {
         tripProv.loadTrips(auth.token!).then((_) {
           if (tripProv.error == '401' || (tripProv.error != null && tripProv.error!.contains('401'))) {
+            // The interceptor already tried a refresh; this only clears what is
+            // left and lets AuthProvider route back to login.
             auth.logout();
-            Navigator.pushReplacementNamed(context, '/login');
             return;
           }
           if (mounted) {
@@ -99,7 +100,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             tripProv.silentReloadTrips(auth.token!).then((_) {
               if (tripProv.error == '401' || (tripProv.error != null && tripProv.error!.contains('401'))) {
                 auth.logout();
-                Navigator.pushReplacementNamed(context, '/login');
                 return;
               }
               if (mounted) {

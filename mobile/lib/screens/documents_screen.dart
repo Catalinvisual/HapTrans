@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import '../services/api_client.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -72,12 +73,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
     if (!mounted) return;
     setState(() => _fetching = true);
     try {
-      final auth = context.read<AuthProvider>();
-      final dio = Dio(BaseOptions(
-        baseUrl: kApiUrl,
-        headers: {'Authorization': 'Bearer ${auth.token}'},
-        connectTimeout: const Duration(seconds: 10),
-      ));
+      final dio = ApiClient.create(timeout: const Duration(seconds: 10));
       final res = await dio.get('/documents');
       if (res.data != null && mounted) {
         final allDocs = List<Map<String, dynamic>>.from(res.data);
@@ -143,10 +139,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
     setState(() => _loading = true);
     try {
       final auth = context.read<AuthProvider>();
-      final dio = Dio(BaseOptions(
-        baseUrl: kApiUrl,
-        headers: {'Authorization': 'Bearer ${auth.token}'},
-      ));
+      final dio = ApiClient.create();
 
       final trips = context.read<TripProvider>().trips;
       Map<String, dynamic>? currentTrip;

@@ -10,8 +10,8 @@ import 'providers/update_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
+import 'services/session_manager.dart';
 import 'utils/app_theme.dart';
-import 'utils/constants.dart';
 import 'l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/notification_service.dart';
@@ -26,6 +26,7 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   if (!await flagFile.exists()) {
     await prefs.clear();
+    await SessionManager.instance.clear();
     try {
       await flagFile.create();
     } catch (_) {}
@@ -34,19 +35,56 @@ void main() async {
   // NotificationService.init() will internally sync the FCM token to server
   await NotificationService().init();
   await BackgroundLocationService.initialize();
-  runApp(HapCargoApp(prefs: prefs));
+
+  // Restore the persisted session (secure storage) before the first frame, so
+  // a driver who opens the app is taken straight to the trip list.
+  final auth = AuthProvider(prefs);
+  await auth.restore();
+
+  runApp(HapCargoApp(prefs: prefs, auth: auth));
 }
 
-class HapCargoApp extends StatelessWidget {
+class HapCargoApp extends StatefulWidget {
   final SharedPreferences prefs;
-  const HapCargoApp({super.key, required this.prefs});
+  final AuthProvider auth;
+
+  const HapCargoApp({super.key, required this.prefs, required this.auth});
+
+  @override
+  State<HapCargoApp> createState() => _HapCargoAppState();
+}
+
+class _HapCargoAppState extends State<HapCargoApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // An expired/revoked refresh token closes the session from anywhere in the
+    // app and returns the driver to login, without an infinite retry loop.
+    widget.auth.onSessionEnded = _showLogin;
+  }
+
+  @override
+  void dispose() {
+    if (widget.auth.onSessionEnded == _showLogin) {
+      widget.auth.onSessionEnded = null;
+    }
+    super.dispose();
+  }
+
+  void _showLogin() {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+    navigator.pushNamedAndRemoveUntil('/login', (route) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider(prefs)),
-        ChangeNotifierProvider(create: (_) => ThemeProvider(prefs)),
+        ChangeNotifierProvider<AuthProvider>.value(value: widget.auth),
+        ChangeNotifierProvider(create: (_) => ThemeProvider(widget.prefs)),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => UpdateProvider()),
@@ -55,6 +93,7 @@ class HapCargoApp extends StatelessWidget {
         builder: (ctx, auth, theme, _) {
           AppTheme.activate(theme.effectiveBrightness);
           return MaterialApp(
+          navigatorKey: _navigatorKey,
           title: 'HapCargo Driver',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,

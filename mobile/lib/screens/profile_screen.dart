@@ -194,9 +194,11 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
-            onPressed: () {
-              auth.logout();
-              Navigator.pushReplacementNamed(context, '/login');
+            onPressed: () async {
+              await auth.logout();
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
             },
             icon: const Icon(Icons.logout),
             label: Text({'ro':'Deconectare','en':'Logout','nl':'Uitloggen','de':'Abmelden','fr':'Déconnexion', 'es': 'Cerrar sesión', 'pl': 'Wyloguj' }[locale] ?? 'Logout'),

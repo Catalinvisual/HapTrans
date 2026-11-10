@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import '../utils/constants.dart';
+import '../services/api_client.dart';
 
 class TripProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _trips = [];
@@ -11,12 +11,9 @@ class TripProvider extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
 
-  Dio _dio(String token) => Dio(BaseOptions(
-    baseUrl: kApiUrl,
-    headers: {'Authorization': 'Bearer $token'},
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
-  ));
+  /// The token argument is kept for the existing call sites; [ApiClient]
+  /// attaches the current access token and renews it automatically.
+  Dio _dio(String token) => ApiClient.create();
 
   /// The driver endpoint is the only source of assigned jobs. It is scoped to
   /// the authenticated account on the server, so there is deliberately no

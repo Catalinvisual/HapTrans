@@ -132,6 +132,8 @@ void main() {
       find.byType(TripDashboardScreen),
       matchesGoldenFile('goldens/trip_cards_ro.png'),
     );
+    // Let the async auth interceptor finish before teardown.
+    await tester.pumpAndSettle();
   });
 
   testWidgets('trip details render with dark graphite surfaces',
@@ -153,5 +155,7 @@ void main() {
       find.byType(TripDashboardScreen),
       matchesGoldenFile('goldens/trip_cards_ro_dark.png'),
     );
+    // Let the async auth interceptor finish before teardown.
+    await tester.pumpAndSettle();
   });
 }

@@ -3,10 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dio/dio.dart';
 import 'dart:io';
 
 import '../utils/constants.dart';
+import 'api_client.dart';
+import 'session_manager.dart';
 const _kApiUrl = kApiUrl;
 
 /// Background handler - MUST be top-level, MUST have @pragma annotation
@@ -173,19 +174,16 @@ class NotificationService {
         return;
       }
 
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-      ));
+      final dio = ApiClient.create(timeout: const Duration(seconds: 10));
 
-      // Try authenticated endpoint first
-      final savedToken = prefs.getString('token');
-      if (savedToken != null) {
+      // Try authenticated endpoint first. The session is renewed automatically
+      // when its 15-minute access token has expired.
+      await SessionManager.instance.ensureLoaded();
+      if (SessionManager.instance.hasSession) {
         try {
           await dio.post(
-            '$_kApiUrl/auth/fcm-token',
+            '/auth/fcm-token',
             data: {'fcmToken': token},
-            options: Options(headers: {'Authorization': 'Bearer $savedToken'}),
           );
           print('✅ FCM Token synced via /auth/fcm-token');
           return;

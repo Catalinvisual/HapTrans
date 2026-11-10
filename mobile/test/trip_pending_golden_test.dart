@@ -138,5 +138,7 @@ void main() {
       find.byType(TripDashboardScreen),
       matchesGoldenFile('goldens/trip_pending_driver_ro.png'),
     );
+    // Let the async auth interceptor finish before teardown.
+    await tester.pumpAndSettle();
   });
 }

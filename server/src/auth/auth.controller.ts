@@ -27,6 +27,15 @@ class RegisterDto {
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  /**
+   * The driver APK cannot use the web session cookie, so it identifies itself
+   * and receives the rotating refresh token in the response body. Web clients
+   * keep the HttpOnly cookie and never see the token in JavaScript.
+   */
+  private isMobileClient(req: any): boolean {
+    return String(req?.headers?.['x-client-platform'] || '').toLowerCase() === 'mobile';
+  }
+
   /** SHA-256 of the APK actually served, so the driver app can reject a
    * corrupted or tampered download before offering installation. */
   private apkSha256(file: string): string | null {
@@ -53,6 +62,7 @@ export class AuthController {
     const ip = req.ip || req.connection.remoteAddress;
 
     const result = await this.authService.login(dto.email, dto.password, userAgent, ip);
+    const mobile = this.isMobileClient(req);
     
     // Set HttpOnly Cookie for Refresh Token
     res.cookie('refresh_token', result.refreshToken, {
@@ -64,19 +74,29 @@ export class AuthController {
 
     return res.json({
       access_token: result.accessToken,
-      user: result.user
+      user: result.user,
+      ...(mobile
+        ? {
+            refresh_token: result.refreshToken,
+            refresh_token_expires_at: result.expiresAt.toISOString(),
+          }
+        : {}),
     });
   }
 
   @Post('refresh')
   async refresh(@Request() req: any, @Response() res: any) {
-    const refreshToken = req.cookies['refresh_token'];
+    // Mobile sends the rotating token in the body; the web keeps using its
+    // HttpOnly cookie. Both resolve to the same session store.
+    const bodyToken = typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : null;
+    const refreshToken = bodyToken || req.cookies['refresh_token'];
     if (!refreshToken) {
       return res.status(401).json({ message: 'No refresh token provided' });
     }
 
     const userAgent = req.headers['user-agent'] || 'Unknown Device';
     const ip = req.ip || req.connection.remoteAddress;
+    const mobile = this.isMobileClient(req) || !!bodyToken;
 
     try {
       const result = await this.authService.refreshToken(refreshToken, userAgent, ip);
@@ -91,7 +111,13 @@ export class AuthController {
 
       return res.json({
         access_token: result.accessToken,
-        user: result.user
+        user: result.user,
+        ...(mobile
+          ? {
+              refresh_token: result.refreshToken,
+              refresh_token_expires_at: result.expiresAt.toISOString(),
+            }
+          : {}),
       });
     } catch (e: any) {
       // Clear cookie if refresh fails
@@ -102,10 +128,11 @@ export class AuthController {
 
   @Post('logout')
   async logout(@Request() req: any, @Response() res: any) {
-    const refreshToken = req.cookies['refresh_token'];
-    if (refreshToken && refreshToken.includes('.')) {
-      const [sessionId] = refreshToken.split('.');
-      await this.authService.revokeSession(sessionId, 'User Logout');
+    const refreshToken = typeof req.body?.refreshToken === 'string'
+      ? req.body.refreshToken
+      : req.cookies['refresh_token'];
+    if (refreshToken) {
+      await this.authService.revokeRefreshToken(refreshToken, 'User Logout');
     }
     res.clearCookie('refresh_token');
     return res.json({ success: true });
@@ -151,9 +178,9 @@ export class AuthController {
   @Get('app-version')
   @Header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
   getAppVersion() {
-    const apk = 'HapTrans-v31.apk';
-    const versionCode = 31;
-    const versionName = '1.0.31';
+    const apk = 'HapTrans-v32.apk';
+    const versionCode = 32;
+    const versionName = '1.0.32';
     return {
       // Legacy fields stay for v21 clients; new clients compare latestVersionCode.
       latestVersionCode: versionCode,

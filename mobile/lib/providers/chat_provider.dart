@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import '../services/api_client.dart';
+import '../services/session_manager.dart';
 import '../utils/constants.dart';
 import '../utils/trip_status.dart';
 import '../services/notification_service.dart';
@@ -9,6 +10,8 @@ class ChatProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _messages = [];
   IO.Socket? _socket;
   bool _connected = false;
+  int _socketAuthRetries = 0;
+  int _tripAuthRetries = 0;
   int _unreadCount = 0;
   bool _isChatScreenActive = false;
 
@@ -70,13 +73,15 @@ class ChatProvider extends ChangeNotifier {
   void connectGlobal(String token, String currentUserId, {String locale = 'ro', void Function()? onTripUpdated}) {
     if (_socket != null && _socket!.connected) return;
 
+    final accessToken = SessionManager.instance.accessToken ?? token;
     _socket = IO.io(kWsUrl, IO.OptionBuilder()
       .setTransports(['websocket'])
-      .setExtraHeaders({'Authorization': 'Bearer $token'})
+      .setExtraHeaders({'Authorization': 'Bearer $accessToken'})
       .build());
 
     _socket!.onConnect((_) {
       _connected = true;
+      _socketAuthRetries = 0;
       notifyListeners();
     });
 
@@ -126,17 +131,33 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
     });
 
+    // A long-lived socket reconnects with the headers it was created with. If
+    // its 15-minute access token expired meanwhile, renew the session and retry
+    // the handshake once, instead of staying offline until the app restarts.
+    _socket!.onConnectError((_) async {
+      final failed = _socket;
+      if (failed == null || _socketAuthRetries >= 1) return;
+      _socketAuthRetries++;
+      final fresh = await SessionManager.instance.ensureFreshAccessToken();
+      if (fresh == null || fresh == accessToken) return;
+      failed.dispose();
+      if (identical(_socket, failed)) _socket = null;
+      connectGlobal(fresh, currentUserId, locale: locale, onTripUpdated: onTripUpdated);
+    });
+
     _socket!.connect();
   }
 
   void connect(String token, String tripId, String currentUserId) {
+    final accessToken = SessionManager.instance.accessToken ?? token;
     _socket = IO.io(kWsUrl, IO.OptionBuilder()
       .setTransports(['websocket'])
-      .setExtraHeaders({'Authorization': 'Bearer $token'})
+      .setExtraHeaders({'Authorization': 'Bearer $accessToken'})
       .build());
 
     _socket!.onConnect((_) {
       _connected = true;
+      _tripAuthRetries = 0;
       if (tripId.isNotEmpty && tripId != 'general') {
         _socket!.emit('joinTrip', {'tripId': tripId});
       }
@@ -149,6 +170,17 @@ class ChatProvider extends ChangeNotifier {
         _messages.add(Map<String, dynamic>.from(data));
       }
       notifyListeners();
+    });
+
+    _socket!.onConnectError((_) async {
+      final failed = _socket;
+      if (failed == null || _tripAuthRetries >= 1) return;
+      _tripAuthRetries++;
+      final fresh = await SessionManager.instance.ensureFreshAccessToken();
+      if (fresh == null || fresh == accessToken) return;
+      failed.dispose();
+      if (identical(_socket, failed)) _socket = null;
+      connect(fresh, tripId, currentUserId);
     });
 
     _socket?.emit('joinTrip', {'tripId': tripId});
@@ -173,10 +205,7 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> loadMessages(String token, String tripId) async {
     try {
-      final dio = Dio(BaseOptions(
-        baseUrl: kApiUrl,
-        headers: {'Authorization': 'Bearer $token'},
-      ));
+      final dio = ApiClient.create();
       final res = await dio.get('/chat/$tripId');
       _messages = List<Map<String, dynamic>>.from(res.data);
       notifyListeners();

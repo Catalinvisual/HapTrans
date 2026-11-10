@@ -1,51 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
-import '../utils/constants.dart';
 import '../services/notification_service.dart';
 import '../services/background_location_service.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
+import '../services/session_manager.dart';
+import '../services/api_client.dart';
 
+/// Authentication state for the driver app.
+///
+/// The access token and the rotating refresh token live in [SessionManager]
+/// (Android Keystore-backed secure storage). This provider only exposes the
+/// session to the widget tree and syncs the non-sensitive driver profile.
 class AuthProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
-  String? _token;
+  final SessionManager _session = SessionManager.instance;
   Map<String, dynamic>? _user;
-  Locale _locale = const Locale('ro');
+  Locale _locale;
+  VoidCallback? onSessionEnded;
 
-  AuthProvider(this._prefs) {
-    _token = _prefs.getString('token');
-    if (_token != null) {
-      bool isExpired = true;
-      try {
-        isExpired = JwtDecoder.isExpired(_token!);
-      } catch (_) {}
-
-      if (isExpired) {
-        _token = null;
-        _prefs.remove('token');
-        _prefs.remove('user');
-      }
-    }
-
+  AuthProvider(this._prefs) : _locale = const Locale('ro') {
     final lang = _prefs.getString('lang') ?? 'ro';
     _locale = Locale(lang);
-    final userJson = _prefs.getString('user');
-    if (userJson != null && _token != null) {
+    final id = _prefs.getString('userId');
+    if (id != null) {
       _user = {
         'name': _prefs.getString('userName'),
-        'id': _prefs.getString('userId'),
-        'role': _prefs.getString('userRole')
+        'id': id,
+        'role': _prefs.getString('userRole'),
       };
-    } else {
-      _user = null;
-      _prefs.remove('user');
     }
+    _session.addTokenListener(_onTokensChanged);
+    _session.addSessionEndedListener(_onSessionEnded);
   }
 
-  bool get isLoggedIn => _token != null;
-  String? get token => _token;
+  /// Restores the persisted session before the first frame. The driver stays
+  /// signed in across app restarts and phone reboots while the refresh token
+  /// is valid and the account is active.
+  Future<void> restore() async {
+    await _session.restore(_prefs);
+    if (!_session.hasSession) _clearLocalUser();
+  }
+
+  bool get isLoggedIn => _session.accessToken != null;
+  String? get token => _session.accessToken;
   Map<String, dynamic>? get user => _user;
   Locale get locale => _locale;
+
+  void _onTokensChanged() {
+    if (_session.accessToken != null) notifyListeners();
+  }
+
+  void _onSessionEnded() {
+    _clearLocalUser();
+    BackgroundLocationService.stop();
+    notifyListeners();
+    onSessionEnded?.call();
+  }
+
+  void _clearLocalUser() {
+    _user = null;
+    _prefs.remove('user');
+    _prefs.remove('userId');
+    _prefs.remove('userName');
+    _prefs.remove('userRole');
+    // Legacy plain-text token, migrated into secure storage on first launch.
+    _prefs.remove('token');
+  }
+
+  /// Renews the access token now. Safe to call concurrently: SessionManager
+  /// performs only one rotation at a time.
+  Future<bool> refreshAccessToken() => _session.refresh();
 
   /// Syncs whichever FCM token NotificationService currently has
   Future<void> syncFcmToken() async {
@@ -57,27 +81,22 @@ class AuthProvider extends ChangeNotifier {
 
   /// Syncs a specific FCM token value to the backend via /auth/fcm-token
   Future<void> syncFcmTokenValue(String fcmToken) async {
-    if (_token == null) return;
+    if (!_session.hasSession) return;
     try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-      ));
+      final dio = ApiClient.create(timeout: const Duration(seconds: 10));
       await dio.post(
-        '$kApiUrl/auth/fcm-token',
+        '/auth/fcm-token',
         data: {'fcmToken': fcmToken},
-        options: Options(headers: {'Authorization': 'Bearer $_token'}),
       );
       debugPrint('✅ FCM Token synced to /auth/fcm-token: ${fcmToken.substring(0, 20)}...');
     } catch (e) {
       // Fallback: try PATCH /users/:id
       try {
         if (_user?['id'] != null) {
-          final dio = Dio();
+          final dio = ApiClient.create(timeout: const Duration(seconds: 10));
           await dio.patch(
-            '$kApiUrl/users/${_user!['id']}',
+            '/users/${_user!['id']}',
             data: {'fcmToken': fcmToken},
-            options: Options(headers: {'Authorization': 'Bearer $_token'}),
           );
           debugPrint('✅ FCM Token synced via PATCH users fallback');
         }
@@ -89,28 +108,34 @@ class AuthProvider extends ChangeNotifier {
 
   Future<String?> login(String email, String password) async {
     try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-      ));
-      final res = await dio.post('$kApiUrl/auth/login', data: {'email': email, 'password': password});
-      _token = res.data['access_token'];
-      _user = res.data['user'];
-      await _prefs.setString('token', _token!);
+      final dio = ApiClient.create(timeout: const Duration(seconds: 10));
+      final res = await dio.post(
+        '/auth/login',
+        data: {'email': email, 'password': password},
+      );
+      final accessToken = res.data['access_token']?.toString();
+      final refreshToken = res.data['refresh_token']?.toString();
+      final user = res.data['user'];
+      if (accessToken == null || accessToken.isEmpty || user is! Map) {
+        return 'Unexpected server response';
+      }
+
+      await _session.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+      _user = Map<String, dynamic>.from(user);
       await _prefs.setString('user', 'saved');
-      await _prefs.setString('userId', _user!['id']);
-      await _prefs.setString('userName', _user!['name']);
-      await _prefs.setString('userRole', _user!['role']);
+      await _prefs.setString('userId', _user!['id'].toString());
+      await _prefs.setString('userName', _user!['name'].toString());
+      await _prefs.setString('userRole', _user!['role'].toString());
       notifyListeners();
 
       // userId is now in prefs - trigger FCM token sync
-      // NotificationService will use the new userId and token from prefs
       final notif = NotificationService();
       if (notif.fcmToken != null) {
-        // Token already available, sync now
         await syncFcmTokenValue(notif.fcmToken!);
       }
-      // The onTokenRefresh listener in NotificationService will also handle future syncs
 
       return null; // Null means success
     } on DioException catch (e) {
@@ -126,6 +151,12 @@ class AuthProvider extends ChangeNotifier {
                     : 'Connection Error: Cannot reach the server. Verify your internet connection!'));
       }
       if (e.response?.statusCode == 401) {
+        final serverMessage = e.response?.data is Map
+            ? e.response!.data['message']?.toString()
+            : null;
+        if (serverMessage != null && serverMessage.isNotEmpty) {
+          return serverMessage;
+        }
         return _locale.languageCode == 'ro'
             ? 'Email sau parolă incorectă'
             : (_locale.languageCode == 'es'
@@ -140,14 +171,8 @@ class AuthProvider extends ChangeNotifier {
 
   Future<String?> changePassword(String oldPassword, String newPassword) async {
     try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-        headers: {
-          'Authorization': 'Bearer $_token',
-        },
-      ));
-      await dio.post('$kApiUrl/auth/change-password', data: {
+      final dio = ApiClient.create(timeout: const Duration(seconds: 10));
+      await dio.post('/auth/change-password', data: {
         'oldPassword': oldPassword,
         'newPassword': newPassword,
       });
@@ -170,11 +195,19 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void logout() {
-    _token = null;
-    _user = null;
-    _prefs.remove('token');
-    _prefs.remove('user');
+  /// Manual sign-out: revokes the refresh session on the server, then removes
+  /// both tokens from secure storage. The next launch shows the login screen.
+  Future<void> logout() async {
+    try {
+      await ApiClient.create(timeout: const Duration(seconds: 5)).post(
+        '/auth/logout',
+        data: {'refreshToken': _session.refreshToken},
+      );
+    } catch (_) {
+      // Offline sign-out still clears the local session.
+    }
+    await _session.logout();
+    _clearLocalUser();
     BackgroundLocationService.stop();
     notifyListeners();
   }

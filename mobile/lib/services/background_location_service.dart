@@ -5,11 +5,11 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dio/dio.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'api_client.dart';
+import 'session_manager.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../utils/constants.dart';
 
 class BackgroundLocationService {
   static Future<bool> requestAlwaysLocationPermission(BuildContext context) async {
@@ -137,9 +137,9 @@ class BackgroundLocationService {
   }
 
   static Future<void> start({required String token, required String userId, String? truckId}) async {
-    // Save to SharedPreferences so background isolate can read it
+    // The tokens stay in Keystore-backed secure storage; the background
+    // isolate reads and renews them through SessionManager.
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', token);
     await prefs.setString('userId', userId);
     if (truckId != null) {
       await prefs.setString('truckId', truckId);
@@ -213,7 +213,6 @@ void onStart(ServiceInstance service) async {
   service.on('updateParams').listen((event) async {
     if (event != null) {
       final prefs = await SharedPreferences.getInstance();
-      if (event['token'] != null) await prefs.setString('token', event['token']);
       if (event['userId'] != null) await prefs.setString('userId', event['userId']);
       if (event['truckId'] != null) {
         await prefs.setString('truckId', event['truckId']);
@@ -223,15 +222,18 @@ void onStart(ServiceInstance service) async {
     }
   });
 
+  // Restore the persisted session once; the API client renews the access
+  // token automatically while the driver is on duty.
+  await SessionManager.instance.ensureLoaded();
+
   // Start periodic tracking
   timer = Timer.periodic(const Duration(seconds: 5), (t) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
       final userId = prefs.getString('userId');
       final truckId = prefs.getString('truckId');
 
-      if (token == null || userId == null) {
+      if (userId == null || !SessionManager.instance.hasSession) {
         timer?.cancel();
         service.stopSelf();
         return;
@@ -249,13 +251,8 @@ void onStart(ServiceInstance service) async {
         timeLimit: const Duration(seconds: 5),
       );
 
-      // Send to server via HTTP POST
-      final dio = Dio(BaseOptions(
-        baseUrl: kApiUrl,
-        headers: {'Authorization': 'Bearer $token'},
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-      ));
+      // Send to server via HTTP POST (token renewed automatically)
+      final dio = ApiClient.create(timeout: const Duration(seconds: 5));
 
       await dio.post('/location', data: {
         'driverId': userId,
