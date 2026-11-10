@@ -6,6 +6,7 @@ import { Session } from '../auth/entities/session.entity';
 import { Driver } from '../drivers/driver.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -26,6 +27,9 @@ export class UsersService {
     }
     const hashed = await bcrypt.hash(dto.password, 10);
     const user = this.repo.create({
+      // Never rely on the live table default: an account saved without an id
+      // cannot sign in (its token subject is null) and cannot be edited.
+      id: crypto.randomUUID(),
       name: dto.name.trim(),
       email,
       password: hashed,
@@ -36,7 +40,7 @@ export class UsersService {
     });
     const saved = await this.repo.save(user);
     if (saved.role === UserRole.DRIVER) {
-      await this.driversRepo.save(this.driversRepo.create({ user: saved }));
+      await this.driversRepo.save(this.driversRepo.create({ id: crypto.randomUUID(), user: saved }));
     }
     return saved;
   }

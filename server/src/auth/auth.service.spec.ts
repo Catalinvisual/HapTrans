@@ -5,6 +5,9 @@ import { UserRole } from '../users/user.entity';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Accounts and sessions carry uuids; the service now rejects anything else. */
+const USER_ID = '11111111-1111-4111-8111-111111111111';
+
 function makeRepos(initialUser: any) {
   const users: any[] = [initialUser];
   const sessions: any[] = [];
@@ -73,7 +76,7 @@ describe('AuthService persistent sessions', () => {
   beforeEach(async () => {
     jwt = new JwtService({ secret: 'session-test-secret' });
     user = {
-      id: 'user-1',
+      id: USER_ID,
       email: 'driver@example.com',
       // Low cost is enough: this test exercises the session lifecycle, not the hash strength.
       password: await bcrypt.hash('DriverPass1', 4),
@@ -103,7 +106,11 @@ describe('AuthService persistent sessions', () => {
     expect(lifetimeDays).toBeGreaterThan(REFRESH_TOKEN_TTL_DAYS - 0.01);
     expect(lifetimeDays).toBeLessThanOrEqual(REFRESH_TOKEN_TTL_DAYS + 0.01);
     expect(sessions).toHaveLength(1);
-    expect(result.refreshToken.startsWith(`${sessions[0].id}.`)).toBe(true);
+    const [sessionId] = result.refreshToken.split('.');
+    expect(sessionId).toBe(sessions[0].id);
+    expect(sessionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
   });
 
   it('rotates the refresh token and allows a concurrent renewal inside the grace window', async () => {
@@ -192,7 +199,7 @@ describe('AuthService persistent sessions', () => {
     const { service, users } = build();
     users[0].isActive = false;
 
-    await expect(service.validateUser('user-1')).rejects.toThrow('Contul este inactiv');
+    await expect(service.validateUser(USER_ID)).rejects.toThrow('Contul este inactiv');
   });
 
   it('revokes all sessions when a refresh token value does not match its session', async () => {
@@ -209,9 +216,19 @@ describe('AuthService persistent sessions', () => {
 
   it('returns the active account with its driver relation for valid access tokens', async () => {
     const { service } = build();
-    const validated = await service.validateUser('user-1');
-    expect(validated.id).toBe('user-1');
+    const validated = await service.validateUser(USER_ID);
+    expect(validated.id).toBe(USER_ID);
     expect(validated.isActive).toBe(true);
+  });
+
+  it('refuses a token whose subject is missing or malformed', async () => {
+    const { service } = build();
+
+    // TypeORM drops a null where-condition, so an unchecked subject would
+    // resolve to the first user row and hand out someone else's identity.
+    await expect(service.validateUser(null as any)).rejects.toThrow('Contul este inactiv');
+    await expect(service.validateUser('')).rejects.toThrow('Contul este inactiv');
+    await expect(service.validateUser('null')).rejects.toThrow('Contul este inactiv');
   });
 
   it('registers an active driver account and refuses office roles', async () => {
@@ -234,6 +251,9 @@ describe('AuthService persistent sessions', () => {
     expect(created[0].isActive).toBe(true);
     expect(created[0].role).toBe(UserRole.DRIVER);
     expect(created[0].allowedPages).toEqual([]);
+    expect(created[0].id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
 
     await expect(
       service.register({ email: 'office@example.com', password: 'DriverPass1', name: 'Office', role: UserRole.ACCOUNTANT }),

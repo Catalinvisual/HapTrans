@@ -54,7 +54,9 @@ describe('UsersService.revokeUserSessions', () => {
       isActive: false,
     });
 
-    expect(driversRepo.create).toHaveBeenCalledWith({ user: expect.objectContaining({ email: 'driver@example.com' }) });
+    expect(driversRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ user: expect.objectContaining({ email: 'driver@example.com' }) }),
+    );
     expect(driversRepo.save).toHaveBeenCalled();
   });
 

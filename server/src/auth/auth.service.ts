@@ -19,6 +19,9 @@ export const REFRESH_TOKEN_TTL_DAYS = 90;
  */
 export const REFRESH_ROTATION_GRACE_MS = 90 * 1000;
 
+/** Session identifiers are uuids; anything else is a malformed token. */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -43,6 +46,9 @@ export class AuthService {
     // Never copy the request body into the account: role and page permissions
     // are decided by the office, not by whoever signs up.
     const user = this.usersRepo.create({
+      // The live table does not always supply a generated uuid, and a user
+      // without an id produces tokens whose subject is null.
+      id: crypto.randomUUID(),
       email: dto.email,
       password: hashed,
       name: dto.name,
@@ -55,7 +61,7 @@ export class AuthService {
     });
     const saved = await this.usersRepo.save(user);
     if (saved.role === UserRole.DRIVER) {
-      const driver = this.driversRepo.create({ user: saved });
+      const driver = this.driversRepo.create({ id: crypto.randomUUID(), user: saved });
       await this.driversRepo.save(driver);
     }
     return { success: true, message: 'User registered successfully. Please login.' };
@@ -95,6 +101,12 @@ export class AuthService {
     const expiresAt = this.refreshTokenExpiry();
 
     const session = this.sessionsRepo.create({
+      // Generate the id here instead of relying on the table default coming
+      // back through save(): on the live database the inserted row receives a
+      // database-generated id, `save()` returns the entity with a null id, and
+      // the refresh token then embeds the literal "null". Every renewal after
+      // the 15-minute access token expired was rejected because of it.
+      id: crypto.randomUUID(),
       userId: user.id,
       tokenHash,
       deviceInfo,
@@ -125,11 +137,13 @@ export class AuthService {
   }
 
   async refreshToken(tokenString: string, deviceInfo?: string, ipAddress?: string) {
-    if (!tokenString || !tokenString.includes('.')) {
+    const [sessionId, tokenValue] = String(tokenString || '').split('.');
+    // Reject malformed identifiers before they reach Postgres: casting "null"
+    // (tokens issued by older builds) to uuid threw a QueryFailedError, which
+    // surfaced as 503 and left the app with an expired access token forever.
+    if (!sessionId || !tokenValue || !UUID_PATTERN.test(sessionId)) {
       throw new UnauthorizedException('Invalid refresh token format');
     }
-    
-    const [sessionId, tokenValue] = tokenString.split('.');
     
     const session = await this.sessionsRepo.findOne({ where: { id: sessionId } });
     if (!session) {
@@ -208,6 +222,12 @@ export class AuthService {
   }
 
   async validateUser(id: string) {
+    // A token whose subject is missing or malformed must never resolve to an
+    // account: TypeORM drops a null condition and would return the first user
+    // row, handing a driver token an arbitrary (possibly admin) identity.
+    if (!id || !UUID_PATTERN.test(String(id))) {
+      throw new UnauthorizedException('Contul este inactiv sau nu mai există.');
+    }
     const user = await this.usersRepo.findOne({ where: { id }, relations: ['driver'] });
     if (!user || !user.isActive) {
       // A valid signature is not enough: a deactivated account loses access
