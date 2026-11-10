@@ -1,7 +1,8 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
+import { useAuthStore } from '../store/authStore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Pencil, Key, Search, Users, UserCheck, ShieldCheck, Truck, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, Pencil, Key, Search, Users, UserCheck, ShieldCheck, Truck, Eye, EyeOff, LogOut } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -18,10 +19,12 @@ export default function UsersPage() {
   const {
     t
   } = useTranslation();
+  const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deactivateUser, setDeactivateUser] = useState<any>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<any>(null);
+  const [revokeUser, setRevokeUser] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
@@ -138,6 +141,17 @@ export default function UsersPage() {
       setResetPasswordUser(null);
     }
   };
+  const executeRevokeSessions = async () => {
+    if (!revokeUser) return;
+    try {
+      await api.post(`/users/${revokeUser.id}/revoke-sessions`);
+      toast.success(t('sessions_revoked', 'Șoferul a fost deconectat de pe toate dispozitivele.'));
+    } catch {
+      toast.error(t('revoke_sessions_error', 'Sesiunile nu au putut fi revocate.'));
+    } finally {
+      setRevokeUser(null);
+    }
+  };
   const executeDelete = async () => {
     if (!deactivateUser) return;
     try {
@@ -190,6 +204,7 @@ export default function UsersPage() {
     'escape': () => {
       if (showForm) setShowForm(false);
       if (resetPasswordUser) setResetPasswordUser(null);
+      if (revokeUser) setRevokeUser(null);
       if (deactivateUser) setDeactivateUser(null);
     }
   });
@@ -211,7 +226,7 @@ export default function UsersPage() {
       setShowForm(true);
     },
     onDelete: u => setDeactivateUser(u),
-    isActive: !showForm && !resetPasswordUser && !deactivateUser
+    isActive: !showForm && !resetPasswordUser && !deactivateUser && !revokeUser
   });
   return <div className="space-y-5 animate-fade-in">
 
@@ -422,6 +437,11 @@ export default function UsersPage() {
                 <button onClick={() => handleEdit(u)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 transition-all" title={t('edit_user', 'Editare utilizator')}>
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
+                {u.role === 'driver' && currentUser?.role === 'admin' && (
+                  <button onClick={() => setRevokeUser(u)} className="p-1.5 text-text-secondary hover:text-warning rounded-lg hover:bg-amber-50 transition-all" title={t('revoke_sessions', 'Deconectează șoferul')}>
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button onClick={() => handleResetPassword(u)} className="p-1.5 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-all" title={t('reset_password', 'Resetare parolă')}>
                   <Key className="w-3.5 h-3.5" />
                 </button>
@@ -436,6 +456,7 @@ export default function UsersPage() {
       </div>
     
       <ConfirmModal isOpen={!!resetPasswordUser} onClose={() => setResetPasswordUser(null)} onConfirm={executeResetPassword} title={t('reset_password_title', 'Resetare parolă')} message={resetPasswordUser ? t('reset_password_confirm', 'Sigur doriți să resetați parola pentru {{name}}? Noua parolă generată este: {{pass}}', { name: resetPasswordUser.user.name, pass: resetPasswordUser.newPass }) : ''} confirmText={t('reset_password_btn', 'Resetează')} type="warning" />
+      <ConfirmModal isOpen={!!revokeUser} onClose={() => setRevokeUser(null)} onConfirm={executeRevokeSessions} title={t('revoke_sessions_title', 'Deconectare șofer')} message={revokeUser ? t('revoke_sessions_confirm', 'Sigur doriți să închideți toate sesiunile pentru {{name}}? Va trebui să se autentifice din nou.', { name: revokeUser.name }) : ''} confirmText={t('revoke_sessions_btn', 'Deconectează')} type="warning" />
       <ConfirmModal isOpen={!!deactivateUser} onClose={() => setDeactivateUser(null)} onConfirm={executeDelete} title={t('confirm', 'Confirmare')} message={t('confirmDeleteUser', 'Sunteți sigur că doriți să ștergeți acest utilizator? Această acțiune este ireversibilă.')} />
     </div>;
 }

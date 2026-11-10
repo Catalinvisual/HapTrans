@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
@@ -77,6 +77,14 @@ export class UsersService {
   }
   
   remove(id: string) { return this.repo.delete(id); }
+
+  /** Ends every active session for a user, e.g. a driver who must sign in again. */
+  async revokeUserSessions(userId: string) {
+    const user = await this.repo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilizatorul nu a fost găsit.');
+    await this.revokeSessions(userId, 'Revoked by administrator');
+    return { success: true };
+  }
 
   private async revokeSessions(userId: string, reason: string) {
     try {

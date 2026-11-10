@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Delete, Param, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -29,6 +29,14 @@ export class UsersController {
       delete dto.role;
     }
     return this.service.update(id, dto);
+  }
+
+  @Post(':id/revoke-sessions')
+  revokeSessions(@Param('id') id: string, @Request() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only administrators can revoke sessions.');
+    }
+    return this.service.revokeUserSessions(id);
   }
 
   @Delete(':id')

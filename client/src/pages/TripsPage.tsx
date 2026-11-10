@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, LayoutGrid, Pencil } from 'lucide-react';
+import { Truck, Search, Loader2, FileText, Trash2, Download, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, LayoutGrid } from 'lucide-react';
 import api from '../lib/api';
 import { generateTripPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
@@ -368,9 +368,6 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
           className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"
         >
           <FileText className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={e => { e.stopPropagation(); navigate(`/trips/${tr.id}`); }} title={t('open_trip', 'Open trip')} className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10">
-          <ExternalLink className="w-3.5 h-3.5" />
         </button>
         <button onClick={e => { e.stopPropagation(); setTripToDelete(tr.id); setDeleteModalOpen(true); }} title={t('delete', 'Delete')} className="p-1 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
           <Trash2 className="w-3.5 h-3.5" />
@@ -845,9 +842,6 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
               aria-label={t('download_trip_pdf', { reference: trip.tripNumber || 'Trip', defaultValue: 'Download trip sheet PDF: {{reference}}' })}
             >
               <FileText className="w-4 h-4" aria-hidden="true" />{t('pdf', 'PDF')}
-            </button>
-            <button onClick={() => navigate(`/trips/${trip.id}`)} className="btn-secondary text-sm flex items-center gap-1.5">
-              <Pencil className="w-4 h-4" />{t('edit', 'Edit')}
             </button>
             <button
               onClick={() => {

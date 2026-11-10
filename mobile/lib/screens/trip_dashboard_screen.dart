@@ -15,6 +15,7 @@ import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
 import '../widgets/cargo_allocations_card.dart';
 import '../widgets/delivery_rejection_sheet.dart';
+import '../widgets/document_type_sheet.dart';
 import '../widgets/navigation_dialog.dart';
 import '../widgets/report_flow.dart';
 import '../widgets/status_badge.dart';
@@ -91,28 +92,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   }
 
   Future<void> _uploadTripDocument(AppLocalizations l) async {
-    var selectedType = 'pod';
-    final type = await showDialog<String>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(l.translate('upload_doc')),
-          content: DropdownButtonFormField<String>(
-            value: selectedType,
-            decoration: InputDecoration(labelText: l.translate('docs_document_type')),
-            items: documentTypes
-                .map((type) => DropdownMenuItem(value: type.id, child: Text(l.translate(type.labelKey))))
-                .toList(),
-            onChanged: (value) => setDialogState(() => selectedType = value ?? 'other'),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.translate('cancel'))),
-            ElevatedButton(onPressed: () => Navigator.pop(ctx, selectedType), child: Text(l.translate('docs_choose_file'))),
-          ],
-        ),
-      ),
-    );
+    final type = await showDocumentTypeSheet(context, l: l);
     if (type == null || !mounted) return;
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,

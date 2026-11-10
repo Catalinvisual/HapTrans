@@ -186,7 +186,7 @@ export default function OrderDetailDrawer({
             </div>
             {order.trip && (
               <button
-                onClick={() => navigate(`/trips/${order.trip.id}`)}
+                onClick={() => navigate(`/planning?openTrip=${encodeURIComponent(order.trip.id)}`)}
                 className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
               >
                 {t('open_trip', 'Open trip')} <ExternalLink className="w-3 h-3" />

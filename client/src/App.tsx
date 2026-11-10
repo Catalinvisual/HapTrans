@@ -46,7 +46,6 @@ function GlobalConfig() {
 const TripsPage        = lazy(() => import('./pages/TripsPage'));
 const OrdersPage       = lazy(() => import('./pages/OrdersPage'));
 const OrderDetailsPage = lazy(() => import('./pages/OrderDetailsPage'));
-const TripDetailsPage  = lazy(() => import('./pages/TripDetailsPage'));
 const DriversPage      = lazy(() => import('./pages/DriversPage'));
 const ClientsPage      = lazy(() => import('./pages/ClientsPage'));
 const LiveMapPage      = lazy(() => import('./pages/LiveMapPage'));
@@ -171,7 +170,6 @@ export default function App() {
 
             {/* All other pages are lazy-loaded chunks */}
             <Route path="trips" element={<Suspense fallback={<PageLoader />}><TripsPage /></Suspense>} />
-            <Route path="trips/:id" element={<Suspense fallback={<PageLoader />}><TripDetailsPage /></Suspense>} />
             <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
             <Route path="orders/:id" element={<Suspense fallback={<PageLoader />}><OrderDetailsPage /></Suspense>} />
             {/* Legacy quantity-quote URL → Orders (Quote Requests tab), params preserved */}

@@ -3,7 +3,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, ExternalLink,
+  Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle,
   Users, X, ChevronRight, ChevronLeft, Calendar, ArrowRight, Activity, Search,
   Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
@@ -1635,9 +1635,6 @@ function TripDetailDrawer({
               title={t('download_trip_pdf', { reference: trip.tripNumber || 'Trip', defaultValue: 'Download trip sheet PDF: {{reference}}' })}
             >
               <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t('pdf', 'PDF')}</span>
-            </button>
-            <button onClick={() => navigate(`/trips/${tripId}`)} className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1">
-              <ExternalLink className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t('jsx_context_openTrip','Open')}</span>
             </button>
             <button onClick={() => setIsExpanded(p => !p)} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors" title={isExpanded ? t('collapse', 'Collapse') : t('expand', 'Expand')}>
               {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
