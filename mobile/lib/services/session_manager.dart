@@ -30,6 +30,7 @@ class SessionManager {
   String? _accessToken;
   String? _refreshToken;
   bool _loaded = false;
+  bool _restoreCompleted = false;
   Future<bool>? _refreshInFlight;
 
   final List<void Function()> _tokenListeners = [];
@@ -47,7 +48,9 @@ class SessionManager {
   /// Reads the persisted session. Legacy plain-text tokens from older APK
   /// versions are moved into secure storage once, then deleted.
   Future<void> restore(SharedPreferences prefs) async {
-    if (_loaded) return;
+    if (_restoreCompleted) return;
+    // NotificationService may have called ensureLoaded() first; re-read so the
+    // legacy migration and expiry checks still run before the first frame.
     await _load();
 
     if (!hasSession) {
@@ -66,6 +69,7 @@ class SessionManager {
     }
 
     _loaded = true;
+    _restoreCompleted = true;
   }
 
   /// Used by the background location isolate, which has no SharedPreferences
