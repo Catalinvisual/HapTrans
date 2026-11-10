@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Header, UseGuards, Request, Response, Logger, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Header, HttpCode, UseGuards, Request, Response, Logger, UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -84,6 +84,10 @@ export class AuthController {
   }
 
   @Post('refresh')
+  // The driver app treats a renewal as successful only on 200, and it may keep
+  // an already-installed build for months, so the route must answer 200 (Nest
+  // would otherwise use 201 for a POST).
+  @HttpCode(200)
   async refresh(@Request() req: any, @Response() res: any) {
     // Mobile sends the rotating token in the body; the web keeps using its
     // HttpOnly cookie. Both resolve to the same session store.
