@@ -79,6 +79,21 @@ describe('AuthController mobile refresh contract', () => {
     );
   });
 
+  it('returns 503 instead of 401 when the session store fails', async () => {
+    const authService: any = {
+      refreshToken: jest.fn().mockRejectedValue(new Error('database unavailable')),
+    };
+    const controller = new AuthController(authService);
+    const res = fakeResponse();
+    const req = fakeRequest({ body: { refreshToken: 'session-id.secret' } });
+
+    await controller.refresh(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.clearCookie).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ message: 'Temporary authentication failure' });
+  });
+
   it('revokes the session behind the mobile refresh token on logout', async () => {
     const authService: any = { revokeRefreshToken: jest.fn().mockResolvedValue(true) };
     const controller = new AuthController(authService);

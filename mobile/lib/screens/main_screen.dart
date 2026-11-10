@@ -78,10 +78,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
       if (auth.token != null) {
         tripProv.loadTrips(auth.token!).then((_) {
+          // A 401 reaches here only after ApiClient already tried to renew. If
+          // the refresh token was truly rejected, SessionManager itself ended
+          // the session and routed to login; a transient refresh failure must
+          // never destroy a valid 90-day session.
           if (tripProv.error == '401' || (tripProv.error != null && tripProv.error!.contains('401'))) {
-            // The interceptor already tried a refresh; this only clears what is
-            // left and lets AuthProvider route back to login.
-            auth.logout();
             return;
           }
           if (mounted) {
@@ -99,7 +100,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           if (mounted && auth.token != null) {
             tripProv.silentReloadTrips(auth.token!).then((_) {
               if (tripProv.error == '401' || (tripProv.error != null && tripProv.error!.contains('401'))) {
-                auth.logout();
+                // SessionManager decides when a session is over; see above.
                 return;
               }
               if (mounted) {

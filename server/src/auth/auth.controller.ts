@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Header, UseGuards, Request, Response, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Get, Header, UseGuards, Request, Response, Logger, UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -120,7 +120,13 @@ export class AuthController {
           : {}),
       });
     } catch (e: any) {
-      // Clear cookie if refresh fails
+      if (!(e instanceof UnauthorizedException)) {
+        // A DB or network failure is not proof that the refresh token is
+        // invalid. Returning 401 here would make every client discard a valid
+        // 90-day session during a transient backend problem.
+        return res.status(503).json({ message: 'Temporary authentication failure' });
+      }
+      // Clear the cookie only when the session itself was rejected.
       res.clearCookie('refresh_token');
       return res.status(401).json({ message: e.message || 'Invalid refresh token' });
     }
@@ -178,9 +184,9 @@ export class AuthController {
   @Get('app-version')
   @Header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
   getAppVersion() {
-    const apk = 'HapTrans-v33.apk';
-    const versionCode = 33;
-    const versionName = '1.0.33';
+    const apk = 'HapTrans-v34.apk';
+    const versionCode = 34;
+    const versionName = '1.0.34';
     return {
       // Legacy fields stay for v21 clients; new clients compare latestVersionCode.
       latestVersionCode: versionCode,

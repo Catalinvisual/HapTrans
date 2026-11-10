@@ -167,17 +167,10 @@ class SessionManager {
       }
 
       if (res.statusCode == 401 || res.statusCode == 403) {
-        // The background isolate can rotate at the same moment as the app. If
-        // storage already holds a different token, that renewal won: adopt it
-        // instead of destroying a valid session.
-        final storedRefresh = await _readSecure(_refreshTokenKey);
-        if (storedRefresh != null && storedRefresh != attempted) {
-          _refreshToken = storedRefresh;
-          _accessToken = await _readSecure(_accessTokenKey);
-          _loaded = true;
-          _notifyTokens();
-          return _accessToken != null;
-        }
+        // The app and the background isolate can rotate at the same moment.
+        // The winner may still be writing the new pair to secure storage, so
+        // wait briefly instead of deleting a session that is actually valid.
+        if (await _adoptConcurrentRotation(attempted)) return true;
         await endSession(expired: true);
         return false;
       }
@@ -189,6 +182,29 @@ class SessionManager {
       debugPrint('Token refresh failed (transient): $e');
       return false;
     }
+  }
+
+  /// Waits briefly for another isolate to persist the winning rotation.
+  Future<bool> _adoptConcurrentRotation(String attempted) async {
+    for (var attempt = 0; attempt < 8; attempt++) {
+      final storedRefresh = await _readSecure(_refreshTokenKey);
+      if (storedRefresh != null &&
+          storedRefresh.isNotEmpty &&
+          storedRefresh != attempted) {
+        final storedAccess = await _readSecure(_accessTokenKey);
+        if (storedAccess != null && storedAccess.isNotEmpty) {
+          _refreshToken = storedRefresh;
+          _accessToken = storedAccess;
+          _loaded = true;
+          _notifyTokens();
+          return true;
+        }
+      }
+      if (attempt < 7) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
+    return false;
   }
 
   Future<String?> _readSecure(String key) async {

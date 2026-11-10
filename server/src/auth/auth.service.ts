@@ -12,6 +12,12 @@ import { Session } from './entities/session.entity';
 export const ACCESS_TOKEN_TTL = '15m';
 /** Driver devices stay signed in for 90 days without asking for credentials again. */
 export const REFRESH_TOKEN_TTL_DAYS = 90;
+/**
+ * A just-rotated token stays usable for a short grace window. The app and its
+ * background location isolate can renew at the same instant; without this the
+ * losing request would receive 401 and could discard the winner's new session.
+ */
+export const REFRESH_ROTATION_GRACE_MS = 90 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -104,7 +110,7 @@ export class AuthService {
     const [sessionId, tokenValue] = tokenString.split('.');
     
     const session = await this.sessionsRepo.findOne({ where: { id: sessionId } });
-    if (!session || session.revokedAt) {
+    if (!session) {
       throw new UnauthorizedException('Session invalid or revoked');
     }
     if (session.expiresAt < new Date()) {
@@ -119,6 +125,19 @@ export class AuthService {
       throw new UnauthorizedException('Invalid session token');
     }
 
+    // Accept a just-rotated token briefly: two app isolates can renew the same
+    // refresh token concurrently, and the loser must not invalidate the winner.
+    const revokedAge = session.revokedAt
+      ? Date.now() - new Date(session.revokedAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    const recentlyRotated =
+      session.revokedReason === 'Rotated' &&
+      revokedAge >= 0 &&
+      revokedAge < REFRESH_ROTATION_GRACE_MS;
+    if (session.revokedAt && !recentlyRotated) {
+      throw new UnauthorizedException('Session invalid or revoked');
+    }
+
     // The account may have been deactivated while the session was still valid.
     // Fail before rotating, so the session is not silently replaced.
     const user = await this.usersRepo.findOne({ where: { id: session.userId } });
@@ -127,8 +146,11 @@ export class AuthService {
       throw new UnauthorizedException('User inactive');
     }
 
-    // Refresh Token Rotation: Revoke old session, create a new one
-    await this.revokeSession(session.id, 'Rotated');
+    // Refresh Token Rotation: Revoke old session, create a new one. A token in
+    // the grace window is already revoked and only gets its replacement.
+    if (!session.revokedAt) {
+      await this.revokeSession(session.id, 'Rotated');
+    }
 
     return this.createSessionAndTokens(user, deviceInfo || session.deviceInfo, ipAddress || session.ipAddress);
   }

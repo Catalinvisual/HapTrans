@@ -20,15 +20,25 @@ import 'services/background_location_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Clear preferences on fresh installation (ignore Android Auto-Backup data)
-  final tempDir = await getTemporaryDirectory();
-  final flagFile = File('${tempDir.path}/.has_run');
   final prefs = await SharedPreferences.getInstance();
+  // Keep the "already installed" marker outside the cache: Android may clear
+  // the cache during an APK update, and that must never wipe a 90-day session.
+  // The legacy cache marker is still honoured so existing installs migrate
+  // without being logged out once.
+  final tempDir = await getTemporaryDirectory();
+  final supportDir = await getApplicationSupportDirectory();
+  final flagFile = File('${supportDir.path}/.has_run');
+  final legacyFlagFile = File('${tempDir.path}/.has_run');
   if (!await flagFile.exists()) {
-    await prefs.clear();
-    await SessionManager.instance.clear();
+    final existingInstall =
+        await legacyFlagFile.exists() || prefs.getKeys().isNotEmpty;
+    if (!existingInstall) {
+      // Fresh install: ignore preferences restored by Android Auto Backup.
+      await prefs.clear();
+      await SessionManager.instance.clear();
+    }
     try {
-      await flagFile.create();
+      await flagFile.create(recursive: true);
     } catch (_) {}
   }
 

@@ -1,6 +1,6 @@
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { AuthService, ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_DAYS } from './auth.service';
+import { AuthService, ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_DAYS, REFRESH_ROTATION_GRACE_MS } from './auth.service';
 import { UserRole } from '../users/user.entity';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -106,7 +106,7 @@ describe('AuthService persistent sessions', () => {
     expect(result.refreshToken.startsWith(`${sessions[0].id}.`)).toBe(true);
   });
 
-  it('rotates the refresh token on renewal and rejects the used token', async () => {
+  it('rotates the refresh token and allows a concurrent renewal inside the grace window', async () => {
     const { service, sessions } = build();
     const login = await service.login('driver@example.com', 'DriverPass1');
 
@@ -121,7 +121,30 @@ describe('AuthService persistent sessions', () => {
     const renewed: any = jwt.decode(rotated.accessToken);
     expect(renewed.exp - renewed.iat).toBe(15 * 60);
 
+    // The main app and the background location isolate can send the same
+    // refresh token at the same moment. The loser must not be logged out.
+    const raced = await service.refreshToken(login.refreshToken);
+    expect(raced.refreshToken).not.toBe(login.refreshToken);
+    expect(sessions).toHaveLength(3);
+    expect(sessions[2].revokedAt).toBeFalsy();
+
+    // Replay protection still applies once the short grace window closes.
+    sessions[0].revokedAt = new Date(Date.now() - REFRESH_ROTATION_GRACE_MS - 1_000);
     await expect(service.refreshToken(login.refreshToken)).rejects.toThrow('Session invalid or revoked');
+  });
+
+  it('keeps both simultaneous renewals valid', async () => {
+    const { service, sessions } = build();
+    const login = await service.login('driver@example.com', 'DriverPass1');
+
+    const [first, second] = await Promise.all([
+      service.refreshToken(login.refreshToken),
+      service.refreshToken(login.refreshToken),
+    ]);
+
+    expect(first.refreshToken).not.toBe(second.refreshToken);
+    expect(sessions).toHaveLength(3);
+    expect(sessions.filter((session) => !session.revokedAt)).toHaveLength(2);
   });
 
   it('rejects an expired refresh session', async () => {
