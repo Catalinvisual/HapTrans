@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../l10n/delivery_rejection_l10n.dart';
@@ -15,6 +16,7 @@ import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
 import '../widgets/cargo_allocations_card.dart';
 import '../widgets/delivery_rejection_sheet.dart';
+import '../widgets/document_source_sheet.dart';
 import '../widgets/document_type_sheet.dart';
 import '../widgets/navigation_dialog.dart';
 import '../widgets/report_flow.dart';
@@ -94,12 +96,43 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   Future<void> _uploadTripDocument(AppLocalizations l) async {
     final type = await showDocumentTypeSheet(context, l: l);
     if (type == null || !mounted) return;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic'],
+
+    final typeLabel = l.translate(documentTypeById(type)?.labelKey ?? 'doc_type_other');
+    final source = await showDocumentSourceSheet(
+      context,
+      l: l,
+      documentLabel: typeLabel,
     );
-    final path = result?.files.single.path;
-    if (path == null || !mounted) return;
+    if (source == null || !mounted) return;
+
+    String? path;
+    try {
+      if (source == DocumentSource.camera) {
+        final picked = await ImagePicker().pickImage(
+          source: ImageSource.camera,
+          imageQuality: 80,
+        );
+        path = picked?.path;
+      } else {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic'],
+        );
+        path = result?.files.single.path;
+      }
+    } catch (e) {
+      debugPrint('Error picking trip document: $e');
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(SnackBar(
+          content: Text(l.translate('action_failed')),
+          backgroundColor: kError,
+        ));
+      }
+      return;
+    }
+    if (path == null || path.isEmpty || !mounted) return;
     setState(() => _busy = true);
     final error = await context.read<TripProvider>().uploadDocument(
       widget.token,
