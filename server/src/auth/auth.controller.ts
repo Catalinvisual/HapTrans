@@ -183,9 +183,9 @@ export class AuthController {
   @Get('app-version')
   @Header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
   getAppVersion() {
-    const apk = 'HapTrans-v36.apk';
-    const versionCode = 36;
-    const versionName = '1.0.36';
+    const apk = 'HapTrans-v37.apk';
+    const versionCode = 37;
+    const versionName = '1.0.37';
     return {
       // Legacy fields stay for v21 clients; new clients compare latestVersionCode.
       latestVersionCode: versionCode,

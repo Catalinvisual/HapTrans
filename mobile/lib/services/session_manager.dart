@@ -27,11 +27,19 @@ class SessionManager {
   /// Renew slightly before expiry so a request never races the clock.
   static const refreshSkew = Duration(seconds: 60);
 
+  /// How many times one renewal is attempted before it is reported as failed.
+  static const _refreshAttempts = 3;
+
+  /// After a transient failure the app waits before trying again, so a server
+  /// that answered 429/5xx is not flooded by every poll in flight.
+  static const transientRetryCooldown = Duration(seconds: 10);
+
   String? _accessToken;
   String? _refreshToken;
   bool _loaded = false;
   bool _restoreCompleted = false;
   Future<bool>? _refreshInFlight;
+  DateTime? _lastTransientFailureAt;
 
   final List<void Function()> _tokenListeners = [];
   final List<void Function()> _expiredListeners = [];
@@ -98,6 +106,7 @@ class SessionManager {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
     _loaded = true;
+    _lastTransientFailureAt = null;
     try {
       await _secureStorage.write(key: _accessTokenKey, value: accessToken);
       if (refreshToken == null) {
@@ -142,46 +151,67 @@ class SessionManager {
     final attempted = _refreshToken;
     if (attempted == null || attempted.isEmpty) return false;
 
-    try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        headers: {'x-client-platform': 'mobile'},
-      ));
-      final res = await dio.post(
-        '$kApiUrl/auth/refresh',
-        data: {'refreshToken': attempted},
-        options: Options(validateStatus: (_) => true),
-      );
-
-      final data = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : const <String, dynamic>{};
-
-      if (res.statusCode == 200) {
-        final access = data['access_token']?.toString();
-        if (access == null || access.isEmpty) return false;
-        // Rotation: the server always returns a new refresh token. Keeping the
-        // old one would make the next renewal fail.
-        final rotated = data['refresh_token']?.toString();
-        await saveTokens(accessToken: access, refreshToken: rotated ?? attempted);
-        return true;
-      }
-
-      if (res.statusCode == 401 || res.statusCode == 403) {
-        // The app and the background isolate can rotate at the same moment.
-        // The winner may still be writing the new pair to secure storage, so
-        // wait briefly instead of deleting a session that is actually valid.
-        if (await _adoptConcurrentRotation(attempted)) return true;
-        await endSession(expired: true);
-        return false;
-      }
-
-      // Server-side transient failure: keep the session and retry later.
-      return false;
-    } catch (e) {
-      // Offline or timeout: never log the driver out for a network problem.
-      debugPrint('Token refresh failed (transient): $e');
+    // A just-failed renewal (429, 5xx, offline) must not be retried by every
+    // poll that lands in the next few seconds.
+    final lastFailure = _lastTransientFailureAt;
+    if (lastFailure != null &&
+        DateTime.now().difference(lastFailure) < transientRetryCooldown) {
       return false;
     }
+
+    for (var attempt = 0; attempt < _refreshAttempts; attempt++) {
+      try {
+        final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {'x-client-platform': 'mobile'},
+        ));
+        final res = await dio.post(
+          '$kApiUrl/auth/refresh',
+          data: {'refreshToken': attempted},
+          options: Options(validateStatus: (_) => true),
+        );
+
+        final data = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : const <String, dynamic>{};
+
+        if (res.statusCode == 200) {
+          final access = data['access_token']?.toString();
+          if (access == null || access.isEmpty) {
+            _lastTransientFailureAt = DateTime.now();
+            return false;
+          }
+          // Rotation: the server always returns a new refresh token. Keeping
+          // the old one would make the next renewal fail.
+          final rotated = data['refresh_token']?.toString();
+          await saveTokens(accessToken: access, refreshToken: rotated ?? attempted);
+          return true;
+        }
+
+        if (res.statusCode == 401 || res.statusCode == 403) {
+          // The app and the background isolate can rotate at the same moment.
+          // The winner may still be writing the new pair to secure storage, so
+          // wait briefly instead of deleting a session that is actually valid.
+          if (await _adoptConcurrentRotation(attempted)) return true;
+          await endSession(expired: true);
+          return false;
+        }
+
+        // 429/5xx: the server refused this attempt for a transient reason. The
+        // session is still valid, so retry with a short backoff instead of
+        // leaving the app with an expired access token.
+        debugPrint('Token refresh transient status: ${res.statusCode}');
+      } catch (e) {
+        // Offline or timeout: never log the driver out for a network problem.
+        debugPrint('Token refresh failed (transient): $e');
+      }
+
+      if (attempt < _refreshAttempts - 1) {
+        await Future<void>.delayed(Duration(seconds: 2 + attempt * 3));
+      }
+    }
+
+    _lastTransientFailureAt = DateTime.now();
+    return false;
   }
 
   /// Waits briefly for another isolate to persist the winning rotation.

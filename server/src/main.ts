@@ -328,11 +328,29 @@ async function bootstrap() {
     }),
   );
 
+  // Session renewal must never share the generic API budget. The mobile app
+  // renews from the app process and from its background tracking isolate, and
+  // it retries after a transient answer. A throttled renewal is
+  // indistinguishable from a dead session: the client keeps an expired access
+  // token and every screen shows 401 until the driver signs in again.
+  app.use(
+    '/api/auth/refresh',
+    rateLimit({
+      windowMs: 60 * 1000,
+      max: 120,
+      message: 'Too many session renewals. Please retry in a minute.',
+    }),
+  );
+
   // General rate limit for all other routes
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 500,
+      // A driver's app polls trips every 8s and its tracking service every 5s,
+      // so a few hundred requests per window are normal usage, not abuse. The
+      // strict login and public-tracking limits above still apply.
+      max: 3000,
+      skip: (req) => (req.path || '').startsWith('/api/auth/refresh'),
       message: 'Too many requests from this IP, please try again later.',
     }),
   );

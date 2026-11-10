@@ -74,6 +74,9 @@ class _SessionInterceptor extends Interceptor {
 
     final renewed = await SessionManager.instance.refresh();
     if (!renewed) {
+      // The session may already have been ended by SessionManager (server
+      // rejected the refresh token) or be waiting out a transient cooldown.
+      // Either way the caller must see the failure, never a silent empty app.
       handler.next(err);
       return;
     }
@@ -90,6 +93,12 @@ class _SessionInterceptor extends Interceptor {
       final response = await dio.fetch(options);
       handler.resolve(response);
     } on DioException catch (retryError) {
+      if (retryError.response?.statusCode == 401) {
+        // A request retried with a brand-new access token was rejected again:
+        // the session itself is no longer valid. Return to login instead of
+        // leaving the driver inside a screen that can never load data.
+        await SessionManager.instance.endSession(expired: true);
+      }
       handler.next(retryError);
     } catch (_) {
       handler.next(err);

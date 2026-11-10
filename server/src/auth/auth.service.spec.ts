@@ -213,4 +213,30 @@ describe('AuthService persistent sessions', () => {
     expect(validated.id).toBe('user-1');
     expect(validated.isActive).toBe(true);
   });
+
+  it('registers an active driver account and refuses office roles', async () => {
+    const created: any[] = [];
+    const usersRepo: any = {
+      findOne: async () => null,
+      create: (value: any) => ({ ...value }),
+      save: async (value: any) => {
+        created.push(value);
+        return value;
+      },
+    };
+    const driversRepo: any = { create: (value: any) => value, save: async (value: any) => value };
+    const service = new AuthService(usersRepo, driversRepo, {} as any, jwt);
+
+    await service.register({ email: 'new@example.com', password: 'DriverPass1', name: 'New Driver' });
+
+    // The live users table predates isActive, so its default can be false/NULL.
+    // Registration must set this explicitly or the driver can never sign in.
+    expect(created[0].isActive).toBe(true);
+    expect(created[0].role).toBe(UserRole.DRIVER);
+    expect(created[0].allowedPages).toEqual([]);
+
+    await expect(
+      service.register({ email: 'office@example.com', password: 'DriverPass1', name: 'Office', role: UserRole.ACCOUNTANT }),
+    ).rejects.toThrow('Public registration is limited to driver accounts');
+  });
 });

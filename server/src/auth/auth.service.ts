@@ -48,6 +48,10 @@ export class AuthService {
       name: dto.name,
       role: UserRole.DRIVER,
       allowedPages: [],
+      // Never rely on the column default: on live databases the users table was
+      // created before this column existed, so its default can be NULL/false
+      // and a fresh driver could register but never sign in.
+      isActive: true,
     });
     const saved = await this.usersRepo.save(user);
     if (saved.role === UserRole.DRIVER) {
