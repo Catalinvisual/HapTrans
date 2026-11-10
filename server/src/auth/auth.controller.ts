@@ -123,10 +123,23 @@ export class AuthController {
         // A DB or network failure is not proof that the refresh token is
         // invalid. Returning 401 here would make every client discard a valid
         // 90-day session during a transient backend problem.
+        const params = Array.isArray(e?.parameters)
+          ? e.parameters.map((p: any) => {
+              if (p === null) return 'NULL';
+              if (typeof p === 'string') return p.length <= 36 ? p : `<string:${p.length}>`;
+              return `<${typeof p}>`;
+            })
+          : undefined;
         const diagnostic = {
           name: e?.name,
           code: e?.code,
           message: String(e?.message || '').slice(0, 400),
+          query: typeof e?.query === 'string' ? e.query.slice(0, 500) : undefined,
+          parameters: params,
+          detail: e?.detail,
+          table: e?.table,
+          column: e?.column,
+          constraint: e?.constraint,
         };
         new Logger('AuthRefresh').error(`rotation failed ${JSON.stringify(diagnostic)}`);
         return res.status(503).json({ message: 'Temporary authentication failure', _diag: diagnostic });
