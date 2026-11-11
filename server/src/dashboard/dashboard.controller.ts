@@ -15,6 +15,10 @@ export class DashboardController {
     @Query('to') to: string | undefined,
     @Query('granularity') granularity: string | undefined,
     @Query('today') today: string | undefined,
+    @Query('truckId') truckId: string | undefined,
+    @Query('driverId') driverId: string | undefined,
+    @Query('clientId') clientId: string | undefined,
+    @Query('country') country: string | undefined,
     @Req() req: any,
   ) {
     return this.service.getOverview({
@@ -22,8 +26,18 @@ export class DashboardController {
       to,
       granularity,
       today,
+      truckId,
+      driverId,
+      clientId,
+      country,
       companyId: req?.user?.companyId ?? null,
     });
+  }
+
+  /** Select options for the dashboard filter bar (company scoped). */
+  @Get('filter-options')
+  getFilterOptions(@Req() req: any) {
+    return this.service.getFilterOptions(req?.user?.companyId ?? null);
   }
 
   @Get('analytics')

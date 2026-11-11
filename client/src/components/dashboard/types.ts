@@ -58,6 +58,57 @@ export interface OverviewAlert {
   link: string;
 }
 
+export interface OverviewClientReliability {
+  id: string;
+  name: string;
+  total: number;
+  onTime: number;
+  onTimeRate: number;
+  avgDelay: number;
+}
+
+export interface OverviewLaneReliability {
+  from: string;
+  to: string;
+  trips: number;
+  onTime: number;
+  onTimeRate: number;
+  avgDelay: number;
+}
+
+export interface OverviewDriverHour {
+  driverId: string | null;
+  driverName: string;
+  truckId: string | null;
+  truckPlate: string;
+  activity: string;
+  drivingRemainingMin: number;
+  weeklyRemainingMin: number;
+  breakInMin: number;
+  updatedAt: string | null;
+}
+
+export interface OverviewTelemetry {
+  total: number;
+  online: number;
+  offline: number;
+  noDevice: number;
+  stale: Array<{ id: string; plate: string; lastSeenAt: string | null; status: string }>;
+}
+
+export interface OverviewHeatmap {
+  buckets: string[];
+  cells: Array<{ day: number; bucket: number; total: number; late: number }>;
+  max: number;
+}
+
+export interface OverviewFilterOptions {
+  trucks: Array<{ id: string; name: string }>;
+  drivers: Array<{ id: string; name: string }>;
+  clients: Array<{ id: string; name: string }>;
+  countries: string[];
+}
+
 export interface OverviewData {
   meta: {
     from: string;
@@ -86,6 +137,13 @@ export interface OverviewData {
   byCountry: Array<{ country: string; pickups: number; deliveries: number; total: number }>;
   statusDistribution: Array<{ status: string; count: number }>;
   topRoutes: Array<{ from: string; to: string; trips: number; km: number }>;
+  reliability?: {
+    clients: OverviewClientReliability[];
+    lanes: OverviewLaneReliability[];
+  };
+  heatmap?: OverviewHeatmap;
+  driverHours?: OverviewDriverHour[];
+  telemetry?: OverviewTelemetry;
   delayedTrips: OverviewTrip[];
   unassignedOrders: OverviewOrder[];
   fleet: {

@@ -854,6 +854,8 @@ async function bootstrap() {
     await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "tollCountries" text`).catch(() => {});
     await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "trafficDelayMinutes" integer DEFAULT 0`).catch(() => {});
     await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "trafficStatus" character varying DEFAULT 'normal'`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "hasOpenIncident" boolean NOT NULL DEFAULT false`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "hasOpenIncident" boolean NOT NULL DEFAULT false`).catch(() => {});
 
     // NOW run explicit TypeORM migrations (non-destructive, idempotent).
     // Only one instance may migrate at a time; a session-level advisory lock on

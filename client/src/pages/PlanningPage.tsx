@@ -2644,6 +2644,7 @@ export default function PlanningPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const handledOpenTripRef = useRef<string | null>(null);
+  const handledAssignOrderRef = useRef<string | null>(null);
   useEffect(() => {
     const openTripParam = searchParams.get('openTrip') || searchParams.get('tripId');
     if (!openTripParam) {
@@ -2660,6 +2661,43 @@ export default function PlanningPage() {
     nextParams.delete('tripId');
     setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  // Deep link from the dashboard's unassigned-orders panel: open the assign
+  // modal for that order instead of dropping the dispatcher into the board.
+  useEffect(() => {
+    const orderId = searchParams.get('orderId') || searchParams.get('assignOrder');
+    if (!orderId) {
+      handledAssignOrderRef.current = null;
+      return;
+    }
+    if (handledAssignOrderRef.current === orderId) return;
+
+    const cleanParam = () => {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('orderId');
+      nextParams.delete('assignOrder');
+      setSearchParams(nextParams, { replace: true });
+    };
+
+    const fromBoard = (boardData?.orders || []).find((order: any) => order.id === orderId);
+    if (fromBoard) {
+      handledAssignOrderRef.current = orderId;
+      setAssignOrderModal(fromBoard);
+      cleanParam();
+      return;
+    }
+
+    handledAssignOrderRef.current = orderId;
+    api.get(`/orders/${orderId}`)
+      .then((response) => {
+        const order = response.data?.order || response.data;
+        if (order?.id) {
+          setAssignOrderModal(order);
+          cleanParam();
+        }
+      })
+      .catch(() => { /* order unavailable */ });
+  }, [searchParams, setSearchParams, boardData]);
 
   const [poolCollapsed, setPoolCollapsed] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);

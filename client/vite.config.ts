@@ -68,6 +68,10 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // The dispatcher dashboard is eager-loaded, so the main entry chunk is
+        // slightly above Workbox's 2 MiB default. Cache it instead of failing
+        // the production build.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // Only cache static assets (HTML, CSS, JS, Fonts, Images)
         // EXPLICITLY DO NOT CACHE API REQUESTS to avoid stale data
         runtimeCaching: [

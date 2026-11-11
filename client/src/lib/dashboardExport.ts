@@ -407,3 +407,138 @@ export function exportDashboardPdf(
 
   doc.save(`dashboard-${data.meta.from.slice(0, 10)}-${data.meta.to.slice(0, 10)}.pdf`);
 }
+
+/** Compact portrait handover sheet for the next dispatcher shift. */
+export function exportHandoverPdf(
+  data: OverviewData,
+  t: Translator,
+  lang: string,
+  resolvedIds: Set<string> = new Set(),
+): void {
+  const doc = new jsPDF('portrait', 'pt', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 36;
+  const alerts = data.alerts.filter((alert) => !resolvedIds.has(alert.id));
+  const incidents = alerts.filter((alert) => alert.type === 'incident');
+  const documents = alerts.filter((alert) => alert.type === 'document');
+  const driverRows = (data.driverHours || []).filter((row) => row.drivingRemainingMin <= 120 || row.breakInMin <= 30);
+  const offline = data.telemetry?.stale || [];
+
+  const hm = (minutes: number): string => {
+    const safe = Math.max(0, Math.round(minutes || 0));
+    const h = Math.floor(safe / 60);
+    const m = safe % 60;
+    return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+  };
+
+  doc.setFillColor(...PRIMARY);
+  doc.rect(0, 0, pageWidth, 96, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text(clean(t('dbd_handover_title')), margin, 42);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(clean(`${formatLongDate(data.today.date, lang)} · ${data.today.date}`), margin, 62);
+  doc.text(clean(t('dbd_handover_sub')), margin, 77);
+
+  let cursor = 118;
+  const section = (title: string, head: string[], body: any[]) => {
+    if (!body.length) return;
+    if (cursor > pageHeight - 150) {
+      doc.addPage();
+      cursor = 50;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT_DARK);
+    doc.text(clean(title), margin, cursor);
+    autoTable(doc, {
+      startY: cursor + 6,
+      head: [head.map((cell) => clean(cell))],
+      body: body.map((row) => row.map(cleanCell)),
+      theme: 'grid',
+      margin: { left: margin, right: margin },
+      headStyles: { fillColor: PRIMARY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 4, textColor: TEXT_DARK, lineColor: [235, 235, 235] },
+      alternateRowStyles: { fillColor: PRIMARY_LIGHT },
+    });
+    cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 22;
+  };
+
+  autoTable(doc, {
+    startY: cursor,
+    body: [
+      [clean(t('dbd_handover_delayed')), String(data.today.counts.delayed)],
+      [clean(t('dbd_handover_unassigned')), String(data.kpis.ordersUnassigned || 0)],
+      [clean(t('dbd_handover_incidents')), String(incidents.length)],
+      [clean(t('dbd_handover_docs')), String(documents.length)],
+    ],
+    theme: 'grid',
+    margin: { left: margin, right: margin },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 220 }, 1: { fontStyle: 'bold', halign: 'right' } },
+    styles: { fontSize: 9, cellPadding: 5, textColor: TEXT_DARK },
+    alternateRowStyles: { fillColor: PRIMARY_LIGHT },
+  });
+  cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 24;
+
+  section(
+    t('dbd_handover_delayed'),
+    [t('ref_table_header', 'Ref'), t('jsx_route', 'Route'), t('dbd_min')],
+    data.today.delayed.map((trip) => [
+      trip.tripNumber || trip.id.slice(0, 8).toUpperCase(),
+      routeText(trip.originCity, trip.originCountry, trip.destCity, trip.destCountry, lang),
+      `+${trip.delayMinutes}`,
+    ]),
+  );
+
+  section(
+    t('dbd_handover_unassigned'),
+    [t('ref_table_header', 'Ref'), t('jsx_client', 'Client'), t('jsx_route', 'Route'), t('jsx_priority', 'Priority')],
+    data.unassignedOrders.map((order) => [
+      order.orderNumber || order.id.slice(0, 8).toUpperCase(),
+      order.clientName || '—',
+      routeText(order.originCity, order.originCountry, order.destCity, order.destCountry, lang),
+      order.priority,
+    ]),
+  );
+
+  section(
+    t('dbd_handover_incidents'),
+    [t('ref_table_header', 'Ref'), t('jsx_route', 'Route'), t('jsx_status', 'Status')],
+    incidents.map((alert) => [alert.title, alert.subtitle || '—', alert.severity]),
+  );
+
+  section(
+    t('dbd_handover_docs'),
+    [t('jsx_documents', 'Document'), t('dbd_days')],
+    documents.map((alert) => [alert.title, alert.value != null ? String(Math.max(0, alert.value)) : '—']),
+  );
+
+  section(
+    t('dbd_handover_drivers'),
+    [t('jsx_driver', 'Driver'), t('jsx_truck', 'Truck'), t('dbd_driving_left'), t('dbd_break_in')],
+    driverRows.map((row) => [row.driverName, row.truckPlate, hm(row.drivingRemainingMin), hm(row.breakInMin)]),
+  );
+
+  section(
+    t('dbd_handover_offline'),
+    [t('jsx_truck', 'Truck'), t('dbd_last_seen'), t('jsx_status', 'Status')],
+    offline.map((row) => [row.plate, row.lastSeenAt ? formatTime(row.lastSeenAt, lang) : '—', row.status]),
+  );
+
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page++) {
+    doc.setPage(page);
+    doc.setDrawColor(235, 235, 235);
+    doc.line(margin, pageHeight - 28, pageWidth - margin, pageHeight - 28);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(clean(`${t('dbd_handover_title')} · ${data.today.date}`), margin, pageHeight - 16);
+    doc.text(`${page} / ${pageCount}`, pageWidth - margin, pageHeight - 16, { align: 'right' });
+  }
+
+  doc.save(`handover-${data.today.date}.pdf`);
+}

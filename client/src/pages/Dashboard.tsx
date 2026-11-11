@@ -1,24 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarDays, CheckCircle2, Clock,
-  FileSpreadsheet, FileText, Globe, LoaderCircle, Navigation, Package, RefreshCw,
-  Route as RouteIcon, Target, Truck,
+  AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarDays, CheckCircle2, ClipboardList, Clock,
+  FileSpreadsheet, FileText, Globe, LoaderCircle, Monitor, Navigation, Package, RefreshCw,
+  Route as RouteIcon, SlidersHorizontal, Target, Truck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
-import { exportDashboardExcel, exportDashboardPdf } from '../lib/dashboardExport';
 import { fmtNumber, fmtPercent } from '../lib/format';
+import { exportDashboardExcel, exportDashboardPdf } from '../lib/dashboardExport';
 import OverviewKpi from '../components/dashboard/OverviewKpi';
 import TodayBoard from '../components/dashboard/TodayBoard';
 import { TrendChart, StatusDonut, CountryBars } from '../components/dashboard/DashboardCharts';
 import {
   AlertsPanel, UpcomingPanel, RoutesPanel, FleetDriversPanel, UnassignedOrdersPanel, QuickActions,
 } from '../components/dashboard/DashboardPanels';
-import type { OverviewData } from '../components/dashboard/types';
-import {
-  formatLongDate, formatShortDate, formatTime,
-} from '../components/dashboard/types';
+import FilterBar, { EMPTY_FILTERS } from '../components/dashboard/FilterBar';
+import type { DashboardFilterValue } from '../components/dashboard/FilterBar';
+import { ReliabilityPanel, HeatmapPanel, DriverHoursPanel, TelemetryPanel } from '../components/dashboard/Insights';
+import KioskMode from '../components/dashboard/KioskMode';
+import HandoverModal from '../components/dashboard/HandoverModal';
+import LayoutMenu from '../components/dashboard/LayoutMenu';
+import type { DashboardSection } from '../components/dashboard/LayoutMenu';
+import type { OverviewData, OverviewFilterOptions } from '../components/dashboard/types';
+import { formatLongDate, formatShortDate, formatTime } from '../components/dashboard/types';
 
 type Preset = 'today' | 'week' | 'month' | 'last30' | 'custom';
 
@@ -29,6 +34,19 @@ const PRESETS: Array<{ id: Preset; key: string }> = [
   { id: 'last30', key: 'dbd_range_last30' },
   { id: 'custom', key: 'dbd_range_custom' },
 ];
+
+const LAYOUT_KEY = 'haptrans.dashboard.layout.v1';
+const DEFAULT_SECTIONS: DashboardSection[] = [
+  { id: 'board', visible: true },
+  { id: 'trend', visible: true },
+  { id: 'geo', visible: true },
+  { id: 'forward', visible: true },
+  { id: 'reliability', visible: true },
+  { id: 'compliance', visible: true },
+  { id: 'unassigned', visible: true },
+];
+
+const EMPTY_OPTIONS: OverviewFilterOptions = { trucks: [], drivers: [], clients: [], countries: [] };
 
 function toISO(date: Date): string {
   const year = date.getFullYear();
@@ -76,6 +94,27 @@ function granularityFor(from: string, to: string): 'day' | 'week' | 'month' {
   return 'month';
 }
 
+function loadLayout(): DashboardSection[] {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if (!raw) return DEFAULT_SECTIONS;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_SECTIONS;
+    const known = new Set(DEFAULT_SECTIONS.map((section) => section.id));
+    const restored = parsed
+      .filter((section: any) => section && known.has(section.id))
+      .map((section: any) => ({ id: String(section.id), visible: section.visible !== false }));
+    const missing = DEFAULT_SECTIONS.filter((section) => !restored.some((item: DashboardSection) => item.id === section.id));
+    return [...restored, ...missing];
+  } catch {
+    return DEFAULT_SECTIONS;
+  }
+}
+
+function resolvedKey(day: string): string {
+  return `haptrans.dashboard.resolved.${day}`;
+}
+
 function MiniStat({
   icon: Icon, label, value, sub, color,
 }: {
@@ -112,14 +151,65 @@ export default function Dashboard() {
   const [preset, setPreset] = useState<Preset>('today');
   const [customFrom, setCustomFrom] = useState(todayISO);
   const [customTo, setCustomTo] = useState(todayISO);
+  const [filters, setFilters] = useState<DashboardFilterValue>(EMPTY_FILTERS);
+  const [options, setOptions] = useState<OverviewFilterOptions>(EMPTY_OPTIONS);
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'xlsx' | null>(null);
   const [error, setError] = useState(false);
+  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
+  const [layout, setLayout] = useState<DashboardSection[]>(loadLayout);
+  const [showLayout, setShowLayout] = useState(false);
+  const [showKiosk, setShowKiosk] = useState(false);
+  const [showHandover, setShowHandover] = useState(false);
 
   const range = useMemo(() => computeRange(preset, customFrom, customTo), [preset, customFrom, customTo]);
   const granularity = useMemo(() => granularityFor(range.from, range.to), [range.from, range.to]);
+
+  useEffect(() => {
+    api.get('/dashboard/filter-options')
+      .then((response) => {
+        const payload = response.data || {};
+        setOptions({
+          trucks: Array.isArray(payload.trucks) ? payload.trucks : [],
+          drivers: Array.isArray(payload.drivers) ? payload.drivers : [],
+          clients: Array.isArray(payload.clients) ? payload.clients : [],
+          countries: Array.isArray(payload.countries) ? payload.countries : [],
+        });
+      })
+      .catch(() => { /* filters remain optional */ });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(resolvedKey(todayISO));
+      setResolvedIds(new Set(raw ? JSON.parse(raw) : []));
+    } catch {
+      setResolvedIds(new Set());
+    }
+  }, [todayISO]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+    } catch { /* storage disabled */ }
+  }, [layout]);
+
+  // Offer the shift handover automatically on the first dashboard visit of
+  // each shift (morning / afternoon / night), once per browser and day.
+  useEffect(() => {
+    if (!data) return;
+    const hour = new Date().getHours();
+    const shift = hour < 6 ? 'night' : hour < 14 ? 'morning' : hour < 22 ? 'afternoon' : 'evening';
+    const key = `haptrans.dashboard.handover.${todayISO}.${shift}`;
+    try {
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, '1');
+        setShowHandover(true);
+      }
+    } catch { /* storage disabled */ }
+  }, [data, todayISO]);
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -131,6 +221,10 @@ export default function Dashboard() {
           to: range.to,
           today: todayISO,
           granularity,
+          truckId: filters.truckId || undefined,
+          driverId: filters.driverId || undefined,
+          clientId: filters.clientId || undefined,
+          country: filters.country || undefined,
         },
       });
       setData(res.data);
@@ -141,7 +235,7 @@ export default function Dashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [range.from, range.to, todayISO, granularity]);
+  }, [range.from, range.to, todayISO, granularity, filters.truckId, filters.driverId, filters.clientId, filters.country]);
 
   useEffect(() => {
     load();
@@ -152,8 +246,6 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [load]);
 
-  // Realtime operational updates (trip status changes / delivery incidents)
-  // refresh the board without a full page reload.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const handler = () => {
@@ -166,6 +258,9 @@ export default function Dashboard() {
       if (timer) clearTimeout(timer);
     };
   }, [load]);
+
+  const refresh = useCallback(() => { void load(true); }, [load]);
+  const closeKiosk = useCallback(() => setShowKiosk(false), []);
 
   const handleExport = useCallback(async (format: 'pdf' | 'xlsx') => {
     if (!data || exporting) return;
@@ -181,6 +276,24 @@ export default function Dashboard() {
       setExporting(null);
     }
   }, [data, exporting, t, lang]);
+
+  const resolveAlert = useCallback((id: string) => {
+    setResolvedIds((previous) => {
+      const next = new Set(previous);
+      next.add(id);
+      try {
+        localStorage.setItem(resolvedKey(todayISO), JSON.stringify([...next]));
+      } catch { /* storage disabled */ }
+      return next;
+    });
+  }, [todayISO]);
+
+  const resetResolved = useCallback(() => {
+    setResolvedIds(new Set());
+    try {
+      localStorage.removeItem(resolvedKey(todayISO));
+    } catch { /* storage disabled */ }
+  }, [todayISO]);
 
   if (loading && !data) {
     return (
@@ -234,9 +347,78 @@ export default function Dashboard() {
     { label: t('dbd_delayed'), value: counts.delayed, icon: AlertTriangle },
   ];
 
+  const sectionLabels: Record<string, string> = {
+    board: t('dbd_section_board'),
+    trend: t('dbd_section_trend'),
+    geo: t('dbd_section_geo'),
+    forward: t('dbd_section_forward'),
+    reliability: t('dbd_section_reliability'),
+    compliance: t('dbd_section_compliance'),
+    unassigned: t('dbd_section_unassigned'),
+  };
+
+  const renderSection = (id: string) => {
+    switch (id) {
+      case 'board':
+        return (
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div className="xl:col-span-2"><TodayBoard today={data.today} lang={lang} /></div>
+            <AlertsPanel alerts={data.alerts} resolvedIds={resolvedIds} onResolve={resolveAlert} />
+          </div>
+        );
+      case 'trend':
+        return (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <TrendChart
+                points={chartPoints}
+                granularity={chartGranularity}
+                weekly={data.meta.chartScope === 'week'}
+                lang={lang}
+              />
+            </div>
+            <StatusDonut data={data.statusDistribution} />
+          </div>
+        );
+      case 'geo':
+        return (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2"><CountryBars data={data.byCountry} lang={lang} /></div>
+            <FleetDriversPanel fleet={data.fleet} drivers={data.drivers} utilization={k.utilizationPct || 0} />
+          </div>
+        );
+      case 'forward':
+        return (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2"><UpcomingPanel upcoming={data.upcoming} lang={lang} /></div>
+            <RoutesPanel routes={data.topRoutes} />
+          </div>
+        );
+      case 'reliability':
+        return (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <ReliabilityPanel data={data} lang={lang} />
+            <HeatmapPanel heatmap={data.heatmap} lang={lang} />
+          </div>
+        );
+      case 'compliance':
+        return (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <DriverHoursPanel rows={data.driverHours} />
+            <TelemetryPanel telemetry={data.telemetry} />
+          </div>
+        );
+      case 'unassigned':
+        return <UnassignedOrdersPanel orders={data.unassignedOrders} lang={lang} />;
+      default:
+        return null;
+    }
+  };
+
+  const iconButton = 'flex h-8 w-8 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white transition-all hover:bg-white/20 disabled:cursor-wait disabled:opacity-60';
+
   return (
     <div className="relative space-y-5 pb-12 animate-fade-in">
-      {/* Ambient orange glow, kept behind the content */}
       <div className="pointer-events-none absolute inset-x-0 -top-24 -z-10 h-72 overflow-hidden">
         <div className="absolute left-1/4 top-0 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute right-10 top-10 h-52 w-52 rounded-full bg-amber-400/10 blur-3xl" />
@@ -309,11 +491,9 @@ export default function Dashboard() {
                       disabled={!!exporting}
                       title={t('dbd_export_excel')}
                       aria-label={t('dbd_export_excel')}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white transition-all hover:bg-white/20 disabled:cursor-wait disabled:opacity-60"
+                      className={iconButton}
                     >
-                      {exporting === 'xlsx'
-                        ? <LoaderCircle className="h-4 w-4 animate-spin" />
-                        : <FileSpreadsheet className="h-4 w-4" />}
+                      {exporting === 'xlsx' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                     </button>
                     <button
                       type="button"
@@ -321,21 +501,44 @@ export default function Dashboard() {
                       disabled={!!exporting}
                       title={t('dbd_export_pdf')}
                       aria-label={t('dbd_export_pdf')}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white transition-all hover:bg-white/20 disabled:cursor-wait disabled:opacity-60"
+                      className={iconButton}
                     >
-                      {exporting === 'pdf'
-                        ? <LoaderCircle className="h-4 w-4 animate-spin" />
-                        : <FileText className="h-4 w-4" />}
+                      {exporting === 'pdf' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                     </button>
                     <button
                       type="button"
-                      onClick={() => load(true)}
-                      title={t('dbd_refresh')}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white transition-all hover:bg-white/20"
+                      onClick={() => setShowKiosk(true)}
+                      title={t('dbd_kiosk')}
+                      aria-label={t('dbd_kiosk')}
+                      className={iconButton}
                     >
-                      {refreshing
-                        ? <LoaderCircle className="h-4 w-4 animate-spin" />
-                        : <RefreshCw className="h-4 w-4" />}
+                      <Monitor className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowHandover(true)}
+                      title={t('dbd_handover')}
+                      aria-label={t('dbd_handover')}
+                      className={iconButton}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowLayout((current) => !current)}
+                      title={t('dbd_layout')}
+                      aria-label={t('dbd_layout')}
+                      className={iconButton}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={refresh}
+                      title={t('dbd_refresh')}
+                      className={iconButton}
+                    >
+                      {refreshing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -375,9 +578,7 @@ export default function Dashboard() {
                   <chip.icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-white/70">
-                    {chip.label}
-                  </p>
+                  <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-white/70">{chip.label}</p>
                   <p className="text-xl font-black leading-none tabular-nums">{fmtNumber(chip.value)}</p>
                 </div>
               </div>
@@ -386,15 +587,29 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {showLayout && (
+        <div className="fixed right-4 top-24 z-[130]">
+          <LayoutMenu
+            sections={layout}
+            labels={sectionLabels}
+            onChange={setLayout}
+            onReset={() => setLayout(DEFAULT_SECTIONS)}
+            onClose={() => setShowLayout(false)}
+          />
+        </div>
+      )}
+
       {error && data && (
         <div className="flex items-center gap-2 rounded-xl border border-error/25 bg-error/10 px-3 py-2 text-xs font-semibold text-error">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {t('dbd_error')}
-          <button type="button" onClick={() => load(true)} className="ml-auto underline underline-offset-2">
+          <button type="button" onClick={refresh} className="ml-auto underline underline-offset-2">
             {t('dbd_retry')}
           </button>
         </div>
       )}
+
+      <FilterBar options={options} value={filters} lang={lang} onChange={setFilters} />
 
       {/* ── KPI row ───────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-6">
@@ -455,12 +670,7 @@ export default function Dashboard() {
 
       {/* ── Secondary metrics ────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <MiniStat
-          icon={Target}
-          label={t('dbd_kpi_ontime')}
-          value={fmtPercent(k.onTimeRate || 0)}
-          color="#10B981"
-        />
+        <MiniStat icon={Target} label={t('dbd_kpi_ontime')} value={fmtPercent(k.onTimeRate || 0)} color="#10B981" />
         <MiniStat
           icon={Package}
           label={t('dbd_kpi_orders')}
@@ -468,12 +678,7 @@ export default function Dashboard() {
           sub={`· ${fmtNumber(k.ordersDelivered || 0)} ${t('dbd_completed').toLowerCase()}`}
           color="#FF5A00"
         />
-        <MiniStat
-          icon={Globe}
-          label={t('dbd_kpi_countries')}
-          value={fmtNumber(k.countriesActive || 0)}
-          color="#0EA5E9"
-        />
+        <MiniStat icon={Globe} label={t('dbd_kpi_countries')} value={fmtNumber(k.countriesActive || 0)} color="#0EA5E9" />
         <MiniStat
           icon={AlertTriangle}
           label={t('dbd_kpi_incidents')}
@@ -482,51 +687,31 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Today's board + alerts ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <TodayBoard today={data.today} lang={lang} />
-        </div>
-        <AlertsPanel alerts={data.alerts} />
-      </div>
-
-      {/* ── Trend + status ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <TrendChart
-            points={chartPoints}
-            granularity={chartGranularity}
-            weekly={data.meta.chartScope === 'week'}
-            lang={lang}
-          />
-        </div>
-        <StatusDonut data={data.statusDistribution} />
-      </div>
-
-      {/* ── Countries + fleet ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <CountryBars data={data.byCountry} lang={lang} />
-        </div>
-        <FleetDriversPanel
-          fleet={data.fleet}
-          drivers={data.drivers}
-          utilization={k.utilizationPct || 0}
-        />
-      </div>
-
-      {/* ── Upcoming + top routes ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <UpcomingPanel upcoming={data.upcoming} lang={lang} />
-        </div>
-        <RoutesPanel routes={data.topRoutes} />
-      </div>
-
-      {/* ── Unassigned orders ────────────────────────────────────────────── */}
-      <UnassignedOrdersPanel orders={data.unassignedOrders} lang={lang} />
+      {layout.filter((section) => section.visible).map((section) => (
+        <div key={section.id}>{renderSection(section.id)}</div>
+      ))}
 
       <QuickActions />
+
+      {showKiosk && (
+        <KioskMode
+          data={data}
+          lang={lang}
+          onClose={closeKiosk}
+          onRefresh={refresh}
+        />
+      )}
+
+      {showHandover && (
+        <HandoverModal
+          data={data}
+          lang={lang}
+          resolvedIds={resolvedIds}
+          onResolve={resolveAlert}
+          onReset={resetResolved}
+          onClose={() => setShowHandover(false)}
+        />
+      )}
     </div>
   );
 }

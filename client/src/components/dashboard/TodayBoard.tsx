@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock, MapPin, Navigation, Package, Truck,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ interface TodayBoardProps {
 
 export function TripRow({ trip, kind, lang }: { trip: OverviewTrip; kind: BoardTab | 'upcoming'; lang: string }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const label = t(`status_${trip.status}`, humanizeStatus(trip.status));
   const time = kind === 'departures' || kind === 'upcoming'
     ? formatTime(trip.plannedDeparture, lang)
@@ -27,7 +29,16 @@ export function TripRow({ trip, kind, lang }: { trip: OverviewTrip; kind: BoardT
   const accent = statusAccent(trip.status);
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-border/70 bg-surface/40 p-3 transition-all duration-200 hover:border-primary/35 hover:bg-card hover:shadow-sm">
+    <div
+      role="button"
+      tabIndex={0}
+      title={t('dbd_open_trip')}
+      onClick={() => navigate(`/trips?tripId=${trip.id}`)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') navigate(`/trips?tripId=${trip.id}`);
+      }}
+      className="group relative cursor-pointer overflow-hidden rounded-xl border border-border/70 bg-surface/40 p-3 transition-all duration-200 hover:border-primary/35 hover:bg-card hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/25"
+    >
       <div className="absolute inset-y-2 left-0 w-[3px] rounded-full" style={{ background: accent }} />
       <div className="flex items-start gap-3 pl-1.5">
         <div className="flex w-12 shrink-0 flex-col items-center pt-0.5">
@@ -61,6 +72,7 @@ export function TripRow({ trip, kind, lang }: { trip: OverviewTrip; kind: BoardT
             {t('dbd_late_min', { min: trip.delayMinutes })}
           </span>
         )}
+        <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-text-light opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
     </div>
   );

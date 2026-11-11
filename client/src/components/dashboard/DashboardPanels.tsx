@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2, Clock, FileText,
+  AlertTriangle, ArrowUpRight, CalendarDays, Check, CheckCircle2, Clock, FileText,
   Map, MapPin, Package, Route as RouteIcon, ShieldCheck, Truck,
 } from 'lucide-react';
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -30,11 +30,16 @@ const ALERT_META: Record<OverviewAlert['type'], { icon: any; color: string }> = 
   document: { icon: FileText, color: '#0EA5E9' },
 };
 
-export function AlertsPanel({ alerts }: { alerts: OverviewAlert[] }) {
+export function AlertsPanel({
+  alerts, resolvedIds = new Set(), onResolve,
+}: {
+  alerts: OverviewAlert[];
+  resolvedIds?: Set<string>;
+  onResolve?: (id: string) => void;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const pathFor = (type: OverviewAlert['type']) =>
-    type === 'document' ? '/documents' : type === 'unassigned' ? '/orders' : '/trips';
+  const visible = alerts.filter((alert) => !resolvedIds.has(alert.id));
 
   return (
     <PanelCard
@@ -45,13 +50,13 @@ export function AlertsPanel({ alerts }: { alerts: OverviewAlert[] }) {
       bodyClassName="!p-3"
       action={
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${
-          alerts.length > 0 ? 'bg-error/10 text-error' : 'bg-success/10 text-success'
+          visible.length > 0 ? 'bg-error/10 text-error' : 'bg-success/10 text-success'
         }`}>
-          {alerts.length}
+          {visible.length}
         </span>
       }
     >
-      {alerts.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-6 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success/10 text-success">
             <ShieldCheck className="h-7 w-7" />
@@ -60,15 +65,19 @@ export function AlertsPanel({ alerts }: { alerts: OverviewAlert[] }) {
         </div>
       ) : (
         <div className="space-y-1.5 overflow-y-auto pr-1" style={{ maxHeight: 430 }}>
-          {alerts.map((alert) => {
+          {visible.map((alert) => {
             const meta = ALERT_META[alert.type] || ALERT_META.delay;
             const Icon = meta.icon;
             return (
-              <button
+              <div
                 key={alert.id}
-                type="button"
-                onClick={() => navigate(pathFor(alert.type))}
-                className="group flex w-full items-start gap-2.5 rounded-xl border border-transparent p-2.5 text-left transition-all hover:border-border/70 hover:bg-surface/70"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(alert.link)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') navigate(alert.link);
+                }}
+                className="group flex w-full cursor-pointer items-start gap-2.5 rounded-xl border border-transparent p-2.5 text-left transition-all hover:border-border/70 hover:bg-surface/70 focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <span
                   className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
@@ -99,8 +108,18 @@ export function AlertsPanel({ alerts }: { alerts: OverviewAlert[] }) {
                       : t('dbd_late_min', { min: alert.value })}
                   </span>
                 )}
+                {onResolve && (
+                  <button
+                    type="button"
+                    title={t('dbd_resolve')}
+                    onClick={(event) => { event.stopPropagation(); onResolve(alert.id); }}
+                    className="mt-0.5 rounded-md p-1 text-text-light transition-colors hover:bg-success/10 hover:text-success"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-text-light opacity-0 transition-opacity group-hover:opacity-100" />
-              </button>
+              </div>
             );
           })}
         </div>
@@ -346,9 +365,9 @@ export function UnassignedOrdersPanel({ orders, lang }: { orders: OverviewOrder[
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-xs font-black text-text">
+                  <Link to={`/orders?orderId=${order.id}`} className="block truncate text-xs font-black text-text hover:text-primary">
                     {order.orderNumber || order.id.slice(0, 8).toUpperCase()}
-                  </p>
+                  </Link>
                   <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase ${priorityStyle[order.priority] || priorityStyle.normal}`}>
                     {priorityLabel(order.priority)}
                   </span>
@@ -359,11 +378,17 @@ export function UnassignedOrdersPanel({ orders, lang }: { orders: OverviewOrder[
                   {routeText(order.originCity, order.originCountry, order.destCity, order.destCountry)}
                 </p>
               </div>
-              <div className="shrink-0 text-right">
+              <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                 <p className="text-[9px] font-bold uppercase tracking-wider text-text-light">{formatShortDate(order.createdAt || '', lang)}</p>
-                <p className="mt-1 text-[10px] font-bold text-text-secondary">
+                <p className="text-[10px] font-bold text-text-secondary">
                   {t(`status_${order.status}`, humanizeStatus(order.status))}
                 </p>
+                <Link
+                  to={`/planning?orderId=${order.id}`}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-black text-primary transition-colors hover:bg-primary/20"
+                >
+                  {t('dbd_assign')} <ArrowUpRight className="h-2.5 w-2.5" />
+                </Link>
               </div>
             </div>
           ))}

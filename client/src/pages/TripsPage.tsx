@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Truck, Search, Loader2, FileText, Trash2, Download, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, LayoutGrid } from 'lucide-react';
 import api from '../lib/api';
 import { generateTripPdf } from '../lib/pdfGenerator';
@@ -92,6 +92,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [drawerTripId, setDrawerTripId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
@@ -113,6 +114,10 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   }, [t]);
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
+  useEffect(() => {
+    const tripId = searchParams.get('tripId');
+    if (tripId) setDrawerTripId(tripId);
+  }, [searchParams]);
   useEffect(() => {
     const refresh = () => fetchTrips();
     window.addEventListener('hapcargo:operational-update', refresh);

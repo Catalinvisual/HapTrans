@@ -14,6 +14,7 @@ import { langOverrides } from './langOverrides';
 import { adrResources } from './adrI18n';
 import { operationalResources } from './operationalI18n';
 import { dashboardResources } from './dashboardI18n';
+import { dashboardProResources } from './dashboardProI18n';
 import { usersPageResources } from './usersI18n';
 import { usersRolesResources } from './usersRolesI18n';
 
@@ -11941,6 +11942,11 @@ for (const lng of Object.keys(operationalResources)) {
 for (const lng of Object.keys(dashboardResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, (dashboardResources as any)[lng].translation);
+}
+
+for (const lng of Object.keys(dashboardProResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, (dashboardProResources as any)[lng].translation);
 }
 
 const getInitialLanguage = (): string => {

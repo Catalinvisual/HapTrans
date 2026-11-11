@@ -79,6 +79,11 @@ export default function OrdersPage() {
   const [showExport, setShowExport] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId) setDrawerOrderId(orderId);
+  }, [searchParams]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { TripsService } from '../trips/trips.service';
@@ -42,7 +42,14 @@ const ORDER_OPEN_OVERVIEW = new Set([
   'received', 'pending', 'ready_for_invoice',
 ]);
 
-export interface OverviewQuery {
+export interface OverviewFilters {
+  truckId?: string | null;
+  driverId?: string | null;
+  clientId?: string | null;
+  country?: string | null;
+}
+
+export interface OverviewQuery extends OverviewFilters {
   from?: string;
   to?: string;
   granularity?: string;
@@ -88,6 +95,44 @@ export interface OverviewAlert {
   subtitle: string | null;
   value: number | null;
   link: string;
+}
+
+export interface OverviewClientReliability {
+  id: string;
+  name: string;
+  total: number;
+  onTime: number;
+  onTimeRate: number;
+  avgDelay: number;
+}
+
+export interface OverviewLaneReliability {
+  from: string;
+  to: string;
+  trips: number;
+  onTime: number;
+  onTimeRate: number;
+  avgDelay: number;
+}
+
+export interface OverviewDriverHour {
+  driverId: string | null;
+  driverName: string;
+  truckId: string | null;
+  truckPlate: string;
+  activity: string;
+  drivingRemainingMin: number;
+  weeklyRemainingMin: number;
+  breakInMin: number;
+  updatedAt: Date | null;
+}
+
+export interface OverviewTelemetry {
+  total: number;
+  online: number;
+  offline: number;
+  noDevice: number;
+  stale: Array<{ id: string; plate: string; lastSeenAt: Date | null; status: string }>;
 }
 
 function startOfDay(d: Date): Date {
@@ -249,6 +294,9 @@ const COUNTRY_SQL = (oTs: string) => `
 
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+  private readonly columnCache = new Map<string, Set<string>>();
+
   constructor(
     @InjectDataSource() private dataSource: DataSource,
     private tripsService: TripsService,
@@ -257,6 +305,21 @@ export class DashboardService {
     private invoicesService: InvoicesService,
     private notificationsService: NotificationsService,
   ) {}
+
+  /** Cached information_schema probe so raw SQL tolerates both column layouts. */
+  private async tableColumns(table: string): Promise<Set<string>> {
+    const cached = this.columnCache.get(table);
+    if (cached) return cached;
+    const rows: any[] = await this.dataSource.query(
+      `SELECT column_name
+         FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = $1`,
+      [table],
+    ).catch(() => []);
+    const cols = new Set<string>(rows.map((row) => String(row.column_name)));
+    this.columnCache.set(table, cols);
+    return cols;
+  }
 
   async getSummary() {
     const [stats, monthlyProfits, trucks, overdueInvoices, expiringTruckDocs, expiringDriverDocs, allTrips] = await Promise.all([
@@ -422,6 +485,12 @@ export class DashboardService {
     const weekStart = startOfWeek(today);
     const weekEnd = endOfDay(addDays(weekStart, 6));
     const companyId = q.companyId || null;
+    const filters: Required<OverviewFilters> = {
+      truckId: q.truckId || null,
+      driverId: q.driverId || null,
+      clientId: q.clientId || null,
+      country: q.country ? String(q.country).toUpperCase() : null,
+    };
 
     const spanMs = Math.max(0, to.getTime() - from.getTime());
     const prevTo = new Date(from.getTime() - 1);
@@ -434,18 +503,21 @@ export class DashboardService {
     const loadFrom = includeWeek && from.getTime() > weekStart.getTime() ? weekStart : from;
     const loadTo = includeWeek && to.getTime() < weekEnd.getTime() ? weekEnd : to;
 
-    const [windowTrips, boardTrips, unassignedOrders, unassignedCount, rangeOrders, previous, fleetRows, driverRows, truckTypeRows, expiringTruckDocs, expiringDriverDocs] = await Promise.all([
-      this.loadOverviewTrips(loadFrom, loadTo, companyId),
-      this.loadOverviewBoardTrips(today, horizonEnd, companyId),
-      this.loadUnassignedOrders(companyId),
-      this.countUnassignedOrders(companyId),
-      this.loadOverviewOrders(from, to, companyId),
+    const [windowTrips, boardTrips, unassignedOrders, unassignedCount, rangeOrders, previous, fleetRows, driverRows, truckTypeRows, expiringTruckDocs, expiringDriverDocs, clientReliability, driverHours, telemetry] = await Promise.all([
+      this.loadOverviewTrips(loadFrom, loadTo, companyId, filters),
+      this.loadOverviewBoardTrips(today, horizonEnd, companyId, filters),
+      this.loadUnassignedOrders(companyId, filters.clientId),
+      this.countUnassignedOrders(companyId, filters.clientId),
+      this.loadOverviewOrders(from, to, companyId, filters),
       this.loadPeriodTotals(prevFrom, prevTo, companyId),
       this.loadFleetCounts(companyId),
       this.loadDriverCounts(companyId),
       this.loadTruckTypes(companyId),
       this.trucksService.getExpiringDocuments(30).catch(() => []),
       this.driversService.getExpiringDocuments(30).catch(() => ({ drivers: [], documents: [] })),
+      this.loadClientReliability(from, to, companyId, filters),
+      this.loadDriverHours(companyId),
+      this.loadTelemetry(companyId),
     ]);
 
     const rangeTrips = windowTrips.filter((trip) => {
@@ -681,6 +753,49 @@ export class DashboardService {
       });
     }
 
+    // ---- Lane reliability (completed trips only) ------------------------
+    const laneMap = new Map<string, { from: string; to: string; trips: number; onTime: number; delayMinutes: number }>();
+    for (const trip of rangeTrips) {
+      if (!trip.actualArrival || !trip.plannedArrival) continue;
+      const fromLabel = routePlace(trip.originCity, trip.originCountry) || '—';
+      const toLabel = routePlace(trip.destCity, trip.destCountry) || '—';
+      const key = `${fromLabel}→${toLabel}`;
+      if (!laneMap.has(key)) laneMap.set(key, { from: fromLabel, to: toLabel, trips: 0, onTime: 0, delayMinutes: 0 });
+      const row = laneMap.get(key)!;
+      const late = Math.max(0, (trip.actualArrival.getTime() - trip.plannedArrival.getTime()) / 60000);
+      row.trips += 1;
+      row.delayMinutes += late;
+      if (late <= 0) row.onTime += 1;
+    }
+    const lanes: OverviewLaneReliability[] = [...laneMap.values()]
+      .filter((row) => row.trips >= 2)
+      .sort((a, b) => b.trips - a.trips)
+      .slice(0, 6)
+      .map((row) => ({
+        from: row.from,
+        to: row.to,
+        trips: row.trips,
+        onTime: row.onTime,
+        onTimeRate: row.trips > 0 ? (row.onTime / row.trips) * 100 : 0,
+        avgDelay: row.trips > 0 ? Math.round(row.delayMinutes / row.trips) : 0,
+      }));
+
+    // ---- Delay heatmap: weekday × 3-hour bucket ------------------------
+    const heatBuckets = ['00–03', '03–06', '06–09', '09–12', '12–15', '15–18', '18–21', '21–24'];
+    const heatCells = Array.from({ length: 7 }, (_, day) =>
+      Array.from({ length: heatBuckets.length }, (_, bucket) => ({ day, bucket, total: 0, late: 0 })),
+    ).flat();
+    for (const trip of rangeTrips) {
+      if (!trip.plannedDeparture) continue;
+      const day = (trip.plannedDeparture.getDay() + 6) % 7;
+      const bucket = Math.min(heatBuckets.length - 1, Math.floor(trip.plannedDeparture.getHours() / 3));
+      const cell = heatCells[day * heatBuckets.length + bucket];
+      if (!cell) continue;
+      cell.total += 1;
+      if (trip.delayMinutes > 0) cell.late += 1;
+    }
+    const heatMax = Math.max(1, ...heatCells.map((cell) => cell.late));
+
     // ---- Trends vs previous period --------------------------------------
     const trends = {
       tripsTotal: pctChange(tripsTotal, previous.tripsTotal),
@@ -772,6 +887,9 @@ export class DashboardService {
         driversOff,
         expiringDocs: expiring.length,
         openIncidents: incidentTrips.length,
+        driversNearLimit: driverHours.filter((row) => row.drivingRemainingMin <= 120).length,
+        driversBreakDue: driverHours.filter((row) => row.breakInMin <= 30).length,
+        trucksOffline: telemetry.offline,
       },
       trends,
       today: {
@@ -796,6 +914,10 @@ export class DashboardService {
       byCountry,
       statusDistribution,
       topRoutes,
+      reliability: { clients: clientReliability, lanes },
+      heatmap: { buckets: heatBuckets, cells: heatCells, max: heatMax },
+      driverHours,
+      telemetry,
       delayedTrips: delayedTrips.slice(0, 6).map(mapTrip),
       unassignedOrders: unassignedOrders.slice(0, 6).map((order) => ({
         id: order.id,
@@ -830,8 +952,29 @@ export class DashboardService {
     };
   }
 
-  private async loadOverviewTrips(from: Date, to: Date, companyId: string | null, board = false): Promise<OverviewTrip[]> {
+  private async loadOverviewTrips(
+    from: Date,
+    to: Date,
+    companyId: string | null,
+    filters: OverviewFilters = {},
+    board = false,
+  ): Promise<OverviewTrip[]> {
     const ts = await resolveCreatedAtExpr(this.dataSource, 'trips', 't');
+    const tripColumns = await this.tableColumns('trips');
+    const driverColumns = await this.tableColumns('drivers');
+    // Production carries a legacy snake_case distance on some rows and the
+    // TypeORM camelCase column on others; probe instead of assuming either.
+    const distanceExpr = tripColumns.has('distance_km')
+      ? `COALESCE(NULLIF(TRIM(t.distance_km), '')::float, ${tripColumns.has('distanceKm') ? 't."distanceKm"::float' : '0'}, 0)`
+      : `COALESCE(${tripColumns.has('distanceKm') ? 't."distanceKm"::float' : '0'}, 0)`;
+    // Driver names live on users.name; first_name/last_name only exist on some
+    // legacy databases and previously made this query fail with HTTP 500.
+    const driverNameExpr = driverColumns.has('first_name') || driverColumns.has('last_name')
+      ? `COALESCE(u.name, NULLIF(TRIM(CONCAT_WS(' ', ${driverColumns.has('first_name') ? 'd.first_name' : 'NULL'}, ${driverColumns.has('last_name') ? 'd.last_name' : 'NULL'})), ''))`
+      : `COALESCE(u.name, '')`;
+    const companyFilter = tripColumns.has('companyId')
+      ? `($3::uuid IS NULL OR t."companyId" IS NULL OR t."companyId" = $3)`
+      : `true`;
     const activeList = [...TRIP_ON_ROAD_OVERVIEW, 'planning', 'planned', 'confirmed', 'assigned', 'dispatched', 'driver_accepted', 'driver_received', 'ready']
       .map((status) => `'${status}'`)
       .join(', ');
@@ -845,54 +988,66 @@ export class DashboardService {
         )`
       : `COALESCE(t."plannedDeparture", ${ts}) BETWEEN $1 AND $2`;
 
-    const rows: any[] = await this.dataSource.query(
-      `SELECT
-         t.id,
-         t."tripNumber" AS trip_number,
-         lower(t.status::text) AS status,
-         t."operationalStatus" AS operational_status,
-         ${ts} AS created_at,
-         t."plannedDeparture" AS planned_departure,
-         t."plannedArrival" AS planned_arrival,
-         t."actualDeparture" AS actual_departure,
-         t."actualArrival" AS actual_arrival,
-         COALESCE(NULLIF(TRIM(t.distance_km), '')::float, t."distanceKm"::float, 0) AS distance,
-         t."etaStatus" AS eta_status,
-         COALESCE(t."trafficDelayMinutes", 0)::int AS traffic_delay,
-         COALESCE(t."hasOpenIncident", false) AS has_open_incident,
-         t."fleetType" AS fleet_type,
-         t."carrierName" AS carrier_name,
-         tr."plateNumber" AS truck_plate,
-         tr.status AS truck_status,
-         COALESCE(u.name, NULLIF(TRIM(CONCAT_WS(' ', d.first_name, d.last_name)), '')) AS driver_name,
-         d.status AS driver_status,
-         fs.city AS origin_city,
-         fs.country AS origin_country,
-         ls.city AS dest_city,
-         ls.country AS dest_country,
-         (SELECT count(*)::int FROM orders o WHERE o."tripId" = t.id) AS order_count,
-         (SELECT count(*)::int FROM orders o
-            WHERE o."tripId" = t.id
-              AND lower(o.status::text) IN ('delivered','pod_received','ready_for_invoice','invoiced','paid','closed')
-         ) AS delivered_orders
-       FROM trips t
-       LEFT JOIN trucks tr ON tr.id = t."truckId"
-       LEFT JOIN drivers d ON d.id = t."driverId"
-       LEFT JOIN users u ON u.id = d."userId"
-       LEFT JOIN LATERAL (
-         SELECT s.city, s.country FROM stops s WHERE s."tripId" = t.id
-         ORDER BY s.sequence ASC LIMIT 1
-       ) fs ON true
-       LEFT JOIN LATERAL (
-         SELECT s.city, s.country FROM stops s WHERE s."tripId" = t.id
-         ORDER BY s.sequence DESC LIMIT 1
-       ) ls ON true
-       WHERE ${dateClause}
-         AND ($3::uuid IS NULL OR t."companyId" IS NULL OR t."companyId" = $3)
-       ORDER BY COALESCE(t."plannedDeparture", t.createdAt) ASC
-       LIMIT 3000`,
-      [from, to, companyId],
-    );
+    let rows: any[] = [];
+    try {
+      rows = await this.dataSource.query(
+        `SELECT
+           t.id,
+           t."tripNumber" AS trip_number,
+           lower(t.status::text) AS status,
+           t."operationalStatus" AS operational_status,
+           ${ts} AS created_at,
+           t."plannedDeparture" AS planned_departure,
+           t."plannedArrival" AS planned_arrival,
+           t."actualDeparture" AS actual_departure,
+           t."actualArrival" AS actual_arrival,
+           ${distanceExpr} AS distance,
+           t."etaStatus" AS eta_status,
+           COALESCE(t."trafficDelayMinutes", 0)::int AS traffic_delay,
+           COALESCE(t."hasOpenIncident", false) AS has_open_incident,
+           t."fleetType" AS fleet_type,
+           t."carrierName" AS carrier_name,
+           tr."plateNumber" AS truck_plate,
+           tr.status AS truck_status,
+           ${driverNameExpr} AS driver_name,
+           d.status AS driver_status,
+           fs.city AS origin_city,
+           fs.country AS origin_country,
+           ls.city AS dest_city,
+           ls.country AS dest_country,
+           (SELECT count(*)::int FROM orders o WHERE o."tripId" = t.id) AS order_count,
+           (SELECT count(*)::int FROM orders o
+              WHERE o."tripId" = t.id
+                AND lower(o.status::text) IN ('delivered','pod_received','ready_for_invoice','invoiced','paid','closed')
+           ) AS delivered_orders
+         FROM trips t
+         LEFT JOIN trucks tr ON tr.id = t."truckId"
+         LEFT JOIN drivers d ON d.id = t."driverId"
+         LEFT JOIN users u ON u.id = d."userId"
+         LEFT JOIN LATERAL (
+           SELECT s.city, s.country FROM stops s WHERE s."tripId" = t.id
+           ORDER BY s.sequence ASC LIMIT 1
+         ) fs ON true
+         LEFT JOIN LATERAL (
+           SELECT s.city, s.country FROM stops s WHERE s."tripId" = t.id
+           ORDER BY s.sequence DESC LIMIT 1
+         ) ls ON true
+         WHERE ${dateClause}
+           AND ${companyFilter}
+           AND ($4::uuid IS NULL OR t."truckId" = $4)
+           AND ($5::uuid IS NULL OR t."driverId" = $5)
+           AND ($6::text IS NULL OR EXISTS (
+             SELECT 1 FROM stops cs
+              WHERE cs."tripId" = t.id AND upper(cs.country) = upper($6)
+           ))
+         ORDER BY COALESCE(t."plannedDeparture", ${ts}) ASC
+         LIMIT 3000`,
+        [from, to, companyId, filters.truckId || null, filters.driverId || null, filters.country || null],
+      );
+    } catch (err: any) {
+      this.logger.error(`Dashboard overview trips query failed: ${err?.message || err}`);
+      return [];
+    }
 
     const now = Date.now();
     return rows.map((row) => {
@@ -931,19 +1086,33 @@ export class DashboardService {
     });
   }
 
-  private loadOverviewBoardTrips(today: Date, horizonEnd: Date, companyId: string | null): Promise<OverviewTrip[]> {
-    return this.loadOverviewTrips(today, horizonEnd, companyId, true);
+  private loadOverviewBoardTrips(
+    today: Date,
+    horizonEnd: Date,
+    companyId: string | null,
+    filters: OverviewFilters = {},
+  ): Promise<OverviewTrip[]> {
+    return this.loadOverviewTrips(today, horizonEnd, companyId, filters, true);
   }
 
-  private async loadOverviewOrders(from: Date, to: Date, companyId: string | null) {
+  private async loadOverviewOrders(
+    from: Date,
+    to: Date,
+    companyId: string | null,
+    filters: OverviewFilters = {},
+  ) {
     const ts = await resolveCreatedAtExpr(this.dataSource, 'orders', 'o');
     const rows: any[] = await this.dataSource.query(
       `SELECT o.id, lower(o.status::text) AS status,
               (o.is_late = true OR COALESCE(o.late_minutes, 0) > 0) AS is_late
          FROM orders o
+         LEFT JOIN trips tr ON tr.id = o."tripId"
         WHERE ${ts} BETWEEN $1 AND $2
-          AND ($3::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $3)`,
-      [from, to, companyId],
+          AND ($3::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $3)
+          AND ($4::uuid IS NULL OR tr."truckId" = $4)
+          AND ($5::uuid IS NULL OR tr."driverId" = $5)
+          AND ($6::uuid IS NULL OR o."clientId" = $6)`,
+      [from, to, companyId, filters.truckId || null, filters.driverId || null, filters.clientId || null],
     ).catch(() => []);
     return rows.map((row) => ({
       id: String(row.id),
@@ -952,10 +1121,14 @@ export class DashboardService {
     }));
   }
 
-  private async loadUnassignedOrders(companyId: string | null) {
+  private async loadUnassignedOrders(companyId: string | null, clientId: string | null = null) {
+    const orderColumns = await this.tableColumns('orders');
+    const orderNumberExpr = orderColumns.has('orderNumber')
+      ? 'o."orderNumber"'
+      : orderColumns.has('order_number') ? 'o.order_number' : 'NULL';
     const rows: any[] = await this.dataSource.query(
       `SELECT o.id,
-              o."orderNumber" AS order_number,
+              ${orderNumberExpr} AS order_number,
               lower(o.status::text) AS status,
               o.priority,
               o."transportType" AS transport_type,
@@ -976,10 +1149,11 @@ export class DashboardService {
         WHERE o."tripId" IS NULL
           AND lower(o.status::text) IN ('new','draft','planned','received','pending')
           AND ($1::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $1)
+          AND ($2::uuid IS NULL OR o."clientId" = $2)
         ORDER BY CASE lower(o.priority::text) WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,
                  o."createdAt" DESC
         LIMIT 50`,
-      [companyId],
+      [companyId, clientId],
     ).catch(() => []);
     return rows.map((row) => ({
       id: String(row.id),
@@ -996,14 +1170,15 @@ export class DashboardService {
     }));
   }
 
-  private async countUnassignedOrders(companyId: string | null): Promise<number> {
+  private async countUnassignedOrders(companyId: string | null, clientId: string | null = null): Promise<number> {
     const [row] = await this.dataSource.query(
       `SELECT count(*)::int AS total
          FROM orders o
         WHERE o."tripId" IS NULL
           AND lower(o.status::text) IN ('new','draft','planned','received','pending')
-          AND ($1::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $1)`,
-      [companyId],
+          AND ($1::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $1)
+          AND ($2::uuid IS NULL OR o."clientId" = $2)`,
+      [companyId, clientId],
     ).catch(() => [{}]);
     return Number(row?.total) || 0;
   }
@@ -1100,6 +1275,172 @@ export class DashboardService {
     return rows.map((row) => ({ type: String(row.type), count: Number(row.count) || 0 }));
   }
 
+  /** Client-level punctuality (orders with a promised and actual delivery). */
+  private async loadClientReliability(
+    from: Date,
+    to: Date,
+    companyId: string | null,
+    filters: OverviewFilters = {},
+  ): Promise<OverviewClientReliability[]> {
+    const ts = await resolveCreatedAtExpr(this.dataSource, 'orders', 'o');
+    const rows: any[] = await this.dataSource.query(
+      `SELECT c.id, c.name,
+              count(*)::int AS total,
+              count(*) FILTER (WHERE o.actual_delivery_at <= o.requested_delivery_at)::int AS on_time,
+              COALESCE(AVG(GREATEST(0, EXTRACT(EPOCH FROM (o.actual_delivery_at - o.requested_delivery_at)) / 60)), 0)::float AS avg_delay
+         FROM orders o
+         JOIN clients c ON c.id = o."clientId"
+         LEFT JOIN trips tr ON tr.id = o."tripId"
+        WHERE o.actual_delivery_at IS NOT NULL
+          AND o.requested_delivery_at IS NOT NULL
+          AND ${ts} BETWEEN $1 AND $2
+          AND ($3::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $3)
+          AND ($4::uuid IS NULL OR tr."truckId" = $4)
+          AND ($5::uuid IS NULL OR tr."driverId" = $5)
+          AND ($6::uuid IS NULL OR o."clientId" = $6)
+        GROUP BY c.id, c.name
+        ORDER BY total DESC
+        LIMIT 6`,
+      [from, to, companyId, filters.truckId || null, filters.driverId || null, filters.clientId || null],
+    ).catch(() => []);
+    return rows.map((row) => {
+      const total = Number(row.total) || 0;
+      const onTime = Number(row.on_time) || 0;
+      return {
+        id: String(row.id),
+        name: row.name || '—',
+        total,
+        onTime,
+        onTimeRate: total > 0 ? (onTime / total) * 100 : 0,
+        avgDelay: Math.round(Number(row.avg_delay) || 0),
+      };
+    });
+  }
+
+  /** Live tachograph driving/break counters, most urgent first. */
+  private async loadDriverHours(companyId: string | null): Promise<OverviewDriverHour[]> {
+    const rows: any[] = await this.dataSource.query(
+      `SELECT tls.driver_id, tls.truck_id, tls.current_activity,
+              tls.driving_time_remaining, tls.weekly_driving_time_remaining,
+              tls.break_required_in, tls.updated_at,
+              tr."plateNumber" AS truck_plate,
+              COALESCE(u.name, d.id::text) AS driver_name
+         FROM tachograph_live_state tls
+         LEFT JOIN trucks tr ON tr.id::text = tls.truck_id
+         LEFT JOIN drivers d ON d.id::text = tls.driver_id
+         LEFT JOIN users u ON u.id = d."userId"
+        WHERE ($1::uuid IS NULL OR tr."companyId" IS NULL OR tr."companyId" = $1)
+        ORDER BY tls.driving_time_remaining ASC
+        LIMIT 8`,
+      [companyId],
+    ).catch(() => []);
+    return rows.map((row) => ({
+      driverId: row.driver_id ? String(row.driver_id) : null,
+      driverName: row.driver_name || '—',
+      truckId: row.truck_id ? String(row.truck_id) : null,
+      truckPlate: row.truck_plate || '—',
+      activity: String(row.current_activity || 'UNKNOWN'),
+      drivingRemainingMin: Math.round((Number(row.driving_time_remaining) || 0) / 60),
+      weeklyRemainingMin: Math.round((Number(row.weekly_driving_time_remaining) || 0) / 60),
+      breakInMin: Math.round((Number(row.break_required_in) || 0) / 60),
+      updatedAt: row.updated_at ? new Date(row.updated_at) : null,
+    }));
+  }
+
+  /** Telematics freshness for the fleet: live, stale/offline or not equipped. */
+  private async loadTelemetry(companyId: string | null): Promise<OverviewTelemetry> {
+    const rows: any[] = await this.dataSource.query(
+      `SELECT tr.id, tr."plateNumber" AS plate,
+              tr."currentPositionAt" AS current_position_at,
+              dev.last_seen_at, dev.connection_status
+         FROM trucks tr
+         LEFT JOIN LATERAL (
+           SELECT td.last_seen_at, td.connection_status
+             FROM telematics_devices td
+            WHERE td.truck_id = tr.id::text
+            ORDER BY td.last_seen_at DESC NULLS LAST
+            LIMIT 1
+         ) dev ON true
+        WHERE ($1::uuid IS NULL OR tr."companyId" IS NULL OR tr."companyId" = $1)`,
+      [companyId],
+    ).catch(() => []);
+
+    const now = Date.now();
+    const stale: OverviewTelemetry['stale'] = [];
+    let online = 0;
+    let noDevice = 0;
+    for (const row of rows) {
+      const lastSeenRaw = row.last_seen_at || row.current_position_at;
+      const lastSeenAt = lastSeenRaw ? new Date(lastSeenRaw) : null;
+      const status = String(row.connection_status || '').toUpperCase();
+      const hasDevice = Boolean(row.last_seen_at || row.connection_status);
+      const fresh = lastSeenAt ? now - lastSeenAt.getTime() < 2 * 60 * 60 * 1000 : false;
+      if (!hasDevice && !row.current_position_at) {
+        noDevice += 1;
+        continue;
+      }
+      if (fresh && !['OFFLINE', 'DISCONNECTED', 'NOT_CONFIGURED'].includes(status)) {
+        online += 1;
+        continue;
+      }
+      stale.push({
+        id: String(row.id),
+        plate: row.plate || '—',
+        lastSeenAt,
+        status: status || 'NO_SIGNAL',
+      });
+    }
+    stale.sort((a, b) => (a.lastSeenAt?.getTime() || 0) - (b.lastSeenAt?.getTime() || 0));
+    return {
+      total: rows.length,
+      online,
+      offline: stale.length,
+      noDevice,
+      stale: stale.slice(0, 6),
+    };
+  }
+
+  /** Options for the dashboard filter bar, scoped to the caller's company. */
+  async getFilterOptions(companyId: string | null) {
+    const [trucks, drivers, clients, countries] = await Promise.all([
+      this.dataSource.query(
+        `SELECT id, "plateNumber" AS name FROM trucks
+          WHERE ($1::uuid IS NULL OR "companyId" IS NULL OR "companyId" = $1)
+          ORDER BY "plateNumber" ASC LIMIT 200`,
+        [companyId],
+      ).catch(() => []),
+      this.dataSource.query(
+        `SELECT d.id, COALESCE(u.name, d.id::text) AS name
+           FROM drivers d
+           LEFT JOIN users u ON u.id = d."userId"
+          WHERE ($1::uuid IS NULL OR u."companyId" IS NULL OR u."companyId" = $1)
+          ORDER BY name ASC LIMIT 200`,
+        [companyId],
+      ).catch(() => []),
+      this.dataSource.query(
+        `SELECT id, name FROM clients
+          WHERE ($1::uuid IS NULL OR "companyId" IS NULL OR "companyId" = $1)
+          ORDER BY name ASC LIMIT 200`,
+        [companyId],
+      ).catch(() => []),
+      this.dataSource.query(
+        `SELECT DISTINCT upper(s.country) AS code
+           FROM stops s
+           JOIN trips t ON t.id = s."tripId"
+          WHERE s.country IS NOT NULL AND s.country <> ''
+            AND ($1::uuid IS NULL OR t."companyId" IS NULL OR t."companyId" = $1)
+          ORDER BY code ASC`,
+        [companyId],
+      ).catch(() => []),
+    ]);
+    return {
+      trucks: trucks.map((row: any) => ({ id: String(row.id), name: row.name || '—' })),
+      drivers: drivers.map((row: any) => ({ id: String(row.id), name: row.name || '—' })),
+      clients: clients.map((row: any) => ({ id: String(row.id), name: row.name || '—' })),
+      countries: countries.map((row: any) => String(row.code)).filter(Boolean),
+    };
+  }
+
   async getAnalytics(q: AnalyticsQuery = {}) {
     const granularity: 'day' | 'week' | 'month' = q.granularity === 'day' || q.granularity === 'week' ? q.granularity : 'month';
     const now = new Date();
@@ -1126,7 +1467,7 @@ export class DashboardService {
       this.dataSource.query(TRIPS_SQL(tTs), PP),
       this.dataSource.query(COUNTRY_SQL(oTs), P),
       this.dataSource.query(`SELECT id, "plateNumber" AS name FROM trucks`),
-      this.dataSource.query(`SELECT d.id, COALESCE(u.name, concat_ws(' ', d.first_name, d.last_name)) AS name FROM drivers d LEFT JOIN users u ON u.id = d."userId"`),
+      this.dataSource.query(`SELECT d.id, COALESCE(u.name, d.id::text) AS name FROM drivers d LEFT JOIN users u ON u.id = d."userId"`),
     ]);
 
     const curMap = buildBuckets(from, to, granularity);
