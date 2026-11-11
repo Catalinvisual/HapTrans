@@ -19,7 +19,7 @@ export default function TimePicker({ value, onChange, label, className = '', pla
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, ready: false });
 
   const [rawHour, rawMinute] = String(value || '').split(':');
   const hour = /^\d{2}$/.test(rawHour || '') ? rawHour : '';
@@ -30,11 +30,15 @@ export default function TimePicker({ value, onChange, label, className = '', pla
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = 228;
-    const height = 332;
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    let top = rect.bottom + 8;
-    if (top + height > window.innerHeight && rect.top > height) top = rect.top - height - 8;
-    setPosition({ top, left });
+    const margin = 8;
+    const gap = 8;
+    const popupHeight = popupRef.current?.offsetHeight || 300;
+    const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+    const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
+    const openAbove = spaceBelow < popupHeight && rect.top > popupHeight + gap + margin;
+    let top = openAbove ? rect.top - popupHeight - gap : rect.bottom + gap;
+    top = Math.max(margin, Math.min(top, window.innerHeight - popupHeight - margin));
+    setPosition({ top, left, ready: true });
   };
 
   useLayoutEffect(() => {
@@ -95,7 +99,7 @@ export default function TimePicker({ value, onChange, label, className = '', pla
         <ChevronDown className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`} />
       </button>
 
-      {open && typeof document !== 'undefined' && createPortal(
+      {open && position.ready && typeof document !== 'undefined' && createPortal(
         <div
           ref={popupRef}
           className={styles.popover}

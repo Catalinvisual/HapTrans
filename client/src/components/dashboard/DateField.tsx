@@ -55,7 +55,7 @@ export default function DateField({
   });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, ready: false });
 
   useEffect(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
@@ -67,11 +67,15 @@ export default function DateField({
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = 292;
-    const height = 352;
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    let top = rect.bottom + 8;
-    if (top + height > window.innerHeight && rect.top > height) top = rect.top - height - 8;
-    setPosition({ top, left });
+    const margin = 8;
+    const gap = 8;
+    const popupHeight = popupRef.current?.offsetHeight || 330;
+    const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+    const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
+    const openAbove = spaceBelow < popupHeight && rect.top > popupHeight + gap + margin;
+    let top = openAbove ? rect.top - popupHeight - gap : rect.bottom + gap;
+    top = Math.max(margin, Math.min(top, window.innerHeight - popupHeight - margin));
+    setPosition({ top, left, ready: true });
   };
 
   useLayoutEffect(() => {
@@ -158,7 +162,7 @@ export default function DateField({
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && typeof document !== 'undefined' && createPortal(
+      {open && position.ready && typeof document !== 'undefined' && createPortal(
         <div
           ref={popupRef}
           className="fixed z-[20010] w-[292px] rounded-2xl border border-border/70 bg-card p-3 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 animate-fade-in-up"
