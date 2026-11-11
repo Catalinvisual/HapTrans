@@ -20,6 +20,7 @@ interface DateFieldProps {
   placeholder?: string;
   disabled?: boolean;
   icon?: ElementType;
+  title?: string;
 }
 
 function parseDate(value: string): Date {
@@ -45,6 +46,7 @@ export default function DateField({
   placeholder = '—',
   disabled = false,
   icon,
+  title,
 }: DateFieldProps) {
   const { t } = useTranslation();
   const locale = localeFor(lang);
@@ -154,6 +156,8 @@ export default function DateField({
           setOpen((current) => !current);
         }}
         className={triggerClass}
+        title={title}
+        aria-label={title}
         aria-haspopup="dialog"
         aria-expanded={open}
       >

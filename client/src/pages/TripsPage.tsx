@@ -20,6 +20,7 @@ import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import CustomSelect from '../components/CustomSelect';
+import DateField from '../components/dashboard/DateField';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
@@ -28,8 +29,6 @@ import WeightKgIcon from '../components/icons/WeightKgIcon';
 import ActivityTimeline from '../components/ActivityTimeline';
 import { orderIsAdr, tripIsAdr } from '../lib/adrDetect';
 import { driverDisplayName } from '../lib/driverName';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
 import toast from 'react-hot-toast';
 
 const TRIP_STATUSES = [
@@ -55,7 +54,6 @@ const tDriverName = (trip: any) => driverDisplayName(trip);
 const tDriverEmail = (trip: any) =>
   trip.driver?.user?.email || (String(trip.driver?.name || '').includes('@') ? trip.driver.name : '') || '';
 const tDriverDisplay = (trip: any) => driverDisplayName(trip);
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const tWeight = (trip: any) => trip.orders?.reduce((s: number, o: any) => s + (o.cargoItems?.reduce((x: number, c: any) => x + Number(c.weightKg || 0), 0) || 0), 0) || 0;
 const tPallets = (trip: any) => trip.orders?.reduce((s: number, o: any) => s + (o.cargoItems?.reduce((x: number, c: any) => x + Number(c.quantity || 1), 0) || 0), 0) || 0;
 const tDeparture = (trip: any) => {
@@ -81,7 +79,8 @@ function sortValue(trip: any, key: string): any {
 }
 
 export default function TripsPage({ embeddedClientId }: { embeddedClientId?: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const navigate = useNavigate();
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -412,18 +411,33 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
             <div className="w-[128px] shrink-0"><CustomSelect size="sm" options={statusOptions} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} /></div>
             <div className="w-[148px] shrink-0"><CustomSelect size="sm" options={truckOptions} value={filters.truck} onChange={v => setFilters(f => ({ ...f, truck: v }))} /></div>
             <div className="w-[148px] shrink-0"><CustomSelect size="sm" options={driverOptions} value={filters.driver} onChange={v => setFilters(f => ({ ...f, driver: v }))} /></div>
-            <div className="relative shrink-0">
-              <Calendar className="w-3.5 h-3.5 text-primary absolute left-2.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <Flatpickr
-                value={filters.dateFrom && filters.dateTo ? `${filters.dateFrom} to ${filters.dateTo}` : ''}
-                onChange={(dates) => {
-                  const [a, b] = dates as Date[];
-                  setFilters(f => ({ ...f, dateFrom: a ? ymd(a) : '', dateTo: b ? ymd(b) : '' }));
-                }}
-                className="input pl-8 pr-3 py-1.5 text-xs w-[210px] bg-card cursor-pointer hover:border-primary/50 transition-colors"
-                options={{ mode: 'range', altInput: true, altFormat: 'd M', dateFormat: 'Y-m-d', allowInput: false, showMonths: 1 }}
-                placeholder={t('date_range', 'Date range')}
-                title={t('date_range', 'Date range')}
+            <div className="flex items-center gap-1 shrink-0">
+              <DateField
+                size="sm"
+                className="w-[126px]"
+                value={filters.dateFrom}
+                onChange={(v) => setFilters((f: any) => ({
+                  ...f,
+                  dateFrom: v,
+                  dateTo: f.dateTo && f.dateTo < v ? v : f.dateTo,
+                }))}
+                lang={lang}
+                placeholder={t('from', 'From')}
+                title={t('from', 'From')}
+              />
+              <span className="text-text-secondary text-[11px]">–</span>
+              <DateField
+                size="sm"
+                className="w-[126px]"
+                value={filters.dateTo}
+                onChange={(v) => setFilters((f: any) => ({
+                  ...f,
+                  dateTo: v,
+                  dateFrom: f.dateFrom && f.dateFrom > v ? v : f.dateFrom,
+                }))}
+                lang={lang}
+                placeholder={t('to', 'To')}
+                title={t('to', 'To')}
               />
             </div>
             {hasActiveFilters && (

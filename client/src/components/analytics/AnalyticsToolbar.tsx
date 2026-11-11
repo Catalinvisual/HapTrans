@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
 import { RotateCw, CalendarRange, LoaderCircle } from 'lucide-react';
 import CustomSelect from '../CustomSelect';
+import DateField from '../dashboard/DateField';
 
 export type Granularity = 'day' | 'week' | 'month';
 
@@ -55,7 +54,8 @@ export default function AnalyticsToolbar({
   rangeType, onRangeType, customFrom, customTo, onCustomFrom, onCustomTo,
   granularity, onGranularity, onRefresh, refreshing,
 }: AnalyticsToolbarProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   return (
     <div className="flex flex-wrap items-center gap-3 bg-surface/60 backdrop-blur p-2 rounded-2xl border border-border/60 shadow-sm">
       <CustomSelect
@@ -66,9 +66,25 @@ export default function AnalyticsToolbar({
       />
       {rangeType === 'custom' && (
         <div className="flex items-center gap-2">
-          <Flatpickr value={customFrom} onChange={d => onCustomFrom(toISO(d[0]))} className="input !py-1.5 !text-sm !rounded-xl !w-28 !bg-surface" />
+          <DateField
+            value={customFrom}
+            onChange={onCustomFrom}
+            lang={lang}
+            size="sm"
+            className="w-[124px]"
+            placeholder={t('from', 'From')}
+            title={t('from', 'From')}
+          />
           <span className="text-text-secondary text-sm">–</span>
-          <Flatpickr value={customTo} onChange={d => onCustomTo(toISO(d[0]))} className="input !py-1.5 !text-sm !rounded-xl !w-28 !bg-surface" />
+          <DateField
+            value={customTo}
+            onChange={onCustomTo}
+            lang={lang}
+            size="sm"
+            className="w-[124px]"
+            placeholder={t('to', 'To')}
+            title={t('to', 'To')}
+          />
         </div>
       )}
       {onGranularity && (

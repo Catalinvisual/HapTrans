@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, RefreshCw, Globe, Truck as TruckIcon, Route, Gauge, Download, Calendar } from 'lucide-react';
+import { Search, Filter, RefreshCw, Globe, Truck as TruckIcon, Route, Gauge, Download } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
+import DateField from '../components/dashboard/DateField';
 import { matchesSearch } from '../lib/search';
 import { countryIso, countryName, countryNames } from '../lib/countries';
 import { fmtNumber, fmtPercent, fmtKm } from '../lib/format';
@@ -29,6 +28,7 @@ function formatCountry(raw: string, lang: string): { iso: string; label: string;
 
 export default function IftaReportPage() {
   const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState('');
@@ -87,15 +87,25 @@ export default function IftaReportPage() {
 
       <div className="flex items-center gap-2 bg-surface/60 border border-border rounded-lg px-1.5 py-1 shrink-0">
         <Filter className="w-3.5 h-3.5 text-text-secondary ml-1" />
-        <div className="relative">
-          <Calendar className="w-3.5 h-3.5 text-primary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-          <Flatpickr value={from} onChange={(_, dateStr) => setFrom(dateStr)} className="input !pl-8 !py-1 !text-xs w-32 cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('from', 'From')} />
-        </div>
+        <DateField
+          value={from}
+          onChange={setFrom}
+          lang={lang}
+          size="sm"
+          className="w-[124px]"
+          placeholder={t('from', 'From')}
+          title={t('from', 'From')}
+        />
         <span className="text-text-secondary text-[11px]">–</span>
-        <div className="relative">
-          <Calendar className="w-3.5 h-3.5 text-primary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-          <Flatpickr value={to} onChange={(_, dateStr) => setTo(dateStr)} className="input !pl-8 !py-1 !text-xs w-32 cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('to', 'To')} />
-        </div>
+        <DateField
+          value={to}
+          onChange={setTo}
+          lang={lang}
+          size="sm"
+          className="w-[124px]"
+          placeholder={t('to', 'To')}
+          title={t('to', 'To')}
+        />
       </div>
 
       <div className="flex-1" />

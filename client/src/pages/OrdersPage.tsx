@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, Navigation, Calendar, Sparkles } from 'lucide-react';
+import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, Navigation, Sparkles } from 'lucide-react';
 
 const WebsiteQuotesPage = lazy(() => import('./WebsiteQuotesPage'));
 import { orderIsAdr } from '../lib/adrDetect';
@@ -17,6 +17,7 @@ import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import CustomSelect from '../components/CustomSelect';
+import DateField from '../components/dashboard/DateField';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
@@ -36,12 +37,9 @@ import { getCleanInvoiceFilename } from '../lib/filenameUtils';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { countryIso } from '../lib/countries';
 import { matchesSearch } from '../lib/search';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function sortValue(o: any, key: string): any {
   switch (key) {
@@ -60,6 +58,7 @@ function sortValue(o: any, key: string): any {
 
 export default function OrdersPage() {
   const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
@@ -556,18 +555,33 @@ return (
             <div className="w-[120px] shrink-0"><CustomSelect size="sm" title={t('country', 'Country')} value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions.map((o, i) => i === 0 ? { ...o, label: t('country', 'Country') } : o)} /></div>
             <div className="w-[96px] shrink-0"><CustomSelect size="sm" title={t('type', 'Type')} value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('type', 'Type') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} /></div>
             <div className="w-[116px] shrink-0"><CustomSelect size="sm" title={t('priority', 'Priority')} value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('priority', 'Priority') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} /></div>
-            <div className="relative shrink-0">
-              <Calendar className="w-3.5 h-3.5 text-primary absolute left-2.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <Flatpickr
-                value={filters.dateFrom && filters.dateTo ? `${filters.dateFrom} to ${filters.dateTo}` : ''}
-                onChange={(dates) => {
-                  const [a, b] = dates as Date[];
-                  setFilters((f: any) => ({ ...f, dateFrom: a ? ymd(a) : '', dateTo: b ? ymd(b) : '' }));
-                }}
-                className="input pl-8 pr-3 py-1.5 text-xs w-[190px] bg-card cursor-pointer hover:border-primary/50 transition-colors"
-                options={{ mode: 'range', altInput: true, altFormat: 'd M', dateFormat: 'Y-m-d', allowInput: false, showMonths: 1 }}
-                placeholder={t('date_range', 'Date range')}
-                title={t('date_range', 'Date range')}
+            <div className="flex items-center gap-1 shrink-0">
+              <DateField
+                size="sm"
+                className="w-[126px]"
+                value={filters.dateFrom}
+                onChange={(v) => setFilters((f: any) => ({
+                  ...f,
+                  dateFrom: v,
+                  dateTo: f.dateTo && f.dateTo < v ? v : f.dateTo,
+                }))}
+                lang={lang}
+                placeholder={t('from', 'From')}
+                title={t('from', 'From')}
+              />
+              <span className="text-text-secondary text-[11px]">–</span>
+              <DateField
+                size="sm"
+                className="w-[126px]"
+                value={filters.dateTo}
+                onChange={(v) => setFilters((f: any) => ({
+                  ...f,
+                  dateTo: v,
+                  dateFrom: f.dateFrom && f.dateFrom > v ? v : f.dateFrom,
+                }))}
+                lang={lang}
+                placeholder={t('to', 'To')}
+                title={t('to', 'To')}
               />
             </div>
             {hasActiveFilters && <button onClick={() => { setSearch(''); setFilters({ status: 'all', client: 'all', country: 'all', type: 'all', priority: 'all', dateFrom: '', dateTo: '' }); }} className="p-1.5 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0" title={t('clear_filters', 'Clear filters')}><FilterX className="w-4 h-4" /></button>}
