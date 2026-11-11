@@ -558,7 +558,7 @@ return (
             <div className="flex items-center gap-1 shrink-0">
               <DateField
                 size="sm"
-                className="w-[126px]"
+                className="w-[150px]"
                 value={filters.dateFrom}
                 onChange={(v) => setFilters((f: any) => ({
                   ...f,
@@ -572,7 +572,7 @@ return (
               <span className="text-text-secondary text-[11px]">–</span>
               <DateField
                 size="sm"
-                className="w-[126px]"
+                className="w-[150px]"
                 value={filters.dateTo}
                 onChange={(v) => setFilters((f: any) => ({
                   ...f,

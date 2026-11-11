@@ -21,6 +21,7 @@ interface DateFieldProps {
   disabled?: boolean;
   icon?: ElementType;
   title?: string;
+  invalid?: boolean;
 }
 
 function parseDate(value: string): Date {
@@ -47,6 +48,7 @@ export default function DateField({
   disabled = false,
   icon,
   title,
+  invalid = false,
 }: DateFieldProps) {
   const { t } = useTranslation();
   const locale = localeFor(lang);
@@ -138,7 +140,7 @@ export default function DateField({
   const HeroIcon = icon || CalendarDays;
   const triggerClass = variant === 'hero'
     ? `flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-white/95 px-2 text-[11px] font-bold text-slate-800 shadow-sm transition-all hover:border-white/60 hover:bg-white focus:outline-none focus:ring-2 focus:ring-white/60 disabled:cursor-not-allowed disabled:opacity-50 ${open ? 'ring-2 ring-white/70' : ''}`
-    : `flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 font-medium text-text shadow-sm transition-all hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 ${size === 'sm' ? 'h-8 text-xs' : 'h-[38px] text-sm'} ${open ? 'border-primary ring-2 ring-primary/20' : ''}`;
+    : `flex w-full items-center gap-2 rounded-lg border px-3 font-medium shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${size === 'sm' ? 'h-8 text-xs' : 'h-[38px] text-sm'} ${invalid ? 'border-red-500 bg-red-50/20 text-red-600 hover:border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-border bg-card text-text hover:border-primary/50 focus:border-primary focus:ring-primary/20'} ${open ? (invalid ? 'ring-2 ring-red-200' : 'border-primary ring-2 ring-primary/20') : ''}`;
 
   return (
     <div className={`relative min-w-0 ${className}`}>
@@ -158,6 +160,7 @@ export default function DateField({
         className={triggerClass}
         title={title}
         aria-label={title}
+        aria-invalid={invalid || undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
       >

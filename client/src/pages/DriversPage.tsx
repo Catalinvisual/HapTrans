@@ -3,8 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Search, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock, Eye, Activity } from 'lucide-react';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
+import DateField from '../components/dashboard/DateField';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -58,6 +57,7 @@ export default function DriversPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -72,13 +72,6 @@ export default function DriversPage() {
   const [drawerDriverId, setDrawerDriverId] = useState<string | null>(null);
   const [drawerTab, setDrawerTab] = useState('overview');
   const [showExport, setShowExport] = useState(false);
-  const fpOptions = useMemo(() => ({
-    altInput: true,
-    altFormat: 'd/m/Y',
-    dateFormat: 'Y-m-d',
-    allowInput: false,
-    minDate: 'today'
-  }), []);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
 
@@ -581,10 +574,7 @@ const tabs: TabDef[] = drawerDriver ? [
           <div className="bg-surface/50 rounded-xl p-3 border border-border space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-text-secondary">{t('hos_add_entry', 'Adaugă / editează zi')}</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                <Flatpickr value={hosForm.date} onChange={(_, dateStr) => setHosForm({ ...hosForm, date: dateStr })} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('date_format_hint', 'DD/MM/YYYY')} />
-              </div>
+              <DateField value={hosForm.date} onChange={(v) => setHosForm({ ...hosForm, date: v })} lang={lang} placeholder={t('date_format_hint', 'DD/MM/YYYY')} title={t('hos_add_entry', 'Add day')} />
               <input type="number" step="0.5" min="0" className="input" placeholder={t('hos_driving', 'Conducere (h)')} value={hosForm.drivingHours} onChange={e => setHosForm({ ...hosForm, drivingHours: e.target.value })} />
               <input type="number" step="0.5" min="0" className="input" placeholder={t('hos_work', 'Muncă (h)')} value={hosForm.workHours} onChange={e => setHosForm({ ...hosForm, workHours: e.target.value })} />
               <input type="number" step="5" min="0" className="input" placeholder={t('hos_break', 'Pauză (min)')} value={hosForm.breakMinutes} onChange={e => setHosForm({ ...hosForm, breakMinutes: e.target.value })} />
@@ -860,7 +850,7 @@ const tabs: TabDef[] = drawerDriver ? [
               <label className="label font-semibold flex items-center gap-1">
                 <Calendar className="w-4 h-4 text-primary" /> {t('licenseExpiry')}
               </label>
-              <Flatpickr type="hidden" value={form.licenseExpiry} onChange={(_, dateStr) => setForm({ ...form, licenseExpiry: dateStr })} onClick={e => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={e => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input bg-card ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+              <DateField value={form.licenseExpiry} onChange={(v) => setForm({ ...form, licenseExpiry: v })} lang={lang} allowPast={false} invalid={isPastDate(form.licenseExpiry)} placeholder="DD/MM/YYYY" title={t('licenseExpiry')} />
               {isPastDate(form.licenseExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
@@ -868,7 +858,7 @@ const tabs: TabDef[] = drawerDriver ? [
               <label className="label font-semibold flex items-center gap-1">
                 <Calendar className="w-4 h-4 text-primary" /> {t('medicalExpiry')}
               </label>
-              <Flatpickr type="hidden" value={form.medicalExpiry} onChange={(_, dateStr) => setForm({ ...form, medicalExpiry: dateStr })} onClick={e => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={e => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input bg-card ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+              <DateField value={form.medicalExpiry} onChange={(v) => setForm({ ...form, medicalExpiry: v })} lang={lang} allowPast={false} invalid={isPastDate(form.medicalExpiry)} placeholder="DD/MM/YYYY" title={t('medicalExpiry')} />
               {isPastDate(form.medicalExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
@@ -876,7 +866,7 @@ const tabs: TabDef[] = drawerDriver ? [
               <label className="label font-semibold flex items-center gap-1">
                 <Calendar className="w-4 h-4 text-primary" /> {t('tachoCardExpiry')}
               </label>
-              <Flatpickr type="hidden" value={form.tachoCardExpiry} onChange={(_, dateStr) => setForm({ ...form, tachoCardExpiry: dateStr })} onClick={e => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={e => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input bg-card ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+              <DateField value={form.tachoCardExpiry} onChange={(v) => setForm({ ...form, tachoCardExpiry: v })} lang={lang} allowPast={false} invalid={isPastDate(form.tachoCardExpiry)} placeholder="DD/MM/YYYY" title={t('tachoCardExpiry')} />
               {isPastDate(form.tachoCardExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
           </form>

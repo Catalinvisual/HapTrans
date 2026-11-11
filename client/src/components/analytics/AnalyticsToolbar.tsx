@@ -71,7 +71,7 @@ export default function AnalyticsToolbar({
             onChange={onCustomFrom}
             lang={lang}
             size="sm"
-            className="w-[124px]"
+            className="w-[150px]"
             placeholder={t('from', 'From')}
             title={t('from', 'From')}
           />
@@ -81,7 +81,7 @@ export default function AnalyticsToolbar({
             onChange={onCustomTo}
             lang={lang}
             size="sm"
-            className="w-[124px]"
+            className="w-[150px]"
             placeholder={t('to', 'To')}
             title={t('to', 'To')}
           />

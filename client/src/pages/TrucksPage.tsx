@@ -46,10 +46,9 @@ import {
   fuelConsumptionLabel,
   fuelEnergyPriceLabel,
 } from '../lib/truckFuel';
-import { FileText, Calendar, Clock } from 'lucide-react';
+import { FileText, Clock } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
+import DateField from '../components/dashboard/DateField';
 import ActivityTimeline from '../components/ActivityTimeline';
 
 const TRUCK_TYPES = [
@@ -128,6 +127,7 @@ export default function TrucksPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const company = useSettingsStore(s => s.company);
 
   const editTruckParam = searchParams.get('editTruck');
@@ -158,14 +158,6 @@ export default function TrucksPage() {
   const autoOpenedTruckRef = useRef<string | null>(null);
   const dimensionsHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const heightInputRef = useRef<HTMLInputElement | null>(null);
-
-  const fpOptions = useMemo(() => ({
-    altInput: true,
-    altFormat: 'd/m/Y',
-    dateFormat: 'Y-m-d',
-    allowInput: false,
-    minDate: 'today'
-  }), []);
 
   const initialForm = {
     plateNumber: '', brand: '', model: '', year: '', vin: '', registrationCountry: '',
@@ -887,17 +879,14 @@ export default function TrucksPage() {
             <CustomSelect className="w-full" value={docForm.type} onChange={v => setDocForm({ ...docForm, type: v })} options={TRUCK_DOC_TYPES.map(dt => ({ value: dt.value, label: t(dt.label) || dt.default }))} />
             <input className="input" placeholder={t('document_number', 'Document number')} value={docForm.documentNumber} onChange={e => setDocForm({ ...docForm, documentNumber: e.target.value })} />
             
-            <div className="relative">
-              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <Flatpickr 
-                type="hidden"
-                value={docForm.expiryDate} 
-                onChange={(_, dateStr) => setDocForm({ ...docForm, expiryDate: dateStr })} 
-                className="input pl-9 w-full bg-card" 
-                options={fpOptions} 
-                placeholder={t('expiry_date', 'Expiry Date (DD/MM/YYYY)')} 
-              />
-            </div>
+            <DateField
+              value={docForm.expiryDate}
+              onChange={(v) => setDocForm({ ...docForm, expiryDate: v })}
+              lang={lang}
+              allowPast={false}
+              placeholder={t('expiry_date', 'Expiry Date (DD/MM/YYYY)')}
+              title={t('expiry_date', 'Expiry Date')}
+            />
             
             <button className="btn-primary w-full text-sm" onClick={() => saveTruckDoc(drawerTruck.id)}><Plus className="w-3.5 h-3.5 inline mr-1" />{t('save', 'Save')}</button>
           </div>

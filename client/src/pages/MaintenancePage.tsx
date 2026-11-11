@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
+import DateField from '../components/dashboard/DateField';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Pencil, Trash2, Paperclip, FileText, X, Wrench, Clock, CalendarCheck, AlertTriangle } from 'lucide-react';
 import api from '../lib/api';
@@ -21,6 +20,7 @@ export default function MaintenancePage() {
   const confirmSave = useSaveConfirm();
 
   const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [records, setRecords] = useState<any[]>([]);
   const [trucks, setTrucks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,14 +231,14 @@ export default function MaintenancePage() {
             <div><label className="label">{t('description')}</label><input className="input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} required /></div>
             <div>
               <label className="label">{t('planned')}</label>
-              <Flatpickr 
-                value={form.scheduledDate} 
-                onChange={(dates, dateStr) => setForm({...form, scheduledDate: dateStr})} 
-                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                className={`input bg-card ${isPastDate(form.scheduledDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} 
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }} 
-                placeholder={t('date_format_hint', 'DD/MM/YYYY')} 
+              <DateField
+                value={form.scheduledDate}
+                onChange={(v) => setForm({ ...form, scheduledDate: v })}
+                lang={lang}
+                allowPast={false}
+                invalid={isPastDate(form.scheduledDate)}
+                placeholder={t('date_format_hint', 'DD/MM/YYYY')}
+                title={t('planned')}
               />
               {isPastDate(form.scheduledDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>

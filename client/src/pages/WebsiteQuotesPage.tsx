@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Download, Filter, Calendar, Eye, ChevronDown, ChevronUp, Truck } from 'lucide-react';
+import { Download, Filter, Eye, ChevronDown, ChevronUp, Truck } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
+import DateField from '../components/dashboard/DateField';
 import { QuoteReplyForm } from './QuoteReplyForm';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
@@ -379,13 +378,6 @@ const WebsiteQuotesPage = () => {
   const navigate = useNavigate();
   const currentLang = i18n.language?.substring(0, 2).toLowerCase() || 'ro';
   const tLocal = (key: string) => translations[currentLang]?.[key] || translations['en'][key] || key;
-  const fpOptions = useMemo(() => ({
-    altInput: true,
-    altFormat: 'd/m/Y',
-    dateFormat: 'Y-m-d',
-    allowInput: false,
-    minDate: 'today'
-  }), []);
   const fetchQuotes = async () => {
     try {
       const {
@@ -482,23 +474,15 @@ const WebsiteQuotesPage = () => {
             <CustomSelect value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
           </div>
           
-          <div className="relative w-full sm:w-auto z-40" onClick={e => {
-          const inp = e.currentTarget.querySelector('input');
-          if (inp) {
-            const fp = (inp as any)._flatpickr;
-            if (fp) fp.open();else inp.focus();
-          }
-        }}>
-            <Flatpickr type="hidden" value={dateFilter} onChange={(_dates, dateStr) => setDateFilter(dateStr)} onClick={e => {
-            e.stopPropagation();
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} onFocus={e => {
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} className="w-full sm:w-40 px-3 py-2 border border-border rounded-lg focus:ring-primary focus:border-primary text-sm bg-card cursor-pointer pl-10" options={fpOptions} placeholder="dd/mm/yyyy" />
-            <Calendar className="w-4 h-4 text-text-light absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          <DateField
+            value={dateFilter}
+            onChange={setDateFilter}
+            lang={currentLang}
+            allowPast={false}
+            className="w-full sm:w-40"
+            placeholder={t('date_format_hint', 'DD/MM/YYYY')}
+            title={t('date', 'Date')}
+          />
           
           {(statusFilter !== 'all' || dateFilter) && <button onClick={() => {
           setStatusFilter('all');

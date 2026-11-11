@@ -92,7 +92,7 @@ export default function IftaReportPage() {
           onChange={setFrom}
           lang={lang}
           size="sm"
-          className="w-[124px]"
+          className="w-[150px]"
           placeholder={t('from', 'From')}
           title={t('from', 'From')}
         />
@@ -102,7 +102,7 @@ export default function IftaReportPage() {
           onChange={setTo}
           lang={lang}
           size="sm"
-          className="w-[124px]"
+          className="w-[150px]"
           placeholder={t('to', 'To')}
           title={t('to', 'To')}
         />

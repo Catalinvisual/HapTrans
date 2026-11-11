@@ -2,14 +2,13 @@ import { useSaveConfirm, useConfirm } from "../components/SaveConfirmProvider";
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon, CheckCircle2, Calendar } from 'lucide-react';
+import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
+import DateField from '../components/dashboard/DateField';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
 const CATEGORIES = [{
   value: 'fuel',
   labelKey: 'cat_fuel'
@@ -33,8 +32,10 @@ export default function ExpensesPage() {
   const confirmSave = useSaveConfirm();
   const confirm = useConfirm();
   const {
-    t
+    t,
+    i18n
   } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -298,13 +299,7 @@ export default function ExpensesPage() {
 
             <div>
               <label className="label font-semibold text-xs">{t('expenseDate')}</label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                <Flatpickr value={form.date} onChange={(_, dateStr) => setForm({
-              ...form,
-              date: dateStr
-            })} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('date_format_hint', 'DD/MM/YYYY')} required />
-              </div>
+              <DateField value={form.date} onChange={(v) => setForm({ ...form, date: v })} lang={lang} placeholder={t('date_format_hint', 'DD/MM/YYYY')} title={t('expenseDate')} />
             </div>
 
             <div className="lg:col-span-3">

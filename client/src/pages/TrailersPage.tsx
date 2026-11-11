@@ -26,8 +26,7 @@ import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { matchesSearch } from '../lib/search';
 import { FileText, Calendar, Clock } from 'lucide-react';
 import ActivityTimeline from '../components/ActivityTimeline';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
+import DateField from '../components/dashboard/DateField';
 
 const TRAILER_TYPES = [
   { value: "mega", label: "trailer_type_mega", default: "Mega" },
@@ -58,6 +57,7 @@ export default function TrailersPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const company = useSettingsStore(s => s.company);
   const [trailers, setTrailers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,13 +78,6 @@ export default function TrailersPage() {
     heightCm: "", widthCm: "", lengthCm: "", axleCount: "", status: "active",
     apkExpiry: "",
   };
-
-  const fpOptions = useMemo(() => ({
-    altInput: true,
-    altFormat: 'd/m/Y',
-    dateFormat: 'Y-m-d',
-    allowInput: false
-  }), []);
 
   const [form, setForm] = useState(formStore.trailersForm || initialForm);
   const [editId, setEditId] = useState<string | null>(formStore.trailersEditId);
@@ -506,17 +499,13 @@ export default function TrailersPage() {
             <div><label className="label font-semibold">{t("trailer_axles", "Axles")}</label><input type="number" className="input" value={form.axleCount} onChange={(e) => setForm({ ...form, axleCount: e.target.value })} min="0" /></div>
             <div>
               <label className="label font-semibold">{t("next_service", "Următoarea revizie (APK)")}</label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                <Flatpickr
-                  type="hidden"
-                  value={form.apkExpiry}
-                  onChange={(_, dateStr) => setForm({ ...form, apkExpiry: dateStr })}
-                  className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors h-[38px] w-full"
-                  options={fpOptions}
-                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
-                />
-              </div>
+              <DateField
+                value={form.apkExpiry}
+                onChange={(v) => setForm({ ...form, apkExpiry: v })}
+                lang={lang}
+                placeholder={t('date_format_hint', 'DD/MM/YYYY')}
+                title={t('next_service', 'Next service (APK)')}
+              />
             </div>
             <div><label className="label font-semibold">{t("status", "Status")}</label><CustomSelect value={form.status} onChange={(v) => setForm({ ...form, status: v })} options={TRAILER_STATUSES.map((o) => ({ value: o.value, label: t(o.label as string) as string }))} /></div>
           </form>

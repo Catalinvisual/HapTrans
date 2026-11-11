@@ -1,7 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { Plus, Search, Eye, Download, Share2, Trash2, Mail, BarChart3, Send, Wallet, CheckCircle2, AlertTriangle, Pencil, FileText } from 'lucide-react';
@@ -15,6 +13,7 @@ import { formatDate } from '../lib/dateUtils';
 import { fmtMoney } from '../lib/format';
 import { matchesSearch } from '../lib/search';
 import CustomSelect from '../components/CustomSelect';
+import DateField from '../components/dashboard/DateField';
 import type { SelectOption } from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from "../store/settingsStore";
@@ -38,6 +37,7 @@ export default function InvoicesPage({
     t,
     i18n
   } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const confirmSave = useSaveConfirm();
   const confirm = useConfirm();
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -46,13 +46,6 @@ export default function InvoicesPage({
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(formStore.invoicesShowForm);
   const [editId, setEditId] = useState<string | null>(formStore.invoicesEditId);
-  const fpOptions = useMemo(() => ({
-    altInput: true,
-    altFormat: 'd/m/Y',
-    dateFormat: 'Y-m-d',
-    allowInput: false,
-    minDate: 'today'
-  }), []);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -874,32 +867,12 @@ export default function InvoicesPage({
                 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
-                  <Flatpickr type="hidden" value={form.issueDate} onChange={(_dates, dateStr) => setForm({
-                ...form,
-                issueDate: dateStr
-              })} onClick={e => {
-                e.stopPropagation();
-                const fp = (e.target as any)._flatpickr;
-                if (fp) fp.open();
-              }} onFocus={e => {
-                const fp = (e.target as any)._flatpickr;
-                if (fp) fp.open();
-              }} className={`input py-3 bg-card ${isPastDate(form.issueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+                  <DateField value={form.issueDate} onChange={(v) => setForm({ ...form, issueDate: v })} lang={lang} allowPast={false} invalid={isPastDate(form.issueDate)} placeholder="DD/MM/YYYY" title={t('issueDate')} />
                   {isPastDate(form.issueDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('dueDate')}</label>
-                  <Flatpickr type="hidden" value={form.dueDate} onChange={(_dates, dateStr) => setForm({
-                ...form,
-                dueDate: dateStr
-              })} onClick={e => {
-                e.stopPropagation();
-                const fp = (e.target as any)._flatpickr;
-                if (fp) fp.open();
-              }} onFocus={e => {
-                const fp = (e.target as any)._flatpickr;
-                if (fp) fp.open();
-              }} className={`input py-3 bg-card ${isPastDate(form.dueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+                  <DateField value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} lang={lang} allowPast={false} invalid={isPastDate(form.dueDate)} placeholder="DD/MM/YYYY" title={t('dueDate')} />
                   {isPastDate(form.dueDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
                 </div>
                 

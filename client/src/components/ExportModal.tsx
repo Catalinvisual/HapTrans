@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, Calendar, Loader2 } from 'lucide-react';
+import { X, Calendar, Loader2 } from 'lucide-react';
 import ExcelIcon from './icons/ExcelIcon';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
+import DateField from './dashboard/DateField';
 import { exportExcel, formatDateExcel } from '../lib/exportExcel';
 
 interface ExportHeader {
@@ -156,7 +155,7 @@ function dateKey(d: Date): string {
 
 export default function ExportModal({ isOpen, onClose, data, filename, title, sheetName, headers, getDateField }: ExportModalProps) {
   const { t, i18n } = useTranslation();
-  const lang = i18n.language || 'ro';
+  const lang = (i18n.language || 'ro').slice(0, 2);
   const tExport = EXPORT_TRANSLATIONS[lang] || EXPORT_TRANSLATIONS['ro'];
 
   const [rangeType, setRangeType] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
@@ -320,29 +319,25 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
           </div>
 
           {rangeType === 'custom' && (
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-surface border border-border animate-fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-surface border border-border animate-fade-in">
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.startDate}</label>
-                <Flatpickr
-                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
+                <DateField
                   value={startDate}
-                  onChange={(dates) => {
-                    setStartDate(dates.length > 0 ? dateKey(dates[0]) : '');
-                  }}
-                  className="input py-2 text-sm bg-card w-full"
-                  options={{ dateFormat: 'Y-m-d' }}
+                  onChange={setStartDate}
+                  lang={lang}
+                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
+                  title={tExport.startDate}
                 />
               </div>
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.endDate}</label>
-                <Flatpickr
-                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
+                <DateField
                   value={endDate}
-                  onChange={(dates) => {
-                    setEndDate(dates.length > 0 ? dateKey(dates[0]) : '');
-                  }}
-                  className="input py-2 text-sm bg-card w-full"
-                  options={{ dateFormat: 'Y-m-d' }}
+                  onChange={setEndDate}
+                  lang={lang}
+                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
+                  title={tExport.endDate}
                 />
               </div>
             </div>

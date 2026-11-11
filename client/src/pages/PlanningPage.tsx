@@ -17,8 +17,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { orderIsAdr, tripIsAdr } from '../lib/adrDetect';
 import { driverEntityDisplayName } from '../lib/driverName';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/flatpickr.min.css';
+import DateField from '../components/dashboard/DateField';
 import { useShortcuts } from '../hooks/useShortcuts';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -2556,7 +2555,8 @@ function TripDetailDrawer({
 
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 export default function PlanningPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const navigate = useNavigate();
   const confirm = useConfirm();
 
@@ -4033,11 +4033,13 @@ export default function PlanningPage() {
                               <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, -1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_previous', 'Previous period')}>
                                 <ChevronLeft className="w-3.5 h-3.5" />
                               </button>
-                              <Flatpickr
+                              <DateField
                                 value={selectedDate}
-                                onChange={([d]) => d && setSelectedDate(dayStr(d))}
-                                options={{ dateFormat: 'Y-m-d' }}
-                                className="w-20 text-[11px] font-bold text-center bg-transparent border-none focus:ring-0 cursor-pointer text-text-primary p-0"
+                                onChange={(v) => v && setSelectedDate(v)}
+                                lang={lang}
+                                size="sm"
+                                className="w-[150px]"
+                                title={t('timeline_selected_date', 'Selected date')}
                               />
                               <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, 1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_next', 'Next period')}>
                                 <ChevronRight className="w-3.5 h-3.5" />

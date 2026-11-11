@@ -1,9 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
-import { Calendar } from 'lucide-react';
+import DateField from '../components/dashboard/DateField';
 import { useTranslation } from 'react-i18next';
 import { getCompanySettings } from "../store/settingsStore";
 export const QuoteReplyForm = ({
@@ -17,6 +15,7 @@ export const QuoteReplyForm = ({
     i18n,
     t
   } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [formData, setFormData] = useState({
     price: '',
     pickupDate: '',
@@ -25,13 +24,6 @@ export const QuoteReplyForm = ({
     message: ''
   });
   const [sending, setSending] = useState(false);
-  const fpOptions = useMemo(() => ({
-    altInput: true,
-    altFormat: 'd/m/Y',
-    dateFormat: 'Y-m-d',
-    allowInput: false,
-    minDate: 'today'
-  }), []);
   const isPastDate = (val: string) => {
     if (!val) return false;
     const today = new Date();
@@ -110,70 +102,43 @@ export const QuoteReplyForm = ({
             price: e.target.value
           })} placeholder="e.g. 1200" />
             </div>
-            <div className="relative" onClick={e => {
-          const inp = e.currentTarget.querySelector('input');
-          if (inp) {
-            const fp = (inp as any)._flatpickr;
-            if (fp) fp.open();else inp.focus();
-          }
-        }}>
+            <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1">{tLocal('valid_until')}</label>
-              <Flatpickr type="hidden" value={formData.validUntil} onChange={(dates, dateStr) => setFormData({
-            ...formData,
-            validUntil: dateStr
-          })} onClick={e => {
-            e.stopPropagation();
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} onFocus={e => {
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.validUntil) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-border'}`} options={fpOptions} placeholder="dd/mm/yyyy" />
-              <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.validUntil) ? 'text-red-500' : 'text-text-light'}`} />
+              <DateField
+                value={formData.validUntil}
+                onChange={(v) => setFormData({ ...formData, validUntil: v })}
+                lang={lang}
+                allowPast={false}
+                invalid={isPastDate(formData.validUntil)}
+                placeholder="dd/mm/yyyy"
+                title={tLocal('valid_until')}
+              />
               {isPastDate(formData.validUntil) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
-            <div className="relative" onClick={e => {
-          const inp = e.currentTarget.querySelector('input');
-          if (inp) {
-            const fp = (inp as any)._flatpickr;
-            if (fp) fp.open();else inp.focus();
-          }
-        }}>
+            <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1">{t("jsx_pickupDate")}</label>
-              <Flatpickr type="hidden" value={formData.pickupDate} onChange={(dates, dateStr) => setFormData({
-            ...formData,
-            pickupDate: dateStr
-          })} onClick={e => {
-            e.stopPropagation();
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} onFocus={e => {
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-border'}`} options={fpOptions} placeholder="dd/mm/yyyy" />
-              <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.pickupDate) ? 'text-red-500' : 'text-text-light'}`} />
+              <DateField
+                value={formData.pickupDate}
+                onChange={(v) => setFormData({ ...formData, pickupDate: v })}
+                lang={lang}
+                allowPast={false}
+                invalid={isPastDate(formData.pickupDate)}
+                placeholder="dd/mm/yyyy"
+                title={t("jsx_pickupDate")}
+              />
               {isPastDate(formData.pickupDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
-            <div className="relative" onClick={e => {
-          const inp = e.currentTarget.querySelector('input');
-          if (inp) {
-            const fp = (inp as any)._flatpickr;
-            if (fp) fp.open();else inp.focus();
-          }
-        }}>
+            <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1">{t("jsx_deliveryDate")}</label>
-              <Flatpickr type="hidden" value={formData.deliveryDate} onChange={(dates, dateStr) => setFormData({
-            ...formData,
-            deliveryDate: dateStr
-          })} onClick={e => {
-            e.stopPropagation();
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} onFocus={e => {
-            const fp = (e.target as any)._flatpickr;
-            if (fp) fp.open();
-          }} className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.deliveryDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-border'}`} options={fpOptions} placeholder="dd/mm/yyyy" />
-              <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.deliveryDate) ? 'text-red-500' : 'text-text-light'}`} />
+              <DateField
+                value={formData.deliveryDate}
+                onChange={(v) => setFormData({ ...formData, deliveryDate: v })}
+                lang={lang}
+                allowPast={false}
+                invalid={isPastDate(formData.deliveryDate)}
+                placeholder="dd/mm/yyyy"
+                title={t("jsx_deliveryDate")}
+              />
               {isPastDate(formData.deliveryDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
           </div>

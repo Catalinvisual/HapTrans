@@ -6,9 +6,8 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
-import { computeRange, toISO } from '../components/analytics/AnalyticsToolbar';
+import DateField from '../components/dashboard/DateField';
+import { computeRange } from '../components/analytics/AnalyticsToolbar';
 import type { Granularity } from '../components/analytics/AnalyticsToolbar';
 import CustomSelect from '../components/CustomSelect';
 import KpiSummary from '../components/analytics/KpiSummary';
@@ -55,6 +54,7 @@ type Tab = 'reports' | 'history' | 'saved' | 'scheduled';
 
 export default function ReportsPage() {
   const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [tab, setTab] = useState<Tab>('reports');
   const [catalog, setCatalog] = useState<any[]>([]);
   const [catLoading, setCatLoading] = useState(true);
@@ -304,9 +304,9 @@ export default function ReportsPage() {
         />
         {rangeType === 'custom' && (
           <div className="flex items-center gap-1.5 shrink-0">
-            <Flatpickr value={customFrom} onChange={d => setCustomFrom(toISO(d[0]))} className="input !py-1 !px-2 !text-xs !rounded-lg !w-28 !bg-surface h-8" />
+            <DateField value={customFrom} onChange={setCustomFrom} lang={lang} size="sm" className="w-[150px]" placeholder={t('from', 'From')} title={t('from', 'From')} />
             <span className="text-text-secondary text-[11px]">–</span>
-            <Flatpickr value={customTo} onChange={d => setCustomTo(toISO(d[0]))} className="input !py-1 !px-2 !text-xs !rounded-lg !w-28 !bg-surface h-8" />
+            <DateField value={customTo} onChange={setCustomTo} lang={lang} size="sm" className="w-[150px]" placeholder={t('to', 'To')} title={t('to', 'To')} />
           </div>
         )}
         <div className="flex bg-surface rounded-lg p-0.5 border border-border/60 shrink-0 h-8">
