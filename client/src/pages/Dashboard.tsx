@@ -16,6 +16,7 @@ import {
   AlertsPanel, UpcomingPanel, RoutesPanel, FleetDriversPanel, UnassignedOrdersPanel, QuickActions,
 } from '../components/dashboard/DashboardPanels';
 import FilterBar, { EMPTY_FILTERS } from '../components/dashboard/FilterBar';
+import DateField from '../components/dashboard/DateField';
 import type { DashboardFilterValue } from '../components/dashboard/FilterBar';
 import { ReliabilityPanel, HeatmapPanel, DriverHoursPanel, TelemetryPanel } from '../components/dashboard/Insights';
 import KioskMode from '../components/dashboard/KioskMode';
@@ -171,15 +172,51 @@ export default function Dashboard() {
     api.get('/dashboard/filter-options')
       .then((response) => {
         const payload = response.data || {};
-        setOptions({
-          trucks: Array.isArray(payload.trucks) ? payload.trucks : [],
-          drivers: Array.isArray(payload.drivers) ? payload.drivers : [],
-          clients: Array.isArray(payload.clients) ? payload.clients : [],
-          countries: Array.isArray(payload.countries) ? payload.countries : [],
-        });
+        setOptions((previous) => ({
+          trucks: Array.isArray(payload.trucks) && payload.trucks.length ? payload.trucks : previous.trucks,
+          drivers: Array.isArray(payload.drivers) && payload.drivers.length ? payload.drivers : previous.drivers,
+          clients: Array.isArray(payload.clients) && payload.clients.length ? payload.clients : previous.clients,
+          countries: Array.isArray(payload.countries) && payload.countries.length ? payload.countries : previous.countries,
+        }));
       })
       .catch(() => { /* filters remain optional */ });
   }, []);
+
+  // The overview response carries the same option lists, and the loaded trips
+  // are a final fallback. This keeps the filters usable even if the dedicated
+  // options endpoint is unavailable on an older deployment.
+  useEffect(() => {
+    if (!data) return;
+    const trips = [
+      ...data.today.departures, ...data.today.arrivals, ...data.today.active,
+      ...data.today.delayed, ...data.upcoming.trips, ...(data.delayedTrips || []),
+    ];
+    const trucks = new Map<string, string>();
+    const drivers = new Map<string, string>();
+    for (const trip of trips) {
+      if (trip.truckId && trip.truckPlate) trucks.set(trip.truckId, trip.truckPlate);
+      if (trip.driverId && trip.driverName) drivers.set(trip.driverId, trip.driverName);
+    }
+    const clients = new Map<string, string>();
+    for (const order of data.unassignedOrders) {
+      if (order.clientId && order.clientName) clients.set(order.clientId, order.clientName);
+    }
+    const incoming = data.filterOptions;
+    setOptions((previous) => ({
+      trucks: incoming?.trucks?.length
+        ? incoming.trucks
+        : trucks.size ? [...trucks.entries()].map(([id, name]) => ({ id, name })) : previous.trucks,
+      drivers: incoming?.drivers?.length
+        ? incoming.drivers
+        : drivers.size ? [...drivers.entries()].map(([id, name]) => ({ id, name })) : previous.drivers,
+      clients: incoming?.clients?.length
+        ? incoming.clients
+        : clients.size ? [...clients.entries()].map(([id, name]) => ({ id, name })) : previous.clients,
+      countries: incoming?.countries?.length
+        ? incoming.countries
+        : data.byCountry.length ? data.byCountry.map((row) => row.country) : previous.countries,
+    }));
+  }, [data]);
 
   useEffect(() => {
     try {
@@ -544,24 +581,15 @@ export default function Dashboard() {
                 </div>
                 {preset === 'custom' && (
                   <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/20 pt-2">
-                    <label className="flex flex-1 items-center gap-1.5 text-[10px] font-bold text-white/80">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/80">
                       {t('dbd_custom_from')}
-                      <input
-                        type="date"
-                        value={customFrom}
-                        onChange={(event) => setCustomFrom(event.target.value)}
-                        className="min-w-0 flex-1 rounded-lg border-0 bg-white/95 px-2 py-1.5 text-[11px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
-                      />
-                    </label>
-                    <label className="flex flex-1 items-center gap-1.5 text-[10px] font-bold text-white/80">
+                      <DateField value={customFrom} onChange={setCustomFrom} lang={lang} />
+                    </div>
+                    <span className="text-white/55">–</span>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/80">
                       {t('dbd_custom_to')}
-                      <input
-                        type="date"
-                        value={customTo}
-                        onChange={(event) => setCustomTo(event.target.value)}
-                        className="min-w-0 flex-1 rounded-lg border-0 bg-white/95 px-2 py-1.5 text-[11px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-white/60"
-                      />
-                    </label>
+                      <DateField value={customTo} onChange={setCustomTo} lang={lang} />
+                    </div>
                   </div>
                 )}
               </div>

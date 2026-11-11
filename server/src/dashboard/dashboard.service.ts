@@ -61,6 +61,8 @@ export interface OverviewQuery extends OverviewFilters {
 export interface OverviewTrip {
   id: string;
   tripNumber: string | null;
+  truckId: string | null;
+  driverId: string | null;
   status: string;
   operationalStatus: string | null;
   createdAt: Date | null;
@@ -503,7 +505,7 @@ export class DashboardService {
     const loadFrom = includeWeek && from.getTime() > weekStart.getTime() ? weekStart : from;
     const loadTo = includeWeek && to.getTime() < weekEnd.getTime() ? weekEnd : to;
 
-    const [windowTrips, boardTrips, unassignedOrders, unassignedCount, rangeOrders, previous, fleetRows, driverRows, truckTypeRows, expiringTruckDocs, expiringDriverDocs, clientReliability, driverHours, telemetry] = await Promise.all([
+    const [windowTrips, boardTrips, unassignedOrders, unassignedCount, rangeOrders, previous, fleetRows, driverRows, truckTypeRows, expiringTruckDocs, expiringDriverDocs, clientReliability, driverHours, telemetry, filterOptions] = await Promise.all([
       this.loadOverviewTrips(loadFrom, loadTo, companyId, filters),
       this.loadOverviewBoardTrips(today, horizonEnd, companyId, filters),
       this.loadUnassignedOrders(companyId, filters.clientId),
@@ -518,6 +520,7 @@ export class DashboardService {
       this.loadClientReliability(from, to, companyId, filters),
       this.loadDriverHours(companyId),
       this.loadTelemetry(companyId),
+      this.getFilterOptions(companyId),
     ]);
 
     const rangeTrips = windowTrips.filter((trip) => {
@@ -809,6 +812,8 @@ export class DashboardService {
     const mapTrip = (trip: OverviewTrip) => ({
       id: trip.id,
       tripNumber: trip.tripNumber,
+      truckId: trip.truckId,
+      driverId: trip.driverId,
       status: trip.status,
       operationalStatus: trip.operationalStatus,
       plannedDeparture: trip.plannedDeparture,
@@ -918,6 +923,7 @@ export class DashboardService {
       heatmap: { buckets: heatBuckets, cells: heatCells, max: heatMax },
       driverHours,
       telemetry,
+      filterOptions,
       delayedTrips: delayedTrips.slice(0, 6).map(mapTrip),
       unassignedOrders: unassignedOrders.slice(0, 6).map((order) => ({
         id: order.id,
@@ -994,6 +1000,8 @@ export class DashboardService {
         `SELECT
            t.id,
            t."tripNumber" AS trip_number,
+           t."truckId" AS truck_id,
+           t."driverId" AS driver_id,
            lower(t.status::text) AS status,
            t."operationalStatus" AS operational_status,
            ${ts} AS created_at,
@@ -1058,6 +1066,8 @@ export class DashboardService {
       return {
         id: String(row.id),
         tripNumber: row.trip_number || null,
+        truckId: row.truck_id ? String(row.truck_id) : null,
+        driverId: row.driver_id ? String(row.driver_id) : null,
         status: String(row.status || 'planning'),
         operationalStatus: row.operational_status || null,
         createdAt: row.created_at ? new Date(row.created_at) : null,
@@ -1128,6 +1138,7 @@ export class DashboardService {
       : orderColumns.has('order_number') ? 'o.order_number' : 'NULL';
     const rows: any[] = await this.dataSource.query(
       `SELECT o.id,
+              o."clientId" AS client_id,
               ${orderNumberExpr} AS order_number,
               lower(o.status::text) AS status,
               o.priority,
@@ -1158,6 +1169,7 @@ export class DashboardService {
     return rows.map((row) => ({
       id: String(row.id),
       orderNumber: row.order_number || null,
+      clientId: row.client_id ? String(row.client_id) : null,
       clientName: row.client_name || null,
       status: String(row.status || ''),
       priority: row.priority || 'normal',

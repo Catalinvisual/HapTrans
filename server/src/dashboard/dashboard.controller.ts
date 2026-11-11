@@ -37,7 +37,9 @@ export class DashboardController {
   /** Select options for the dashboard filter bar (company scoped). */
   @Get('filter-options')
   getFilterOptions(@Req() req: any) {
-    return this.service.getFilterOptions(req?.user?.companyId ?? null);
+    // Normalize an empty company id to NULL: casting '' to uuid in the
+    // option queries throws and used to leave every filter silently empty.
+    return this.service.getFilterOptions(req?.user?.companyId || null);
   }
 
   @Get('analytics')

@@ -3,6 +3,8 @@
 export interface OverviewTrip {
   id: string;
   tripNumber: string | null;
+  truckId: string | null;
+  driverId: string | null;
   status: string;
   operationalStatus: string | null;
   plannedDeparture: string | null;
@@ -37,6 +39,7 @@ export interface OverviewSeriesPoint {
 export interface OverviewOrder {
   id: string;
   orderNumber: string | null;
+  clientId: string | null;
   clientName: string | null;
   status: string;
   priority: string;
@@ -144,6 +147,7 @@ export interface OverviewData {
   heatmap?: OverviewHeatmap;
   driverHours?: OverviewDriverHour[];
   telemetry?: OverviewTelemetry;
+  filterOptions?: OverviewFilterOptions;
   delayedTrips: OverviewTrip[];
   unassignedOrders: OverviewOrder[];
   fleet: {
