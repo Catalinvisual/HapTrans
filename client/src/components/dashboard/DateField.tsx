@@ -139,8 +139,8 @@ export default function DateField({
 
   const HeroIcon = icon || CalendarDays;
   const triggerClass = variant === 'hero'
-    ? `flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-white/95 px-2 text-[11px] font-bold text-slate-800 shadow-sm transition-all hover:border-white/60 hover:bg-white focus:outline-none focus:ring-2 focus:ring-white/60 disabled:cursor-not-allowed disabled:opacity-50 ${open ? 'ring-2 ring-white/70' : ''}`
-    : `flex w-full items-center gap-2 rounded-lg border px-3 font-medium shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${size === 'sm' ? 'h-8 text-xs' : 'h-[38px] text-sm'} ${invalid ? 'border-red-500 bg-red-50/20 text-red-600 hover:border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-border bg-card text-text hover:border-primary/50 focus:border-primary focus:ring-primary/20'} ${open ? (invalid ? 'ring-2 ring-red-200' : 'border-primary ring-2 ring-primary/20') : ''}`;
+    ? `flex h-8 items-center gap-1.5 rounded-xl border border-white/35 bg-white px-2 text-[11px] font-bold text-slate-800 shadow-sm transition-all hover:border-white/60 hover:bg-white focus:outline-none focus:ring-2 focus:ring-white/60 disabled:cursor-not-allowed disabled:opacity-50 ${open ? 'ring-2 ring-white/70' : ''}`
+    : `flex w-full items-center gap-2 rounded-xl border px-3 font-bold shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${size === 'sm' ? 'h-8 text-[11px]' : 'h-[38px] text-sm'} ${invalid ? 'border-red-500 bg-red-50/20 text-red-600 hover:border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-border/80 bg-card text-text hover:border-primary/40 focus:border-primary focus:ring-primary/20'} ${open ? (invalid ? 'ring-2 ring-red-200' : 'border-primary ring-2 ring-primary/20') : ''}`;
 
   return (
     <div className={`relative min-w-0 ${className}`}>
@@ -164,7 +164,7 @@ export default function DateField({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <HeroIcon className={variant === 'hero' ? 'h-3.5 w-3.5 shrink-0 text-primary' : 'h-4 w-4 shrink-0 text-text-secondary'} />
+        <HeroIcon className={`${variant === 'hero' ? 'h-3.5 w-3.5' : 'h-4 w-4'} shrink-0 ${invalid ? 'text-red-500' : 'text-primary'}`} />
         <span className={`min-w-0 flex-1 truncate text-left ${!value ? 'text-text-muted' : ''}`}>{display}</span>
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
