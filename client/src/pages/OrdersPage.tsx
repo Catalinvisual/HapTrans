@@ -569,7 +569,6 @@ return (
                 placeholder={t('from', 'From')}
                 title={t('from', 'From')}
               />
-              <span className="text-text-secondary text-[11px]">–</span>
               <DateField
                 size="sm"
                 className="w-[150px]"

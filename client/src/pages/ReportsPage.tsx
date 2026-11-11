@@ -305,7 +305,6 @@ export default function ReportsPage() {
         {rangeType === 'custom' && (
           <div className="flex items-center gap-1.5 shrink-0">
             <DateField value={customFrom} onChange={setCustomFrom} lang={lang} size="sm" className="w-[150px]" placeholder={t('from', 'From')} title={t('from', 'From')} />
-            <span className="text-text-secondary text-[11px]">–</span>
             <DateField value={customTo} onChange={setCustomTo} lang={lang} size="sm" className="w-[150px]" placeholder={t('to', 'To')} title={t('to', 'To')} />
           </div>
         )}

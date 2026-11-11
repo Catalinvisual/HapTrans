@@ -96,7 +96,6 @@ export default function IftaReportPage() {
           placeholder={t('from', 'From')}
           title={t('from', 'From')}
         />
-        <span className="text-text-secondary text-[11px]">–</span>
         <DateField
           value={to}
           onChange={setTo}

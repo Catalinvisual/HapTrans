@@ -585,7 +585,6 @@ export default function Dashboard() {
                       {t('dbd_custom_from')}
                       <DateField value={customFrom} onChange={setCustomFrom} lang={lang} variant="hero" />
                     </div>
-                    <span className="text-white/55">–</span>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/80">
                       {t('dbd_custom_to')}
                       <DateField value={customTo} onChange={setCustomTo} lang={lang} variant="hero" />

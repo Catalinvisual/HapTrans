@@ -75,7 +75,6 @@ export default function AnalyticsToolbar({
             placeholder={t('from', 'From')}
             title={t('from', 'From')}
           />
-          <span className="text-text-secondary text-sm">–</span>
           <DateField
             value={customTo}
             onChange={onCustomTo}
