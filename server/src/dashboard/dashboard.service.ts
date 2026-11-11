@@ -195,6 +195,11 @@ const COUNTRY_ALIASES: Record<string, string> = {
   'north korea': 'KP', russia: 'RU', 'vatican city': 'VA', uae: 'AE',
 };
 
+const ALPHA2_ALIASES: Record<string, string> = {
+  FX: 'FR', // Metropolitan France; Intl displays it as France
+  UK: 'GB',
+};
+
 const COUNTRY_LOCALES = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
 
 function countryKey(value: string): string {
@@ -229,13 +234,16 @@ function getCountryNameIndex(): Map<string, string> {
 function normalizeCountryCode(value: string | null | undefined): string | null {
   const raw = String(value ?? '').trim();
   if (!raw) return null;
-  if (raw.toUpperCase() === 'UK') return 'GB';
-  if (/^[A-Za-z]{2}$/.test(raw)) return raw.toUpperCase();
-  const iso3 = ISO3_TO_ISO2[raw.toUpperCase()];
+  const upper = raw.toUpperCase();
+  const alpha2Alias = ALPHA2_ALIASES[upper];
+  if (alpha2Alias) return alpha2Alias;
+  if (/^[A-Za-z]{2}$/.test(raw)) return upper;
+  const iso3 = ISO3_TO_ISO2[upper];
   if (iso3) return iso3;
   const aliased = COUNTRY_ALIASES[countryKey(raw)];
   if (aliased) return aliased;
-  return getCountryNameIndex().get(countryKey(raw)) || null;
+  const byName = getCountryNameIndex().get(countryKey(raw));
+  return byName ? (ALPHA2_ALIASES[byName] || byName) : null;
 }
 
 function routePlace(city: string | null | undefined, country: string | null | undefined): string {
@@ -1516,7 +1524,11 @@ export class DashboardService {
       trucks: trucks.map((row: any) => ({ id: String(row.id), name: row.name || '—' })),
       drivers: drivers.map((row: any) => ({ id: String(row.id), name: row.name || '—' })),
       clients: clients.map((row: any) => ({ id: String(row.id), name: row.name || '—' })),
-      countries: countries.map((row: any) => String(row.code)).filter(Boolean),
+      countries: [...new Set(
+        countries
+          .map((row: any) => normalizeCountryCode(String(row.code)))
+          .filter((code: string | null) => Boolean(code)) as string[],
+      )].sort(),
     };
   }
 

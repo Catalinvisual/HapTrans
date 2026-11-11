@@ -263,6 +263,14 @@ const COUNTRY_ALIASES: Record<string, string> = {
   'north korea': 'KP', russia: 'RU', 'vatican city': 'VA', uae: 'AE',
 };
 
+// FX is the legacy ISO code for Metropolitan France. Intl renders it as
+// "France", so without this alias the list showed France twice and the
+// second copy had no flag asset. UK is kept here for the same reason.
+const ALPHA2_ALIASES: Record<string, string> = {
+  FX: 'FR',
+  UK: 'GB',
+};
+
 const COUNTRY_LOCALES = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
 
 function countryKey(value: string): string {
@@ -298,13 +306,16 @@ function getCountryNameIndex(): Map<string, string> {
 export function canonicalCountryCode(value: string | null | undefined): string | null {
   const raw = String(value ?? '').trim();
   if (!raw) return null;
-  if (raw.toUpperCase() === 'UK') return 'GB';
-  if (/^[A-Za-z]{2}$/.test(raw)) return raw.toUpperCase();
-  const iso3 = ISO3_TO_ISO2[raw.toUpperCase()];
+  const upper = raw.toUpperCase();
+  const alpha2Alias = ALPHA2_ALIASES[upper];
+  if (alpha2Alias) return alpha2Alias;
+  if (/^[A-Za-z]{2}$/.test(raw)) return upper;
+  const iso3 = ISO3_TO_ISO2[upper];
   if (iso3) return iso3;
   const aliased = COUNTRY_ALIASES[countryKey(raw)];
   if (aliased) return aliased;
-  return getCountryNameIndex().get(countryKey(raw)) || null;
+  const byName = getCountryNameIndex().get(countryKey(raw));
+  return byName ? (ALPHA2_ALIASES[byName] || byName) : null;
 }
 
 export function countryName(code: string | null | undefined, lang: string): string {
