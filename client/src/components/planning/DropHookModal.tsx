@@ -4,6 +4,8 @@ import { X, Unplug, Link as LinkIcon, Loader2, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { planningApi } from '../../lib/planningApi';
+import DateField from '../dashboard/DateField';
+import TimeField from '../TimeField';
 
 interface DropHookModalProps {
   isOpen: boolean;
@@ -28,7 +30,8 @@ export default function DropHookModal({
   trucks,
   drivers,
 }: DropHookModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [mode, setMode] = useState<'drop' | 'hook'>(initialMode);
   const [trailerId, setTrailerId] = useState(initialTrailerId || '');
   const [tripId, setTripId] = useState(initialTripId || '');
@@ -60,6 +63,9 @@ export default function DropHookModal({
   }, [isOpen, trailerId, tripId]);
 
   if (!isOpen) return null;
+
+  const eventDate = eventTime.slice(0, 10) || new Date().toISOString().slice(0, 10);
+  const eventClock = eventTime.slice(11, 16) || '00:00';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,12 +235,18 @@ export default function DropHookModal({
             <label className="block font-bold text-text-secondary mb-1">
               {t('timestamp', 'Timestamp')}
             </label>
-            <input
-              type="datetime-local"
-              value={eventTime}
-              onChange={e => setEventTime(e.target.value)}
-              className="w-full px-3 py-2 bg-card border border-border rounded-xl text-text-primary font-medium focus:ring-1 focus:ring-primary focus:outline-none"
-            />
+            <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
+              <DateField
+                value={eventDate}
+                onChange={(date) => setEventTime(`${date}T${eventClock}`)}
+                lang={lang}
+                allowPast
+              />
+              <TimeField
+                value={eventClock}
+                onChange={(time) => setEventTime(`${eventDate}T${time}`)}
+              />
+            </div>
           </div>
 
           {/* Notes */}

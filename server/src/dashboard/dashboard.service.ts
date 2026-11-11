@@ -166,11 +166,76 @@ function daysUntil(d: Date): number {
   return Math.ceil((startOfDay(d).getTime() - startOfDay(new Date()).getTime()) / 86400000);
 }
 
+const ISO3_TO_ISO2: Record<string, string> = {
+  AFG: 'AF', ALB: 'AL', DZA: 'DZ', AND: 'AD', AGO: 'AO', ARG: 'AR', ARM: 'AM', AUS: 'AU', AUT: 'AT', AZE: 'AZ',
+  BHS: 'BS', BHR: 'BH', BGD: 'BD', BRB: 'BB', BLR: 'BY', BEL: 'BE', BLZ: 'BZ', BEN: 'BJ', BTN: 'BT', BOL: 'BO',
+  BIH: 'BA', BWA: 'BW', BRA: 'BR', BRN: 'BN', BGR: 'BG', BFA: 'BF', BDI: 'BI', KHM: 'KH', CMR: 'CM', CAN: 'CA',
+  CPV: 'CV', CAF: 'CF', TCD: 'TD', CHL: 'CL', CHN: 'CN', COL: 'CO', COM: 'KM', COG: 'CG', COD: 'CD', CRI: 'CR',
+  HRV: 'HR', CUB: 'CU', CYP: 'CY', CZE: 'CZ', DNK: 'DK', DJI: 'DJ', DMA: 'DM', DOM: 'DO', ECU: 'EC', EGY: 'EG',
+  SLV: 'SV', GNQ: 'GQ', ERI: 'ER', EST: 'EE', SWZ: 'SZ', ETH: 'ET', FJI: 'FJ', FIN: 'FI', FRA: 'FR', GAB: 'GA',
+  GMB: 'GM', GEO: 'GE', DEU: 'DE', GHA: 'GH', GRC: 'GR', GRD: 'GD', GTM: 'GT', GIN: 'GN', GNB: 'GW', GUY: 'GY',
+  HTI: 'HT', HND: 'HN', HUN: 'HU', ISL: 'IS', IND: 'IN', IDN: 'ID', IRN: 'IR', IRQ: 'IQ', IRL: 'IE', ISR: 'IL',
+  ITA: 'IT', JAM: 'JM', JPN: 'JP', JOR: 'JO', KAZ: 'KZ', KEN: 'KE', KIR: 'KI', KWT: 'KW', KGZ: 'KG', LAO: 'LA',
+  LVA: 'LV', LBN: 'LB', LSO: 'LS', LBR: 'LR', LBY: 'LY', LIE: 'LI', LTU: 'LT', LUX: 'LU', MDG: 'MG', MWI: 'MW',
+  MYS: 'MY', MDV: 'MV', MLI: 'ML', MLT: 'MT', MHL: 'MH', MRT: 'MR', MUS: 'MU', MEX: 'MX', FSM: 'FM', MDA: 'MD',
+  MCO: 'MC', MNG: 'MN', MNE: 'ME', MAR: 'MA', MOZ: 'MZ', MMR: 'MM', NAM: 'NA', NRU: 'NR', NPL: 'NP', NLD: 'NL',
+  NZL: 'NZ', NIC: 'NI', NER: 'NE', NGA: 'NG', PRK: 'KP', MKD: 'MK', NOR: 'NO', OMN: 'OM', PAK: 'PK', PLW: 'PW',
+  PAN: 'PA', PNG: 'PG', PRY: 'PY', PER: 'PE', PHL: 'PH', POL: 'PL', PRT: 'PT', QAT: 'QA', ROU: 'RO', RUS: 'RU',
+  RWA: 'RW', KNA: 'KN', LCA: 'LC', VCT: 'VC', WSM: 'WS', SMR: 'SM', STP: 'ST', SAU: 'SA', SEN: 'SN', SRB: 'RS',
+  SYC: 'SC', SLE: 'SL', SGP: 'SG', SVK: 'SK', SVN: 'SI', SLB: 'SB', SOM: 'SO', ZAF: 'ZA', KOR: 'KR', SSD: 'SS',
+  ESP: 'ES', LKA: 'LK', SDN: 'SD', SUR: 'SR', SWE: 'SE', CHE: 'CH', SYR: 'SY', TWN: 'TW', TJK: 'TJ', TZA: 'TZ',
+  THA: 'TH', TLS: 'TL', TGO: 'TG', TON: 'TO', TTO: 'TT', TUN: 'TN', TUR: 'TR', TKM: 'TM', TUV: 'TV', UGA: 'UG',
+  UKR: 'UA', ARE: 'AE', GBR: 'GB', USA: 'US', URY: 'UY', UZB: 'UZ', VUT: 'VU', VAT: 'VA', VEN: 'VE', VNM: 'VN',
+  YEM: 'YE', ZMB: 'ZM', ZWE: 'ZW',
+};
+
+const COUNTRY_ALIASES: Record<string, string> = {
+  uk: 'GB', 'great britain': 'GB', 'united states of america': 'US', usa: 'US', holland: 'NL',
+  'czech republic': 'CZ', macedonia: 'MK', bosnia: 'BA', 'ivory coast': 'CI', 'south korea': 'KR',
+  'north korea': 'KP', russia: 'RU', 'vatican city': 'VA', uae: 'AE',
+};
+
+const COUNTRY_LOCALES = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
+
+function countryKey(value: string): string {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
+}
+
+let countryNameIndex: Map<string, string> | null = null;
+
+function getCountryNameIndex(): Map<string, string> {
+  if (countryNameIndex) return countryNameIndex;
+  const index = new Map<string, string>();
+  for (const locale of COUNTRY_LOCALES) {
+    try {
+      const DisplayNames = (Intl as any).DisplayNames;
+      if (!DisplayNames) continue;
+      const display = new DisplayNames([locale], { type: 'region' });
+      for (let first = 0; first < 26; first++) {
+        for (let second = 0; second < 26; second++) {
+          const code = String.fromCharCode(65 + first, 65 + second);
+          try {
+            const name = display.of(code);
+            if (name && name !== code) index.set(countryKey(name), code);
+          } catch { /* invalid region code */ }
+        }
+      }
+    } catch { /* Intl.DisplayNames unavailable */ }
+  }
+  countryNameIndex = index;
+  return index;
+}
+
 function normalizeCountryCode(value: string | null | undefined): string | null {
   const raw = String(value ?? '').trim();
   if (!raw) return null;
+  if (raw.toUpperCase() === 'UK') return 'GB';
   if (/^[A-Za-z]{2}$/.test(raw)) return raw.toUpperCase();
-  return raw.toUpperCase();
+  const iso3 = ISO3_TO_ISO2[raw.toUpperCase()];
+  if (iso3) return iso3;
+  const aliased = COUNTRY_ALIASES[countryKey(raw)];
+  if (aliased) return aliased;
+  return getCountryNameIndex().get(countryKey(raw)) || null;
 }
 
 function routePlace(city: string | null | undefined, country: string | null | undefined): string {
@@ -1045,13 +1110,9 @@ export class DashboardService {
            AND ${companyFilter}
            AND ($4::uuid IS NULL OR t."truckId" = $4)
            AND ($5::uuid IS NULL OR t."driverId" = $5)
-           AND ($6::text IS NULL OR EXISTS (
-             SELECT 1 FROM stops cs
-              WHERE cs."tripId" = t.id AND upper(cs.country) = upper($6)
-           ))
          ORDER BY COALESCE(t."plannedDeparture", ${ts}) ASC
          LIMIT 3000`,
-        [from, to, companyId, filters.truckId || null, filters.driverId || null, filters.country || null],
+        [from, to, companyId, filters.truckId || null, filters.driverId || null],
       );
     } catch (err: any) {
       this.logger.error(`Dashboard overview trips query failed: ${err?.message || err}`);
@@ -1059,6 +1120,7 @@ export class DashboardService {
     }
 
     const now = Date.now();
+    const countryFilter = filters.country ? normalizeCountryCode(filters.country) : null;
     return rows.map((row) => {
       const plannedArrival = row.planned_arrival ? new Date(row.planned_arrival) : null;
       const actualArrival = row.actual_arrival ? new Date(row.actual_arrival) : null;
@@ -1094,7 +1156,9 @@ export class DashboardService {
         deliveredOrders: Number(row.delivered_orders) || 0,
         delayMinutes,
       };
-    });
+    }).filter((trip) => !countryFilter
+      || normalizeCountryCode(trip.originCountry) === countryFilter
+      || normalizeCountryCode(trip.destCountry) === countryFilter);
   }
 
   private loadOverviewBoardTrips(

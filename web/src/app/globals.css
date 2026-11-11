@@ -218,6 +218,62 @@ button { font-family: inherit; }
 }
 @keyframes fpFadeInDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
+/* Premium orange calendar, matching the TMS date picker. */
+.flatpickr-calendar {
+  width: 292px !important;
+  padding: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  box-shadow: 0 24px 60px -24px rgba(15, 23, 42, .5), 0 10px 24px -16px rgba(15, 23, 42, .35) !important;
+  font-family: inherit !important;
+  box-sizing: border-box !important;
+}
+.flatpickr-calendar.open { z-index: 20010 !important; }
+.flatpickr-calendar .flatpickr-months, .flatpickr-calendar .flatpickr-month,
+.flatpickr-calendar .flatpickr-weekdays, .flatpickr-calendar .flatpickr-days,
+.flatpickr-calendar .flatpickr-innerContainer, .flatpickr-calendar .flatpickr-rContainer { background: transparent !important; }
+.flatpickr-calendar .flatpickr-months, .flatpickr-calendar .flatpickr-month { height: 36px !important; }
+.flatpickr-calendar .flatpickr-current-month {
+  height: 36px !important; padding: 0 !important; display: flex !important;
+  align-items: center !important; justify-content: center !important;
+  font-size: 13px !important; font-weight: 800 !important; color: #0f172a !important;
+}
+.flatpickr-calendar .flatpickr-current-month .cur-month,
+.flatpickr-calendar .flatpickr-current-month input.cur-year { font-weight: 800 !important; color: inherit !important; }
+.flatpickr-calendar .flatpickr-prev-month, .flatpickr-calendar .flatpickr-next-month {
+  top: 10px !important; height: auto !important; padding: 6px !important; border-radius: 8px !important;
+}
+.flatpickr-calendar .flatpickr-prev-month:hover, .flatpickr-calendar .flatpickr-next-month:hover { background: #f8fafc !important; }
+.flatpickr-calendar .flatpickr-prev-month svg, .flatpickr-calendar .flatpickr-next-month svg { fill: #64748b !important; width: 12px !important; height: 12px !important; }
+.flatpickr-calendar .flatpickr-weekdays { height: 24px !important; }
+.flatpickr-calendar .flatpickr-weekdaycontainer { display: grid !important; grid-template-columns: repeat(7, minmax(0, 1fr)) !important; gap: 4px !important; }
+.flatpickr-calendar span.flatpickr-weekday { display: block !important; color: #94a3b8 !important; font-size: 9px !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: .05em !important; }
+.flatpickr-calendar .flatpickr-days { width: auto !important; }
+.flatpickr-calendar .dayContainer { width: auto !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(7, minmax(0, 1fr)) !important; gap: 4px !important; justify-content: stretch !important; }
+.flatpickr-calendar .flatpickr-day {
+  float: none !important; width: 100% !important; max-width: none !important; height: 36px !important;
+  line-height: 1 !important; margin: 0 !important; display: flex !important; align-items: center !important;
+  justify-content: center !important; border: 1px solid transparent !important; border-radius: 8px !important;
+  color: #1e293b !important; font-size: 12px !important; font-weight: 700 !important;
+}
+.flatpickr-calendar .flatpickr-day:hover, .flatpickr-calendar .flatpickr-day:focus { background: rgba(255, 90, 0, .1) !important; border-color: transparent !important; color: #ff5a00 !important; }
+.flatpickr-calendar .flatpickr-day.prevMonthDay, .flatpickr-calendar .flatpickr-day.nextMonthDay { color: #cbd5e1 !important; }
+.flatpickr-calendar .flatpickr-day.today { background: rgba(255, 90, 0, .1) !important; border-color: rgba(255, 90, 0, .4) !important; border-radius: 8px !important; color: #ff5a00 !important; font-weight: 800 !important; }
+.flatpickr-calendar .flatpickr-day.selected, .flatpickr-calendar .flatpickr-day.startRange, .flatpickr-calendar .flatpickr-day.endRange,
+.flatpickr-calendar .flatpickr-day.selected:focus, .flatpickr-calendar .flatpickr-day.startRange:focus, .flatpickr-calendar .flatpickr-day.endRange:focus,
+.flatpickr-calendar .flatpickr-day.selected:hover, .flatpickr-calendar .flatpickr-day.startRange:hover, .flatpickr-calendar .flatpickr-day.endRange:hover {
+  background: #ff5a00 !important; border-color: #ff5a00 !important; color: #fff !important;
+  box-shadow: 0 8px 18px -8px rgba(255, 90, 0, .65) !important;
+}
+.flatpickr-calendar .flatpickr-day.inRange { background: rgba(255, 90, 0, .12) !important; border-color: transparent !important; color: #ff5a00 !important; box-shadow: none !important; }
+.flatpickr-calendar .flatpickr-day.startRange { border-radius: 8px 0 0 8px !important; }
+.flatpickr-calendar .flatpickr-day.endRange { border-radius: 0 8px 8px 0 !important; }
+.flatpickr-calendar .flatpickr-day.flatpickr-disabled, .flatpickr-calendar .flatpickr-day.flatpickr-disabled:hover {
+  background: transparent !important; border-color: transparent !important; color: #94a3b8 !important;
+  opacity: .55 !important; text-decoration: line-through !important; cursor: not-allowed !important;
+}
+
 /* Editorial advantages composition, scoped to the existing #despre anchor.
    Structure: section > container > [Reveal(header), bentoGrid].
    Grid children are Reveal wrappers, each containing one card.

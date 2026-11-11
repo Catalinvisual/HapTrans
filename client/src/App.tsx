@@ -18,6 +18,8 @@ import { Romanian } from 'flatpickr/dist/l10n/ro.js';
 import { French } from 'flatpickr/dist/l10n/fr.js';
 import { Dutch } from 'flatpickr/dist/l10n/nl.js';
 import { German } from 'flatpickr/dist/l10n/de.js';
+import { Spanish } from 'flatpickr/dist/l10n/es.js';
+import { Polish } from 'flatpickr/dist/l10n/pl.js';
 
 function GlobalConfig() {
   const { i18n } = useTranslation();
@@ -34,6 +36,8 @@ function GlobalConfig() {
       fr: French,
       nl: Dutch,
       de: German,
+      es: Spanish,
+      pl: Polish,
     };
     const locale = locales[i18n.language] || flatpickr.l10ns.default;
     flatpickr.localize(locale);

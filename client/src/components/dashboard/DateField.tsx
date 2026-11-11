@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ElementType, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -8,6 +9,17 @@ interface DateFieldProps {
   value: string;
   onChange: (value: string) => void;
   lang: string;
+  label?: ReactNode;
+  min?: string;
+  max?: string;
+  /** Dashboard ranges need the past; booking forms normally do not. */
+  allowPast?: boolean;
+  variant?: 'default' | 'hero';
+  size?: 'sm' | 'md';
+  className?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  icon?: ElementType;
 }
 
 function parseDate(value: string): Date {
@@ -19,7 +31,21 @@ function iso(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export default function DateField({ value, onChange, lang }: DateFieldProps) {
+export default function DateField({
+  value,
+  onChange,
+  lang,
+  label,
+  min,
+  max,
+  allowPast = true,
+  variant = 'default',
+  size = 'md',
+  className = '',
+  placeholder = '—',
+  disabled = false,
+  icon,
+}: DateFieldProps) {
   const { t } = useTranslation();
   const locale = localeFor(lang);
   const [open, setOpen] = useState(false);
@@ -32,17 +58,16 @@ export default function DateField({ value, onChange, lang }: DateFieldProps) {
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
-    if (value) {
-      const date = parseDate(value);
-      setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+    const date = parseDate(value);
+    setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
   }, [value]);
 
   const updatePosition = () => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = 292;
-    const height = 332;
+    const height = 352;
     const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
     let top = rect.bottom + 8;
     if (top + height > window.innerHeight && rect.top > height) top = rect.top - height - 8;
@@ -83,36 +108,54 @@ export default function DateField({ value, onChange, lang }: DateFieldProps) {
   const monthIndex = month.getMonth();
   const firstDay = (new Date(year, monthIndex, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  const selected = value;
   const today = iso(new Date());
+  const minKey = min || (!allowPast ? today : '');
   const weekdays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(2024, 0, index + 1); // Monday-first
     return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
   });
 
-  const display = value
+  const display = /^\d{4}-\d{2}-\d{2}$/.test(value)
     ? new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' }).format(parseDate(value))
-    : '—';
+    : placeholder;
+
+  const isDisabledDate = (key: string) =>
+    (Boolean(minKey) && key < minKey) || (max != null && key > max);
 
   const select = (day: number) => {
-    onChange(iso(new Date(year, monthIndex, day)));
+    const key = iso(new Date(year, monthIndex, day));
+    if (isDisabledDate(key)) return;
+    onChange(key);
     setOpen(false);
   };
 
+  const HeroIcon = icon || CalendarDays;
+  const triggerClass = variant === 'hero'
+    ? `flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-white/95 px-2 text-[11px] font-bold text-slate-800 shadow-sm transition-all hover:border-white/60 hover:bg-white focus:outline-none focus:ring-2 focus:ring-white/60 disabled:cursor-not-allowed disabled:opacity-50 ${open ? 'ring-2 ring-white/70' : ''}`
+    : `flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 font-medium text-text shadow-sm transition-all hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 ${size === 'sm' ? 'h-8 text-xs' : 'h-[38px] text-sm'} ${open ? 'border-primary ring-2 ring-primary/20' : ''}`;
+
   return (
-    <>
+    <div className={`relative min-w-0 ${className}`}>
+      {label && (
+        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-secondary">
+          {label}
+        </label>
+      )}
       <button
         ref={triggerRef}
         type="button"
+        disabled={disabled}
         onClick={() => {
           updatePosition();
           setOpen((current) => !current);
         }}
-        className={`flex h-8 items-center gap-1.5 rounded-lg border border-white/30 bg-white/95 px-2 text-[11px] font-bold text-slate-800 shadow-sm transition-all hover:border-white/60 hover:bg-white focus:outline-none focus:ring-2 focus:ring-white/60 ${open ? 'ring-2 ring-white/70' : ''}`}
+        className={triggerClass}
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
-        <CalendarDays className="h-3.5 w-3.5 text-primary" />
-        <span className="whitespace-nowrap">{display}</span>
-        <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <HeroIcon className={variant === 'hero' ? 'h-3.5 w-3.5 shrink-0 text-primary' : 'h-4 w-4 shrink-0 text-text-secondary'} />
+        <span className={`min-w-0 flex-1 truncate text-left ${!value ? 'text-text-muted' : ''}`}>{display}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && typeof document !== 'undefined' && createPortal(
@@ -142,9 +185,9 @@ export default function DateField({ value, onChange, lang }: DateFieldProps) {
           </div>
 
           <div className="mb-1 grid grid-cols-7 gap-1">
-            {weekdays.map((label) => (
-              <span key={label} className="py-1 text-center text-[9px] font-black uppercase tracking-wide text-text-light">
-                {label}
+            {weekdays.map((weekday) => (
+              <span key={weekday} className="py-1 text-center text-[9px] font-black uppercase tracking-wide text-text-light">
+                {weekday}
               </span>
             ))}
           </div>
@@ -156,19 +199,23 @@ export default function DateField({ value, onChange, lang }: DateFieldProps) {
             {Array.from({ length: daysInMonth }).map((_, index) => {
               const day = index + 1;
               const key = iso(new Date(year, monthIndex, day));
-              const isSelected = key === selected;
+              const isSelected = key === value;
               const isToday = key === today;
+              const isDisabled = isDisabledDate(key);
               return (
                 <button
                   key={key}
                   type="button"
+                  disabled={isDisabled}
                   onClick={() => select(day)}
                   className={`flex h-9 w-9 items-center justify-center rounded-lg text-[12px] font-bold transition-all ${
-                    isSelected
-                      ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                      : isToday
-                        ? 'bg-primary/10 text-primary ring-1 ring-primary/35'
-                        : 'text-text hover:bg-primary/10 hover:text-primary'
+                    isDisabled
+                      ? 'cursor-not-allowed text-text-muted/45 line-through'
+                      : isSelected
+                        ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                        : isToday
+                          ? 'bg-primary/10 text-primary ring-1 ring-primary/35'
+                          : 'text-text hover:bg-primary/10 hover:text-primary'
                   }`}
                 >
                   {day}
@@ -180,25 +227,26 @@ export default function DateField({ value, onChange, lang }: DateFieldProps) {
           <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2">
             <button
               type="button"
+              disabled={isDisabledDate(today)}
               onClick={() => {
                 onChange(today);
                 setOpen(false);
               }}
-              className="rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/10"
+              className="rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {t('dbd_range_today')}
+              {t('dbd_range_today', 'Today')}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="rounded-lg px-2 py-1 text-[10px] font-bold text-text-secondary transition-colors hover:bg-surface hover:text-text"
             >
-              {t('dbd_close')}
+              {t('dbd_close', 'Close')}
             </button>
           </div>
         </div>,
-        document.body
+        document.body,
       )}
-    </>
+    </div>
   );
 }

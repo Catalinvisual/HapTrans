@@ -8,7 +8,7 @@ import { fmtNumber } from '../../lib/format';
 import { statusAccent } from '../../lib/statusColors';
 import PanelCard from './PanelCard';
 import type { OverviewData, OverviewSeriesPoint } from './types';
-import { bucketLabel, countryName, flagFor, humanizeStatus } from './types';
+import { bucketLabel, canonicalCountryCode, countryName, flagFor, humanizeStatus } from './types';
 
 const TOOLTIP_STYLE = {
   borderRadius: '12px',
@@ -199,10 +199,23 @@ export function StatusDonut({ data }: { data: OverviewData['statusDistribution']
 
 export function CountryBars({ data, lang }: { data: OverviewData['byCountry']; lang: string }) {
   const { t } = useTranslation();
-  const rows = data.slice(0, 8).map((row) => ({
-    ...row,
-    label: `${flagFor(row.country)} ${countryName(row.country, lang)}`.trim(),
-  }));
+  const merged = new Map<string, { country: string; pickups: number; deliveries: number }>();
+  for (const row of data) {
+    const code = canonicalCountryCode(row.country);
+    if (!code) continue;
+    const current = merged.get(code) || { country: code, pickups: 0, deliveries: 0 };
+    current.pickups += row.pickups;
+    current.deliveries += row.deliveries;
+    merged.set(code, current);
+  }
+  const rows = [...merged.values()]
+    .map((row) => ({ ...row, total: row.pickups + row.deliveries }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8)
+    .map((row) => ({
+      ...row,
+      label: `${flagFor(row.country)} ${countryName(row.country, lang)}`.trim(),
+    }));
   const height = Math.max(240, rows.length * 40);
 
   return (

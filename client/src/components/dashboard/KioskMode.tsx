@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock, Expand, LogOut, MapPin, Package, RefreshCw, ShieldCheck, Truck,
@@ -69,8 +70,8 @@ export default function KioskMode({
     document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
-  return (
-    <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-[#0B1220] text-white">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#0B1220] text-white">
       <div className="pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full bg-primary/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-52 -left-32 h-[480px] w-[480px] rounded-full bg-sky-500/10 blur-3xl" />
 
@@ -244,6 +245,7 @@ export default function KioskMode({
           </div>
         </aside>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

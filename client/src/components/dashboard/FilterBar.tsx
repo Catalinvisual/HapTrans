@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { Building2, Filter, Globe2, RotateCcw, Truck, UserRound } from 'lucide-react';
 import CustomSelect from '../CustomSelect';
+import CountryFlag from './CountryFlag';
 import type { OverviewFilterOptions } from './types';
-import { countryName, flagFor } from './types';
+import { canonicalCountryCode, countryName, localeFor } from './types';
 
 export interface DashboardFilterValue {
   truckId: string;
@@ -31,6 +32,12 @@ export default function FilterBar({ options, value, lang, onChange }: FilterBarP
 
   const allLabel = (label: string) => `${label} · ${t('dbd_filter_all')}`;
   const set = (key: keyof DashboardFilterValue, next: string) => onChange({ ...value, [key]: next });
+
+  // Stops contain a mix of names (Germany), ISO2 (DE) and ISO3 (DEU).
+  // Fold them into one code before rendering so a country appears once.
+  const countries = Array.from(new Set(
+    options.countries.map(canonicalCountryCode).filter((code): code is string => Boolean(code)),
+  )).sort((a, b) => countryName(a, lang).localeCompare(countryName(b, lang), localeFor(lang)));
 
   return (
     <section className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-card p-3 shadow-card sm:flex-row sm:items-center">
@@ -94,11 +101,11 @@ export default function FilterBar({ options, value, lang, onChange }: FilterBarP
           className="min-w-0"
           options={[
             { value: '', label: allLabel(t('dbd_filter_country')) },
-            ...options.countries.map((code) => ({
+            ...countries.map((code) => ({
               value: code,
               label: (
-                <span className="flex items-center gap-1.5">
-                  <span>{flagFor(code)}</span>
+                <span className="flex items-center gap-2">
+                  <CountryFlag code={code} lang={lang} />
                   <span>{countryName(code, lang)}</span>
                 </span>
               ),
