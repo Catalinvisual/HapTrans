@@ -928,6 +928,7 @@ export class DashboardService {
       unassignedOrders: unassignedOrders.slice(0, 6).map((order) => ({
         id: order.id,
         orderNumber: order.orderNumber,
+        clientId: order.clientId,
         clientName: order.clientName,
         status: order.status,
         priority: order.priority,
@@ -1414,12 +1415,14 @@ export class DashboardService {
 
   /** Options for the dashboard filter bar, scoped to the caller's company. */
   async getFilterOptions(companyId: string | null) {
+    // An empty string is not a valid uuid and makes every query below reject.
+    const scope = companyId || null;
     const [trucks, drivers, clients, countries] = await Promise.all([
       this.dataSource.query(
         `SELECT id, "plateNumber" AS name FROM trucks
           WHERE ($1::uuid IS NULL OR "companyId" IS NULL OR "companyId" = $1)
           ORDER BY "plateNumber" ASC LIMIT 200`,
-        [companyId],
+        [scope],
       ).catch(() => []),
       this.dataSource.query(
         `SELECT d.id, COALESCE(u.name, d.id::text) AS name
@@ -1427,13 +1430,13 @@ export class DashboardService {
            LEFT JOIN users u ON u.id = d."userId"
           WHERE ($1::uuid IS NULL OR u."companyId" IS NULL OR u."companyId" = $1)
           ORDER BY name ASC LIMIT 200`,
-        [companyId],
+        [scope],
       ).catch(() => []),
       this.dataSource.query(
         `SELECT id, name FROM clients
           WHERE ($1::uuid IS NULL OR "companyId" IS NULL OR "companyId" = $1)
           ORDER BY name ASC LIMIT 200`,
-        [companyId],
+        [scope],
       ).catch(() => []),
       this.dataSource.query(
         `SELECT DISTINCT upper(s.country) AS code
@@ -1442,7 +1445,7 @@ export class DashboardService {
           WHERE s.country IS NOT NULL AND s.country <> ''
             AND ($1::uuid IS NULL OR t."companyId" IS NULL OR t."companyId" = $1)
           ORDER BY code ASC`,
-        [companyId],
+        [scope],
       ).catch(() => []),
     ]);
     return {
