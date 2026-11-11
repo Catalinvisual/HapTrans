@@ -26,6 +26,111 @@ const TRIP_ACTIVE = new Set([
   'started', 'loading', 'driving', 'in_transit', 'partially_delivered',
 ]);
 
+// ---------------------------------------------------------------------------
+// Operational overview vocabulary (dispatcher dashboard).
+// ---------------------------------------------------------------------------
+const TRIP_COMPLETED_OVERVIEW = new Set(['completed', 'closed', 'delivered']);
+const TRIP_ON_ROAD_OVERVIEW = new Set([
+  'started', 'at_pickup', 'loading', 'driving', 'at_delivery', 'unloading',
+  'partially_delivered', 'in_transit', 'active',
+]);
+const ORDER_DELIVERED_OVERVIEW = new Set([
+  'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'closed',
+]);
+const ORDER_OPEN_OVERVIEW = new Set([
+  'draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'dispatched',
+  'received', 'pending', 'ready_for_invoice',
+]);
+
+export interface OverviewQuery {
+  from?: string;
+  to?: string;
+  granularity?: string;
+  /** Client-local date (YYYY-MM-DD) so "today" matches the dispatcher's day. */
+  today?: string;
+  companyId?: string | null;
+}
+
+export interface OverviewTrip {
+  id: string;
+  tripNumber: string | null;
+  status: string;
+  operationalStatus: string | null;
+  createdAt: Date | null;
+  plannedDeparture: Date | null;
+  plannedArrival: Date | null;
+  actualDeparture: Date | null;
+  actualArrival: Date | null;
+  distanceKm: number;
+  etaStatus: string | null;
+  trafficDelay: number;
+  hasOpenIncident: boolean;
+  fleetType: string | null;
+  carrierName: string | null;
+  truckPlate: string | null;
+  truckStatus: string | null;
+  driverName: string | null;
+  driverStatus: string | null;
+  originCity: string | null;
+  originCountry: string | null;
+  destCity: string | null;
+  destCountry: string | null;
+  orderCount: number;
+  deliveredOrders: number;
+  delayMinutes: number;
+}
+
+export interface OverviewAlert {
+  id: string;
+  type: 'delay' | 'unassigned' | 'incident' | 'document';
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  subtitle: string | null;
+  value: number | null;
+  link: string;
+}
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function endOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+function addDays(d: Date, days: number): Date {
+  const next = new Date(d);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function startOfWeek(d: Date): Date {
+  const start = startOfDay(d);
+  const offset = (start.getDay() + 6) % 7; // Monday-first week
+  start.setDate(start.getDate() - offset);
+  return start;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function daysUntil(d: Date): number {
+  return Math.ceil((startOfDay(d).getTime() - startOfDay(new Date()).getTime()) / 86400000);
+}
+
+function normalizeCountryCode(value: string | null | undefined): string | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  if (/^[A-Za-z]{2}$/.test(raw)) return raw.toUpperCase();
+  return raw.toUpperCase();
+}
+
+function routePlace(city: string | null | undefined, country: string | null | undefined): string {
+  const parts = [city, country].map((part) => String(part ?? '').trim()).filter(Boolean);
+  return parts.join(', ');
+}
+
 function num(v: any): number {
   const n = Number(v);
   return isNaN(n) ? 0 : n;
@@ -295,6 +400,704 @@ export class DashboardService {
     }
 
     return { stats: { ...stats, activeTrucks }, monthlyProfits, overdueInvoices, expiringDocs, profitByRoute, topClients, profitByTruck, profitByDriver };
+  }
+
+  // =========================================================================
+  // OPERATIONAL OVERVIEW — the dispatcher dashboard.
+  //
+  // Deliberately contains no money: revenue, cost, margin and profit live in
+  // the Financial module. Everything here is countable operational work:
+  // trips, orders, kilometres, delays, fleet and driver availability.
+  // =========================================================================
+  async getOverview(q: OverviewQuery = {}) {
+    const now = new Date();
+    const granularity: 'day' | 'week' | 'month' =
+      q.granularity === 'week' || q.granularity === 'month' ? q.granularity : 'day';
+
+    const to = q.to ? new Date(`${q.to}T23:59:59.999`) : endOfDay(now);
+    const from = q.from ? new Date(`${q.from}T00:00:00.000`) : startOfDay(now);
+    const today = q.today ? startOfDay(new Date(`${q.today}T00:00:00`)) : startOfDay(now);
+    const todayEnd = endOfDay(today);
+    const horizonEnd = endOfDay(addDays(today, 7));
+    const weekStart = startOfWeek(today);
+    const weekEnd = endOfDay(addDays(weekStart, 6));
+    const companyId = q.companyId || null;
+
+    const spanMs = Math.max(0, to.getTime() - from.getTime());
+    const prevTo = new Date(from.getTime() - 1);
+    const prevFrom = new Date(prevTo.getTime() - spanMs);
+
+    // When the selected range contains today, the trip window also covers the
+    // current ISO week so a one-day range still has a meaningful trend chart.
+    // A range entirely in the past is loaded exactly as requested.
+    const includeWeek = today.getTime() >= from.getTime() && today.getTime() <= to.getTime();
+    const loadFrom = includeWeek && from.getTime() > weekStart.getTime() ? weekStart : from;
+    const loadTo = includeWeek && to.getTime() < weekEnd.getTime() ? weekEnd : to;
+
+    const [windowTrips, boardTrips, unassignedOrders, unassignedCount, rangeOrders, previous, fleetRows, driverRows, truckTypeRows, expiringTruckDocs, expiringDriverDocs] = await Promise.all([
+      this.loadOverviewTrips(loadFrom, loadTo, companyId),
+      this.loadOverviewBoardTrips(today, horizonEnd, companyId),
+      this.loadUnassignedOrders(companyId),
+      this.countUnassignedOrders(companyId),
+      this.loadOverviewOrders(from, to, companyId),
+      this.loadPeriodTotals(prevFrom, prevTo, companyId),
+      this.loadFleetCounts(companyId),
+      this.loadDriverCounts(companyId),
+      this.loadTruckTypes(companyId),
+      this.trucksService.getExpiringDocuments(30).catch(() => []),
+      this.driversService.getExpiringDocuments(30).catch(() => ({ drivers: [], documents: [] })),
+    ]);
+
+    const rangeTrips = windowTrips.filter((trip) => {
+      const at = trip.plannedDeparture || trip.createdAt;
+      return at && at.getTime() >= from.getTime() && at.getTime() <= to.getTime();
+    });
+
+    // ---- Range KPIs -------------------------------------------------------
+    const tripsTotal = rangeTrips.length;
+    const tripsCompleted = rangeTrips.filter((trip) => TRIP_COMPLETED_OVERVIEW.has(trip.status)).length;
+    const tripsCancelled = rangeTrips.filter((trip) => trip.status === 'cancelled').length;
+    const rangeDelayed = rangeTrips.filter(
+      (trip) => !TRIP_COMPLETED_OVERVIEW.has(trip.status) && trip.status !== 'cancelled' && trip.delayMinutes > 0,
+    ).length;
+    const kmTotal = Math.round(rangeTrips.reduce((sum, trip) => sum + trip.distanceKm, 0));
+    const completedWithTimes = rangeTrips.filter(
+      (trip) => TRIP_COMPLETED_OVERVIEW.has(trip.status) && trip.actualArrival && trip.plannedArrival,
+    );
+    const onTimeTrips = completedWithTimes.filter(
+      (trip) => trip.actualArrival!.getTime() <= trip.plannedArrival!.getTime(),
+    ).length;
+    const onTimeRate = completedWithTimes.length > 0 ? (onTimeTrips / completedWithTimes.length) * 100 : 0;
+    const lateMinutesList = completedWithTimes
+      .map((trip) => Math.max(0, (trip.actualArrival!.getTime() - trip.plannedArrival!.getTime()) / 60000))
+      .filter((minutes) => minutes > 0);
+    const avgDelayMinutes = lateMinutesList.length > 0
+      ? Math.round(lateMinutesList.reduce((sum, minutes) => sum + minutes, 0) / lateMinutesList.length)
+      : 0;
+
+    // ---- Today's operations board ----------------------------------------
+    const todayTrips = boardTrips.filter((trip) => trip.status !== 'cancelled');
+    const departures = todayTrips
+      .filter((trip) => trip.plannedDeparture && isSameDay(trip.plannedDeparture, today))
+      .sort((a, b) => (a.plannedDeparture?.getTime() || 0) - (b.plannedDeparture?.getTime() || 0));
+    const arrivals = todayTrips
+      .filter((trip) => trip.plannedArrival && isSameDay(trip.plannedArrival, today))
+      .sort((a, b) => (a.plannedArrival?.getTime() || 0) - (b.plannedArrival?.getTime() || 0));
+    const activeNow = boardTrips
+      .filter((trip) => TRIP_ON_ROAD_OVERVIEW.has(trip.status))
+      .sort((a, b) => (a.plannedArrival?.getTime() || 0) - (b.plannedArrival?.getTime() || 0));
+    const delayedTrips = boardTrips
+      .filter((trip) => trip.delayMinutes > 0 && !TRIP_COMPLETED_OVERVIEW.has(trip.status))
+      .sort((a, b) => b.delayMinutes - a.delayMinutes);
+    const upcoming = boardTrips
+      .filter(
+        (trip) =>
+          trip.plannedDeparture &&
+          trip.plannedDeparture.getTime() > todayEnd.getTime() &&
+          trip.plannedDeparture.getTime() <= horizonEnd.getTime() &&
+          !TRIP_COMPLETED_OVERVIEW.has(trip.status) &&
+          trip.status !== 'cancelled',
+      )
+      .sort((a, b) => (a.plannedDeparture?.getTime() || 0) - (b.plannedDeparture?.getTime() || 0));
+
+    // ---- Bucketed series (selected range) --------------------------------
+    const seriesMap = buildBuckets(from, to, granularity);
+    for (const trip of rangeTrips) {
+      const at = trip.plannedDeparture || trip.createdAt;
+      if (!at) continue;
+      const key = granularity === 'day' ? isoDay(at) : granularity === 'week' ? weekKey(at) : monthKey(at);
+      const bucket = seriesMap[key];
+      if (!bucket) continue;
+      bucket.trips += 1;
+      bucket.km += trip.distanceKm;
+      if (TRIP_COMPLETED_OVERVIEW.has(trip.status)) bucket.completed += 1;
+      if (trip.delayMinutes > 0) bucket.delayed += 1;
+    }
+
+    // A one-day range has a single chart point; the current week gives the
+    // dispatcher the useful shape without changing the selected KPIs.
+    const weekMap = buildBuckets(weekStart, weekEnd, 'day');
+    for (const trip of windowTrips) {
+      const at = trip.plannedDeparture || trip.createdAt;
+      if (!at) continue;
+      const bucket = weekMap[isoDay(at)];
+      if (!bucket) continue;
+      bucket.trips += 1;
+      bucket.km += trip.distanceKm;
+      if (TRIP_COMPLETED_OVERVIEW.has(trip.status)) bucket.completed += 1;
+      if (trip.delayMinutes > 0) bucket.delayed += 1;
+    }
+    const series = Object.values(seriesMap).map((bucket: any) => ({
+      ...bucket,
+      km: Math.round(bucket.km),
+    }));
+    const weekSeries = Object.values(weekMap).map((bucket: any) => ({
+      ...bucket,
+      km: Math.round(bucket.km),
+    }));
+
+    // ---- Country workload ------------------------------------------------
+    const countryMap = new Map<string, { country: string; pickups: number; deliveries: number }>();
+    const touchCountry = (raw: string | null | undefined, kind: 'pickups' | 'deliveries') => {
+      const code = normalizeCountryCode(raw);
+      if (!code) return;
+      if (!countryMap.has(code)) countryMap.set(code, { country: code, pickups: 0, deliveries: 0 });
+      countryMap.get(code)![kind] += 1;
+    };
+    for (const trip of rangeTrips) {
+      touchCountry(trip.originCountry, 'pickups');
+      touchCountry(trip.destCountry, 'deliveries');
+    }
+    const byCountry = [...countryMap.values()]
+      .map((row) => ({ ...row, total: row.pickups + row.deliveries }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 12);
+
+    // ---- Status distribution --------------------------------------------
+    const statusCounts = new Map<string, number>();
+    for (const trip of rangeTrips) {
+      statusCounts.set(trip.status, (statusCounts.get(trip.status) || 0) + 1);
+    }
+    const statusDistribution = [...statusCounts.entries()]
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // ---- Top routes ------------------------------------------------------
+    const routeMap = new Map<string, { from: string; to: string; trips: number; km: number }>();
+    for (const trip of rangeTrips) {
+      const fromLabel = routePlace(trip.originCity, trip.originCountry);
+      const toLabel = routePlace(trip.destCity, trip.destCountry);
+      if (!fromLabel && !toLabel) continue;
+      const key = `${fromLabel}→${toLabel}`;
+      if (!routeMap.has(key)) routeMap.set(key, { from: fromLabel, to: toLabel, trips: 0, km: 0 });
+      const row = routeMap.get(key)!;
+      row.trips += 1;
+      row.km += trip.distanceKm;
+    }
+    const topRoutes = [...routeMap.values()]
+      .sort((a, b) => b.trips - a.trips || b.km - a.km)
+      .slice(0, 6)
+      .map((row) => ({ ...row, km: Math.round(row.km) }));
+
+    // ---- Orders ----------------------------------------------------------
+    const ordersTotal = rangeOrders.length;
+    const ordersDelivered = rangeOrders.filter((order) => ORDER_DELIVERED_OVERVIEW.has(order.status)).length;
+    const ordersOpen = rangeOrders.filter((order) => ORDER_OPEN_OVERVIEW.has(order.status)).length;
+    const ordersDelayed = rangeOrders.filter((order) => order.isLate).length;
+
+    // ---- Fleet & drivers -------------------------------------------------
+    const fleetTotal = fleetRows.total || 0;
+    const fleetInTrip = fleetRows.inTrip || 0;
+    const fleetAvailable = fleetRows.available || 0;
+    const fleetMaintenance = fleetRows.maintenance || 0;
+    const fleetInactive = fleetRows.inactive || 0;
+    const utilizationPct = fleetTotal > 0 ? ((fleetInTrip / fleetTotal) * 100) : 0;
+    const driversTotal = driverRows.total || 0;
+    const driversOnDuty = driverRows.inTrip || 0;
+    const driversAvailable = driverRows.available || 0;
+    const driversOff = (driverRows.off || 0) + (driverRows.vacation || 0) + (driverRows.sick || 0);
+
+    // ---- Alerts ----------------------------------------------------------
+    const alerts: OverviewAlert[] = [];
+    for (const trip of delayedTrips.slice(0, 4)) {
+      alerts.push({
+        id: `delay_${trip.id}`,
+        type: 'delay',
+        severity: trip.delayMinutes >= 120 ? 'critical' : 'warning',
+        title: trip.tripNumber || trip.id.slice(0, 8).toUpperCase(),
+        subtitle: routePlace(trip.originCity, trip.originCountry) + ' → ' + routePlace(trip.destCity, trip.destCountry),
+        value: trip.delayMinutes,
+        link: `/trips?tripId=${trip.id}`,
+      });
+    }
+    for (const order of unassignedOrders.slice(0, 3)) {
+      alerts.push({
+        id: `unassigned_${order.id}`,
+        type: 'unassigned',
+        severity: order.priority === 'critical' ? 'critical' : 'warning',
+        title: order.orderNumber || order.id.slice(0, 8).toUpperCase(),
+        subtitle: order.clientName || routePlace(order.originCity, order.originCountry) + ' → ' + routePlace(order.destCity, order.destCountry),
+        value: null,
+        link: `/orders?orderId=${order.id}`,
+      });
+    }
+    const incidentTrips = boardTrips.filter((trip) => trip.hasOpenIncident);
+    for (const trip of incidentTrips.slice(0, 3)) {
+      alerts.push({
+        id: `incident_${trip.id}`,
+        type: 'incident',
+        severity: 'critical',
+        title: trip.tripNumber || trip.id.slice(0, 8).toUpperCase(),
+        subtitle: routePlace(trip.originCity, trip.originCountry) + ' → ' + routePlace(trip.destCity, trip.destCountry),
+        value: null,
+        link: `/trips?tripId=${trip.id}`,
+      });
+    }
+    const expiring: Array<{ id: string; title: string; expiryDate: Date; kind: string }> = [];
+    for (const doc of expiringTruckDocs || []) {
+      if (!doc?.expiryDate) continue;
+      expiring.push({
+        id: `td_${doc.id}`,
+        title: `${doc.truck?.plateNumber || '—'} · ${doc.type || 'document'}`,
+        expiryDate: new Date(doc.expiryDate),
+        kind: 'truck',
+      });
+    }
+    for (const doc of (expiringDriverDocs?.documents || [])) {
+      if (!doc?.expiryDate) continue;
+      expiring.push({
+        id: `dd_${doc.id}`,
+        title: `${doc.driver?.user?.name || '—'} · ${doc.type || 'document'}`,
+        expiryDate: new Date(doc.expiryDate),
+        kind: 'driver',
+      });
+    }
+    for (const driver of (expiringDriverDocs?.drivers || []) as any[]) {
+      const fields: Array<[string, any, string]> = [
+        ['license', driver.licenseExpiry, 'license'],
+        ['medical', driver.medicalExpiry, 'medical'],
+        ['tacho', driver.tachoCardExpiry, 'tacho'],
+      ];
+      for (const [label, value, suffix] of fields) {
+        if (!value) continue;
+        expiring.push({
+          id: `dr_${driver.id}_${suffix}`,
+          title: `${driver.user?.name || '—'} · ${label}`,
+          expiryDate: new Date(value),
+          kind: 'driver',
+        });
+      }
+    }
+    expiring.sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime());
+    for (const doc of expiring.slice(0, 4)) {
+      alerts.push({
+        id: `doc_${doc.id}`,
+        type: 'document',
+        severity: daysUntil(doc.expiryDate) < 7 ? 'critical' : 'warning',
+        title: doc.title,
+        subtitle: null,
+        value: daysUntil(doc.expiryDate),
+        link: '/documents',
+      });
+    }
+
+    // ---- Trends vs previous period --------------------------------------
+    const trends = {
+      tripsTotal: pctChange(tripsTotal, previous.tripsTotal),
+      tripsCompleted: pctChange(tripsCompleted, previous.tripsCompleted),
+      tripsDelayed: pctChange(rangeDelayed, previous.tripsDelayed),
+      ordersTotal: pctChange(ordersTotal, previous.ordersTotal),
+      ordersDelivered: pctChange(ordersDelivered, previous.ordersDelivered),
+      kmTotal: pctChange(kmTotal, previous.kmTotal),
+    };
+
+    const mapTrip = (trip: OverviewTrip) => ({
+      id: trip.id,
+      tripNumber: trip.tripNumber,
+      status: trip.status,
+      operationalStatus: trip.operationalStatus,
+      plannedDeparture: trip.plannedDeparture,
+      plannedArrival: trip.plannedArrival,
+      actualDeparture: trip.actualDeparture,
+      actualArrival: trip.actualArrival,
+      truckPlate: trip.truckPlate,
+      driverName: trip.driverName,
+      originCity: trip.originCity,
+      originCountry: trip.originCountry,
+      destCity: trip.destCity,
+      destCountry: trip.destCountry,
+      distanceKm: Math.round(trip.distanceKm),
+      orderCount: trip.orderCount,
+      deliveredOrders: trip.deliveredOrders,
+      delayMinutes: trip.delayMinutes,
+      etaStatus: trip.etaStatus,
+      hasOpenIncident: trip.hasOpenIncident,
+      fleetType: trip.fleetType,
+      carrierName: trip.carrierName,
+    });
+
+    const upcomingDays: Array<{ date: string; count: number }> = [];
+    for (let offset = 1; offset <= 7; offset++) {
+      const day = addDays(today, offset);
+      const key = isoDay(day);
+      upcomingDays.push({
+        date: key,
+        count: boardTrips.filter(
+          (trip) =>
+            trip.plannedDeparture &&
+            isoDay(trip.plannedDeparture) === key &&
+            trip.status !== 'cancelled' &&
+            !TRIP_COMPLETED_OVERVIEW.has(trip.status),
+        ).length,
+      });
+    }
+
+    return {
+      meta: {
+        from,
+        to,
+        today,
+        granularity,
+        generatedAt: now,
+        comparison: { from: prevFrom, to: prevTo },
+        chartScope: includeWeek && series.length <= 1 ? 'week' : 'range',
+      },
+      kpis: {
+        tripsTotal,
+        tripsCompleted,
+        tripsCancelled,
+        tripsDelayed: rangeDelayed,
+        tripsOnRoad: activeNow.length,
+        todayDepartures: departures.length,
+        todayArrivals: arrivals.length,
+        ordersTotal,
+        ordersDelivered,
+        ordersOpen,
+        ordersUnassigned: unassignedCount,
+        ordersDelayed,
+        kmTotal,
+        avgTripKm: tripsTotal > 0 ? Math.round(kmTotal / tripsTotal) : 0,
+        onTimeRate,
+        avgDelayMinutes,
+        countriesActive: countryMap.size,
+        fleetTotal,
+        fleetInTrip,
+        fleetAvailable,
+        fleetMaintenance,
+        fleetInactive,
+        utilizationPct,
+        driversTotal,
+        driversOnDuty,
+        driversAvailable,
+        driversOff,
+        expiringDocs: expiring.length,
+        openIncidents: incidentTrips.length,
+      },
+      trends,
+      today: {
+        date: isoDay(today),
+        departures: departures.slice(0, 8).map(mapTrip),
+        arrivals: arrivals.slice(0, 8).map(mapTrip),
+        active: activeNow.slice(0, 8).map(mapTrip),
+        delayed: delayedTrips.slice(0, 8).map(mapTrip),
+        counts: {
+          departures: departures.length,
+          arrivals: arrivals.length,
+          active: activeNow.length,
+          delayed: delayedTrips.length,
+        },
+      },
+      upcoming: {
+        days: upcomingDays,
+        trips: upcoming.slice(0, 8).map(mapTrip),
+      },
+      series,
+      weekSeries,
+      byCountry,
+      statusDistribution,
+      topRoutes,
+      delayedTrips: delayedTrips.slice(0, 6).map(mapTrip),
+      unassignedOrders: unassignedOrders.slice(0, 6).map((order) => ({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        clientName: order.clientName,
+        status: order.status,
+        priority: order.priority,
+        transportType: order.transportType,
+        originCity: order.originCity,
+        originCountry: order.originCountry,
+        destCity: order.destCity,
+        destCountry: order.destCountry,
+        createdAt: order.createdAt,
+      })),
+      fleet: {
+        total: fleetTotal,
+        inTrip: fleetInTrip,
+        available: fleetAvailable,
+        maintenance: fleetMaintenance,
+        inactive: fleetInactive,
+        byType: truckTypeRows,
+      },
+      drivers: {
+        total: driversTotal,
+        inTrip: driverRows.inTrip || 0,
+        available: driverRows.available || 0,
+        off: driverRows.off || 0,
+        sick: driverRows.sick || 0,
+        vacation: driverRows.vacation || 0,
+      },
+      alerts: alerts.slice(0, 10),
+    };
+  }
+
+  private async loadOverviewTrips(from: Date, to: Date, companyId: string | null, board = false): Promise<OverviewTrip[]> {
+    const ts = await resolveCreatedAtExpr(this.dataSource, 'trips', 't');
+    const activeList = [...TRIP_ON_ROAD_OVERVIEW, 'planning', 'planned', 'confirmed', 'assigned', 'dispatched', 'driver_accepted', 'driver_received', 'ready']
+      .map((status) => `'${status}'`)
+      .join(', ');
+    const dateClause = board
+      ? `(
+          COALESCE(t."plannedDeparture", ${ts}) BETWEEN $1 AND $2
+          OR t."plannedArrival" BETWEEN $1 AND $2
+          OR t."actualDeparture" BETWEEN $1 AND $2
+          OR t."actualArrival" BETWEEN $1 AND $2
+          OR lower(t.status::text) IN (${activeList})
+        )`
+      : `COALESCE(t."plannedDeparture", ${ts}) BETWEEN $1 AND $2`;
+
+    const rows: any[] = await this.dataSource.query(
+      `SELECT
+         t.id,
+         t."tripNumber" AS trip_number,
+         lower(t.status::text) AS status,
+         t."operationalStatus" AS operational_status,
+         ${ts} AS created_at,
+         t."plannedDeparture" AS planned_departure,
+         t."plannedArrival" AS planned_arrival,
+         t."actualDeparture" AS actual_departure,
+         t."actualArrival" AS actual_arrival,
+         COALESCE(NULLIF(TRIM(t.distance_km), '')::float, t."distanceKm"::float, 0) AS distance,
+         t."etaStatus" AS eta_status,
+         COALESCE(t."trafficDelayMinutes", 0)::int AS traffic_delay,
+         COALESCE(t."hasOpenIncident", false) AS has_open_incident,
+         t."fleetType" AS fleet_type,
+         t."carrierName" AS carrier_name,
+         tr."plateNumber" AS truck_plate,
+         tr.status AS truck_status,
+         COALESCE(u.name, NULLIF(TRIM(CONCAT_WS(' ', d.first_name, d.last_name)), '')) AS driver_name,
+         d.status AS driver_status,
+         fs.city AS origin_city,
+         fs.country AS origin_country,
+         ls.city AS dest_city,
+         ls.country AS dest_country,
+         (SELECT count(*)::int FROM orders o WHERE o."tripId" = t.id) AS order_count,
+         (SELECT count(*)::int FROM orders o
+            WHERE o."tripId" = t.id
+              AND lower(o.status::text) IN ('delivered','pod_received','ready_for_invoice','invoiced','paid','closed')
+         ) AS delivered_orders
+       FROM trips t
+       LEFT JOIN trucks tr ON tr.id = t."truckId"
+       LEFT JOIN drivers d ON d.id = t."driverId"
+       LEFT JOIN users u ON u.id = d."userId"
+       LEFT JOIN LATERAL (
+         SELECT s.city, s.country FROM stops s WHERE s."tripId" = t.id
+         ORDER BY s.sequence ASC LIMIT 1
+       ) fs ON true
+       LEFT JOIN LATERAL (
+         SELECT s.city, s.country FROM stops s WHERE s."tripId" = t.id
+         ORDER BY s.sequence DESC LIMIT 1
+       ) ls ON true
+       WHERE ${dateClause}
+         AND ($3::uuid IS NULL OR t."companyId" IS NULL OR t."companyId" = $3)
+       ORDER BY COALESCE(t."plannedDeparture", t.createdAt) ASC
+       LIMIT 3000`,
+      [from, to, companyId],
+    );
+
+    const now = Date.now();
+    return rows.map((row) => {
+      const plannedArrival = row.planned_arrival ? new Date(row.planned_arrival) : null;
+      const actualArrival = row.actual_arrival ? new Date(row.actual_arrival) : null;
+      const plannedDelay = plannedArrival && !actualArrival ? Math.max(0, (now - plannedArrival.getTime()) / 60000) : 0;
+      const delayMinutes = Math.round(Math.max(plannedDelay, Number(row.traffic_delay) || 0));
+      return {
+        id: String(row.id),
+        tripNumber: row.trip_number || null,
+        status: String(row.status || 'planning'),
+        operationalStatus: row.operational_status || null,
+        createdAt: row.created_at ? new Date(row.created_at) : null,
+        plannedDeparture: row.planned_departure ? new Date(row.planned_departure) : null,
+        plannedArrival,
+        actualDeparture: row.actual_departure ? new Date(row.actual_departure) : null,
+        actualArrival,
+        distanceKm: num(row.distance),
+        etaStatus: row.eta_status || null,
+        trafficDelay: Number(row.traffic_delay) || 0,
+        hasOpenIncident: row.has_open_incident === true,
+        fleetType: row.fleet_type || null,
+        carrierName: row.carrier_name || null,
+        truckPlate: row.truck_plate || null,
+        truckStatus: row.truck_status || null,
+        driverName: row.driver_name || null,
+        driverStatus: row.driver_status || null,
+        originCity: row.origin_city || null,
+        originCountry: row.origin_country || null,
+        destCity: row.dest_city || null,
+        destCountry: row.dest_country || null,
+        orderCount: Number(row.order_count) || 0,
+        deliveredOrders: Number(row.delivered_orders) || 0,
+        delayMinutes,
+      };
+    });
+  }
+
+  private loadOverviewBoardTrips(today: Date, horizonEnd: Date, companyId: string | null): Promise<OverviewTrip[]> {
+    return this.loadOverviewTrips(today, horizonEnd, companyId, true);
+  }
+
+  private async loadOverviewOrders(from: Date, to: Date, companyId: string | null) {
+    const ts = await resolveCreatedAtExpr(this.dataSource, 'orders', 'o');
+    const rows: any[] = await this.dataSource.query(
+      `SELECT o.id, lower(o.status::text) AS status,
+              (o.is_late = true OR COALESCE(o.late_minutes, 0) > 0) AS is_late
+         FROM orders o
+        WHERE ${ts} BETWEEN $1 AND $2
+          AND ($3::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $3)`,
+      [from, to, companyId],
+    ).catch(() => []);
+    return rows.map((row) => ({
+      id: String(row.id),
+      status: String(row.status || ''),
+      isLate: row.is_late === true || String(row.is_late) === 'true',
+    }));
+  }
+
+  private async loadUnassignedOrders(companyId: string | null) {
+    const rows: any[] = await this.dataSource.query(
+      `SELECT o.id,
+              o."orderNumber" AS order_number,
+              lower(o.status::text) AS status,
+              o.priority,
+              o."transportType" AS transport_type,
+              o."createdAt" AS created_at,
+              c.name AS client_name,
+              fs.city AS origin_city, fs.country AS origin_country,
+              ls.city AS dest_city, ls.country AS dest_country
+         FROM orders o
+         LEFT JOIN clients c ON c.id = o."clientId"
+         LEFT JOIN LATERAL (
+           SELECT s.city, s.country FROM order_stops s WHERE s."orderId" = o.id
+           ORDER BY s.sequence ASC LIMIT 1
+         ) fs ON true
+         LEFT JOIN LATERAL (
+           SELECT s.city, s.country FROM order_stops s WHERE s."orderId" = o.id
+           ORDER BY s.sequence DESC LIMIT 1
+         ) ls ON true
+        WHERE o."tripId" IS NULL
+          AND lower(o.status::text) IN ('new','draft','planned','received','pending')
+          AND ($1::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $1)
+        ORDER BY CASE lower(o.priority::text) WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,
+                 o."createdAt" DESC
+        LIMIT 50`,
+      [companyId],
+    ).catch(() => []);
+    return rows.map((row) => ({
+      id: String(row.id),
+      orderNumber: row.order_number || null,
+      clientName: row.client_name || null,
+      status: String(row.status || ''),
+      priority: row.priority || 'normal',
+      transportType: row.transport_type || null,
+      originCity: row.origin_city || null,
+      originCountry: row.origin_country || null,
+      destCity: row.dest_city || null,
+      destCountry: row.dest_country || null,
+      createdAt: row.created_at ? new Date(row.created_at) : null,
+    }));
+  }
+
+  private async countUnassignedOrders(companyId: string | null): Promise<number> {
+    const [row] = await this.dataSource.query(
+      `SELECT count(*)::int AS total
+         FROM orders o
+        WHERE o."tripId" IS NULL
+          AND lower(o.status::text) IN ('new','draft','planned','received','pending')
+          AND ($1::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $1)`,
+      [companyId],
+    ).catch(() => [{}]);
+    return Number(row?.total) || 0;
+  }
+
+  private async loadPeriodTotals(from: Date, to: Date, companyId: string | null) {
+    const [tTs, oTs] = await Promise.all([
+      resolveCreatedAtExpr(this.dataSource, 'trips', 't'),
+      resolveCreatedAtExpr(this.dataSource, 'orders', 'o'),
+    ]);
+    const [tripRow] = await this.dataSource.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE lower(t.status::text) IN ('completed','closed'))::int AS completed,
+              count(*) FILTER (WHERE lower(t.status::text) NOT IN ('completed','closed','cancelled')
+                                 AND (
+                                   (t."plannedArrival" IS NOT NULL AND t."actualArrival" IS NULL AND t."plannedArrival" < now())
+                                   OR COALESCE(t."trafficDelayMinutes", 0) > 0
+                                   OR lower(COALESCE(t."etaStatus", '')) IN ('late','at_risk')
+                                 ))::int AS delayed,
+              COALESCE(SUM(COALESCE(NULLIF(TRIM(t.distance_km), '')::float, t."distanceKm"::float, 0)), 0)::float AS km
+         FROM trips t
+        WHERE COALESCE(t."plannedDeparture", ${tTs}) BETWEEN $1 AND $2
+          AND ($3::uuid IS NULL OR t."companyId" IS NULL OR t."companyId" = $3)`,
+      [from, to, companyId],
+    ).catch(() => [{}]);
+    const [orderRow] = await this.dataSource.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE lower(o.status::text) IN ('delivered','pod_received','ready_for_invoice','invoiced','paid','closed'))::int AS delivered
+         FROM orders o
+        WHERE ${oTs} BETWEEN $1 AND $2
+          AND ($3::uuid IS NULL OR o."companyId" IS NULL OR o."companyId" = $3)`,
+      [from, to, companyId],
+    ).catch(() => [{}]);
+    return {
+      tripsTotal: Number(tripRow?.total) || 0,
+      tripsCompleted: Number(tripRow?.completed) || 0,
+      tripsDelayed: Number(tripRow?.delayed) || 0,
+      kmTotal: Math.round(Number(tripRow?.km) || 0),
+      ordersTotal: Number(orderRow?.total) || 0,
+      ordersDelivered: Number(orderRow?.delivered) || 0,
+    };
+  }
+
+  private async loadFleetCounts(companyId: string | null) {
+    const [row] = await this.dataSource.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE lower(status::text) = 'in_trip')::int AS in_trip,
+              count(*) FILTER (WHERE lower(status::text) = 'active')::int AS available,
+              count(*) FILTER (WHERE lower(status::text) = 'maintenance')::int AS maintenance,
+              count(*) FILTER (WHERE lower(status::text) = 'inactive')::int AS inactive
+         FROM trucks
+        WHERE ($1::uuid IS NULL OR "companyId" IS NULL OR "companyId" = $1)`,
+      [companyId],
+    ).catch(() => [{}]);
+    return {
+      total: Number(row?.total) || 0,
+      inTrip: Number(row?.in_trip) || 0,
+      available: Number(row?.available) || 0,
+      maintenance: Number(row?.maintenance) || 0,
+      inactive: Number(row?.inactive) || 0,
+    };
+  }
+
+  private async loadDriverCounts(companyId: string | null) {
+    const [row] = await this.dataSource.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE lower(d.status::text) = 'in_trip')::int AS in_trip,
+              count(*) FILTER (WHERE lower(d.status::text) = 'available')::int AS available,
+              count(*) FILTER (WHERE lower(d.status::text) = 'off')::int AS off,
+              count(*) FILTER (WHERE lower(d.status::text) = 'sick')::int AS sick,
+              count(*) FILTER (WHERE lower(d.status::text) = 'vacation')::int AS vacation
+         FROM drivers d
+         LEFT JOIN users u ON u.id = d."userId"
+        WHERE ($1::uuid IS NULL OR u."companyId" IS NULL OR u."companyId" = $1)`,
+      [companyId],
+    ).catch(() => [{}]);
+    return {
+      total: Number(row?.total) || 0,
+      inTrip: Number(row?.in_trip) || 0,
+      available: Number(row?.available) || 0,
+      off: Number(row?.off) || 0,
+      sick: Number(row?.sick) || 0,
+      vacation: Number(row?.vacation) || 0,
+    };
+  }
+
+  private async loadTruckTypes(companyId: string | null) {
+    const rows: any[] = await this.dataSource.query(
+      `SELECT COALESCE(NULLIF(TRIM("truckType"), ''), 'other') AS type, count(*)::int AS count
+         FROM trucks
+        WHERE ($1::uuid IS NULL OR "companyId" IS NULL OR "companyId" = $1)
+        GROUP BY 1 ORDER BY 2 DESC LIMIT 6`,
+      [companyId],
+    ).catch(() => []);
+    return rows.map((row) => ({ type: String(row.type), count: Number(row.count) || 0 }));
   }
 
   async getAnalytics(q: AnalyticsQuery = {}) {
