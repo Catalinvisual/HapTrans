@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import './index.css';
+import 'flag-icons/css/flag-icons.min.css';
 import './lib/i18n';
 
 // Some browser extensions (React DevTools, translation/grammar helpers, etc.)

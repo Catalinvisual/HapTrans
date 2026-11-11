@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
 import { canonicalCountryCode } from './types';
 
-const primaryFlag = (iso: string) => `https://flagcdn.com/w80/${iso.toLowerCase()}.png`;
-const fallbackFlag = (iso: string) => `https://flagsapi.com/${iso}/flat/24.png`;
-
-/** A real colour flag, with a second source and a code fallback. */
+/**
+ * Local SVG flags from flag-icons. Keeping the image in the bundle means a
+ * country never falls back to a blank card because an external CDN was
+ * blocked, rate-limited, or still loading.
+ */
 export default function CountryFlag({
   code,
   className = '',
@@ -13,43 +13,13 @@ export default function CountryFlag({
   className?: string;
 }) {
   const iso = canonicalCountryCode(code);
-  const [src, setSrc] = useState(() => (iso ? primaryFlag(iso) : ''));
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!iso) return;
-    setSrc(primaryFlag(iso));
-    setFailed(false);
-  }, [iso]);
-
   if (!iso) return null;
-  if (failed) {
-    return (
-      <span
-        className={`inline-flex h-3.5 w-5 shrink-0 items-center justify-center rounded-[3px] bg-primary/10 text-[7px] font-black uppercase text-primary ${className}`}
-        aria-hidden="true"
-      >
-        {iso}
-      </span>
-    );
-  }
 
   return (
-    <img
-      src={src}
-      alt=""
+    <span
+      className={`fi fi-${iso.toLowerCase()} inline-block shrink-0 rounded-[3px] bg-slate-100 ring-1 ring-black/10 ${className}`}
+      style={{ width: 20, height: 14, backgroundSize: 'cover', backgroundPosition: 'center' }}
       aria-hidden="true"
-      loading="eager"
-      decoding="async"
-      referrerPolicy="no-referrer"
-      onError={() => {
-        if (src !== fallbackFlag(iso)) {
-          setSrc(fallbackFlag(iso));
-        } else {
-          setFailed(true);
-        }
-      }}
-      className={`inline-block h-3.5 w-5 shrink-0 rounded-[3px] bg-slate-100 object-cover ring-1 ring-black/10 dark:bg-slate-800 ${className}`}
     />
   );
 }
