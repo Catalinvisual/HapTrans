@@ -33,7 +33,7 @@ export class InvoicesController {
   @Get() findAll() { return this.service.findAll(); }
   @Get('aging') getAgingSummary() { return this.service.getAgingSummary(); }
   @Get('overdue') getOverdue() { return this.service.getOverdue(); }
-  @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  @Get(':id') findOne(@Param('id') id: string) { return this.service.findOneForPdf(id); }
   @Post() create(@Body() dto: any, @Req() req: any) { return this.service.create(dto, req.user); }
   @Patch(':id') update(@Param('id') id: string, @Body() dto: any, @Req() req: any) { return this.service.update(id, dto, req.user); }
   @Patch(':id/approve') approve(@Param('id') id: string, @Req() req: any) { return this.service.approve(id, req.user); }

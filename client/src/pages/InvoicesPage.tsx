@@ -438,6 +438,13 @@ export default function InvoicesPage({
     });
   };
   const handleEditClick = (inv: any) => {
+    // Refresh the detail so legacy drafts can receive their repaired transport
+    // snapshot before the live preview renders.
+    api.get(`/invoices/${inv.id}`).then((res) => {
+      if (res.data?.id) {
+        setInvoices(prev => prev.map(item => item.id === res.data.id ? { ...item, ...res.data } : item));
+      }
+    }).catch(() => undefined);
     setForm({
       clientId: inv.client?.id || '',
       tripId: inv.trip?.id || '',
