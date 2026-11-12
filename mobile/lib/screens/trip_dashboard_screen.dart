@@ -1122,8 +1122,14 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   }
 
   String _eventLabel(Map<String, dynamic> event, String locale) {
-    final status = (event['status'] ?? '').toString().trim();
+    final status = (event['status'] ?? '').toString().trim().toLowerCase();
     if (status.isNotEmpty) {
+      final scope = (event['scope'] ?? '').toString().toLowerCase();
+      final stopStatuses = {'pending', 'arrived', 'loading', 'unloading', 'completed'};
+      final isStopEvent = scope == 'stop' || scope == 'task' ||
+          (event['stopId'] != null && stopStatuses.contains(status)) ||
+          status == 'arrived';
+      if (isStopEvent) return stopStatusLabel(status, locale);
       final label = tripStatusLabel(status, locale);
       if (label != status) return label;
       return stopStatusLabel(status, locale);

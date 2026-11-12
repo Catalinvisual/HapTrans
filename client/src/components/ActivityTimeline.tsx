@@ -242,6 +242,19 @@ export default function ActivityTimeline({
     return String(val);
   };
 
+  const isStopEvent = (log: any, status: string) => {
+    const scope = String(log?.details?.scope || '');
+    if (scope === 'stop' || scope === 'task') return true;
+    if (status === 'arrived') return true;
+    return Boolean(log?.details?.stopId) && ['pending', 'loading', 'unloading', 'completed'].includes(status);
+  };
+
+  const statusLabel = (log: any, status?: string | null) => {
+    if (!status) return '';
+    const key = isStopEvent(log, status) ? `stop_status_${status}` : `status_${status}`;
+    return t(key, t(`status_${status}`, status));
+  };
+
   if (loading) {
     return (
       <div className="bg-surface/40 rounded-xl p-3 border border-border">
@@ -345,7 +358,7 @@ export default function ActivityTimeline({
                         : log.action === 'UPDATED'
                           ? t('action_updated', 'Updated')
                           : log.action === 'STATUS_CHANGED'
-                            ? t('action_status_changed', 'Status changed')
+                            ? statusLabel(log, log.details?.newStatus || log.details?.tripStatus) || t('action_status_changed', 'Status changed')
                             : actionLabel(log.action)}
                       <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-border bg-surface text-text-secondary">
                         {sourceLabel(log.source)}
@@ -356,24 +369,6 @@ export default function ActivityTimeline({
                       <span className="font-semibold text-text-primary">{userName}</span> · {new Date(log.createdAt).toLocaleString()}
                     </div>
 
-                    {log.action === 'STATUS_CHANGED' && (log.details?.newStatus || log.details?.tripStatus) && (
-                      <div className="mt-1 text-[11px] text-text-secondary flex items-center gap-1.5 flex-wrap">
-                        {log.details?.previousStatus && (
-                          <>
-                            <span className="bg-surface px-2 py-0.5 rounded border border-border/70">
-                              {t(`status_${log.details.previousStatus}`, log.details.previousStatus)}
-                            </span>
-                            <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                          </>
-                        )}
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded">
-                          {t(`status_${log.details?.newStatus}`, log.details?.newStatus)}
-                        </span>
-                        {log.details?.scope === 'stop' && (
-                          <span className="text-[10px] uppercase tracking-wide text-text-muted">{t('jsx_stops', 'Stops')}</span>
-                        )}
-                      </div>
-                    )}
 
                     {log.action === 'DOCUMENT_UPLOADED' && (log.details?.fileName || log.details?.documentType) && (
                       <div className="mt-1 text-[11px] text-text-secondary flex items-center gap-1.5 flex-wrap">
