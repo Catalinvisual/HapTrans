@@ -173,6 +173,7 @@ export default function ActivityTimeline({
       DELAY_REPORTED: t('action_delay_reported', 'Delay reported'),
       DELIVERY_INCIDENT_REPORTED: t('action_incident_reported', 'Delivery incident reported'),
       DELIVERY_INCIDENT_RESOLVED: t('action_incident_resolved', 'Delivery incident resolved'),
+      INVOICE_GENERATED: t('action_invoice_generated', 'Invoice generated'),
     };
     return labels[action] || action;
   };

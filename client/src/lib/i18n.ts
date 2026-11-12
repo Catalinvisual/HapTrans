@@ -11972,6 +11972,7 @@ const historyStatusResources: Record<string, Record<string, string>> = {
     stop_status_unloading: 'În curs de descărcare',
     stop_status_completed: 'Finalizată',
     stop_status_cancelled: 'Anulată',
+    action_invoice_generated: 'Factură generată',
   },
   en: {
     status_driver_accepted: 'Accepted',
@@ -11992,6 +11993,7 @@ const historyStatusResources: Record<string, Record<string, string>> = {
     stop_status_unloading: 'Unloading in progress',
     stop_status_completed: 'Completed',
     stop_status_cancelled: 'Cancelled',
+    action_invoice_generated: 'Invoice generated',
   },
   nl: {
     status_driver_accepted: 'Geaccepteerd',
@@ -12012,6 +12014,7 @@ const historyStatusResources: Record<string, Record<string, string>> = {
     stop_status_unloading: 'Lossen loopt',
     stop_status_completed: 'Voltooid',
     stop_status_cancelled: 'Geannuleerd',
+    action_invoice_generated: 'Factuur gegenereerd',
   },
   de: {
     status_driver_accepted: 'Akzeptiert',
@@ -12032,6 +12035,7 @@ const historyStatusResources: Record<string, Record<string, string>> = {
     stop_status_unloading: 'Entladung läuft',
     stop_status_completed: 'Abgeschlossen',
     stop_status_cancelled: 'Storniert',
+    action_invoice_generated: 'Rechnung erstellt',
   },
   fr: {
     status_driver_accepted: 'Acceptée',
@@ -12052,6 +12056,7 @@ const historyStatusResources: Record<string, Record<string, string>> = {
     stop_status_unloading: 'Déchargement en cours',
     stop_status_completed: 'Terminée',
     stop_status_cancelled: 'Annulée',
+    action_invoice_generated: 'Facture générée',
   },
   es: {
     status_driver_accepted: 'Aceptada',
@@ -12072,6 +12077,7 @@ const historyStatusResources: Record<string, Record<string, string>> = {
     stop_status_unloading: 'Descarga en curso',
     stop_status_completed: 'Finalizada',
     stop_status_cancelled: 'Cancelada',
+    action_invoice_generated: 'Factura generada',
   },
   pl: {
     status_driver_accepted: 'Zaakceptowana',
@@ -12092,6 +12098,7 @@ const historyStatusResources: Record<string, Record<string, string>> = {
     stop_status_unloading: 'Rozładunek trwa',
     stop_status_completed: 'Zakończona',
     stop_status_cancelled: 'Anulowana',
+    action_invoice_generated: 'Faktura wygenerowana',
   },
 };
 
