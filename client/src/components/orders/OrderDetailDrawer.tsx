@@ -294,6 +294,7 @@ export default function OrderDetailDrawer({
               createdBy={order.createdBy?.name || order.createdBy?.email}
               updatedAt={order.updatedAt}
               updatedBy={order.updatedBy?.name || order.updatedBy?.email}
+              relatedTripId={order.trip?.id || order.tripId}
             />
           </div>
         </div>

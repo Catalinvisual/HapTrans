@@ -10,6 +10,7 @@ export default function ActivityTimeline({
   createdBy,
   updatedAt,
   updatedBy,
+  relatedTripId,
 }: {
   entityType: string;
   entityId: string;
@@ -17,6 +18,7 @@ export default function ActivityTimeline({
   createdBy?: string;
   updatedAt?: string;
   updatedBy?: string;
+  relatedTripId?: string;
 }) {
   const { t, i18n } = useTranslation();
   const [logs, setLogs] = useState<any[]>([]);
@@ -29,8 +31,22 @@ export default function ActivityTimeline({
     let cancelled = false;
     const load = (initial: boolean) => {
       if (initial) setLoading(true);
-      api.get(`/action-logs/${entityType}/${entityId}`)
-        .then(res => { if (!cancelled) setLogs(res.data); })
+      const requests = [api.get(`/action-logs/${entityType}/${entityId}`)];
+      // The order timeline must also show stages stored on its trip. The API
+      // aggregates them, but fetching the trip directly keeps older links and
+      // already deployed backends working.
+      if (relatedTripId) {
+        requests.push(api.get(`/action-logs/Trip/${relatedTripId}`).catch(() => ({ data: [] } as any)));
+      }
+      Promise.all(requests)
+        .then(responses => {
+          if (cancelled) return;
+          const merged = new Map<string, any>();
+          responses.forEach(res => (res.data || []).forEach((log: any) => merged.set(String(log.id), log)));
+          setLogs([...merged.values()].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          ));
+        })
         .catch(() => { if (initial && !cancelled) setError(true); })
         .finally(() => { if (initial && !cancelled) setLoading(false); });
     };
@@ -40,7 +56,7 @@ export default function ActivityTimeline({
     // keep showing an outdated stage until the page is reloaded.
     const timer = setInterval(() => load(false), 20000);
     return () => { cancelled = true; clearInterval(timer); };
-  }, [entityId, entityType]);
+  }, [entityId, entityType, relatedTripId]);
 
   const fieldLabels: Record<string, string> = {
     // Orders / Invoices / Financial

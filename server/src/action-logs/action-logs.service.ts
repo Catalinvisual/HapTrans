@@ -62,22 +62,28 @@ export class ActionLogsService implements OnModuleInit {
 
   /** A trip can be linked through Order.tripId or through a StopTask allocation. */
   private async tripIdsForOrder(orderId: string): Promise<string[]> {
+    const ids = new Set<string>();
     try {
-      const rows = await this.repo.manager.query(`
-        SELECT DISTINCT t.id AS id
-          FROM "trips" t
-         WHERE t.id = (SELECT "tripId" FROM "orders" WHERE id = $1)
-        UNION
-        SELECT DISTINCT s."tripId" AS id
-          FROM "stop_tasks" st
-          JOIN "stops" s ON s.id = st."stopId"
-         WHERE st."orderId" = $1
-      `, [orderId]);
-      return (rows || []).map((row: any) => String(row.id || '')).filter(Boolean);
+      const order = await this.repo.manager.getRepository('Order').findOne({
+        where: { id: orderId },
+        relations: ['trip'],
+      }) as any;
+      if (order?.trip?.id) ids.add(String(order.trip.id));
     } catch (e: any) {
-      this.logger.warn(`Could not resolve trips for order ${orderId}: ${e?.message}`);
-      return [];
+      this.logger.warn(`Could not load order ${orderId}: ${e?.message}`);
     }
+    try {
+      const tasks = await this.repo.manager.getRepository('StopTask').find({
+        where: { order: { id: orderId } },
+        relations: ['stop', 'stop.trip'],
+      }) as any[];
+      for (const task of tasks) {
+        if (task?.stop?.trip?.id) ids.add(String(task.stop.trip.id));
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not load stop allocations for order ${orderId}: ${e?.message}`);
+    }
+    return [...ids];
   }
 
   /**

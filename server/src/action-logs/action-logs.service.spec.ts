@@ -57,8 +57,13 @@ describe('ActionLogsService entity history', () => {
         return qb;
       }),
       manager: {
-        query: jest.fn(async () => [{ id: 'trip-1' }]),
-        getRepository: jest.fn(() => ({ findOne: jest.fn(async () => trip) })),
+        getRepository: jest.fn((entity: string) => {
+          if (entity === 'Order') {
+            return { findOne: jest.fn(async () => ({ id: 'order-1', trip: { id: 'trip-1' } })) };
+          }
+          if (entity === 'StopTask') return { find: jest.fn(async () => []) };
+          return { findOne: jest.fn(async () => trip) };
+        }),
       },
     };
     service = new ActionLogsService(repo as any);
