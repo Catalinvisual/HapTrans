@@ -4,8 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { Order } from '../orders/order.entity';
 import { Trip } from '../trips/trip.entity';
-import { Invoice } from '../invoices/invoice.entity';
-import { InvoiceItem } from '../invoices/invoice-item.entity';
+import { InvoicesService } from '../invoices/invoices.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 const IN_PROGRESS = ['assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
@@ -17,8 +16,7 @@ export class AutomationCronService {
   constructor(
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(Trip) private readonly tripRepo: Repository<Trip>,
-    @InjectRepository(Invoice) private readonly invoiceRepo: Repository<Invoice>,
-    @InjectRepository(InvoiceItem) private readonly invoiceItemRepo: Repository<InvoiceItem>,
+    private readonly invoicesService: InvoicesService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -34,7 +32,7 @@ export class AutomationCronService {
   private async autoInvoiceReadyOrders() {
     const orders = await this.orderRepo.find({
       where: { status: 'ready_for_invoice' },
-      relations: ['client', 'trip', 'invoice', 'cargoItems'],
+      relations: ['client', 'invoice'],
       take: 50,
     });
 
@@ -44,52 +42,27 @@ export class AutomationCronService {
       const gross = Number(order.price || 0);
       if (gross <= 0) continue;
 
-      const vatPercent = Number((order.client as any)?.vatPercent ?? (order.client as any)?.vat ?? 19) || 19;
-      const subtotal = Math.round((gross / (1 + vatPercent / 100)) * 100) / 100;
-      const vatAmount = Math.round((subtotal * vatPercent / 100) * 100) / 100;
-      const due = new Date();
-      due.setDate(due.getDate() + Number((order.client as any)?.paymentTerms || 30));
+      // Use the same order-scoped draft builder as POD completion. Creating an
+      // invoice directly here used to bypass the transport snapshot and could
+      // produce a second, generic invoice for an already-drafted order.
+      const result = await this.invoicesService.createDraftForCompletedOrder(order.id);
+      const invoice = result.invoice;
+      if (!invoice) {
+        if (result.reason) this.logger.warn(`Order ${order.orderNumber || order.id} was not invoiced: ${result.reason}`);
+        continue;
+      }
 
-      const suffix = `${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
-      const inv = this.invoiceRepo.create({
-        invoiceNumber: `INV-${suffix}`,
-        client: { id: order.client.id },
-        trip: order.trip ? { id: order.trip.id } : undefined,
-        amount: gross,
-        subtotal,
-        vatAmount,
-        total: gross,
-        vatPercent,
-        vatType: 'NORMAL',
-        issueDate: new Date(),
-        dueDate: due,
-        status: 'draft',
-      } as any);
+      await this.orderRepo.update(order.id, { status: 'invoiced', invoice: { id: invoice.id } } as any);
 
-      const saved = await this.invoiceRepo.save(inv as any) as Invoice;
-
-      const item = this.invoiceItemRepo.create({
-        invoice: saved,
-        description: [
-          'Transport',
-          order.orderNumber || '',
-          order.trip?.tripNumber ? `(cursa ${order.trip.tripNumber})` : '',
-        ].filter(Boolean).join(' '),
-        quantity: 1,
-        unitPrice: subtotal,
-        vatRate: vatPercent,
-        total: subtotal,
-      } as any);
-      await this.invoiceItemRepo.save(item);
-
-      await this.orderRepo.update(order.id, { status: 'invoiced', invoice: { id: saved.id } } as any);
-      await this.notificationsService.create({
-        type: 'alert',
-        title: 'Factură generată automat',
-        message: `Comanda ${order.orderNumber || ''} a fost facturată automat — ${saved.invoiceNumber} (€${gross.toLocaleString()}).`,
-        relatedId: saved.id,
-      });
-      created++;
+      if (result.created) {
+        await this.notificationsService.create({
+          type: 'alert',
+          title: 'Factură generată automat',
+          message: `Comanda ${order.orderNumber || ''} a fost facturată automat — ${invoice.invoiceNumber} (€${gross.toLocaleString()}).`,
+          relatedId: invoice.id,
+        });
+        created++;
+      }
     }
 
     if (created > 0) this.logger.log(`Auto-invoiced ${created} order(s)`);

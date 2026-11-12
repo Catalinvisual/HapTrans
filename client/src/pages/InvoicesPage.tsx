@@ -145,8 +145,9 @@ export default function InvoicesPage({
       return;
     }
     const timer = setTimeout(async () => {
+      const editingInvoice = editId ? invoices.find(i => i.id === editId) : null;
       const mockClient = clients.find(c => c.id === form.clientId);
-      const mockTrip = trips.find(t => t.id === form.tripId);
+      const mockTrip = trips.find(t => t.id === form.tripId) || editingInvoice?.trip;
       let routeDesc = 'Road freight transport services';
       if (mockTrip && mockTrip.pickupAddress && mockTrip.dropoffAddress) {
         routeDesc = 'Transport: ' + mockTrip.pickupAddress.split(',')[0] + ' - ' + mockTrip.dropoffAddress.split(',')[0];
@@ -270,6 +271,8 @@ export default function InvoicesPage({
           name: '...'
         },
         trip: mockTrip || {},
+        orderId: editingInvoice?.orderId,
+        transportDetails: editingInvoice?.transportDetails,
         amount: pN(form.amount),
         fuelSurcharge: pN(form.fuelSurcharge),
         extraCosts: pN(form.extraCosts),

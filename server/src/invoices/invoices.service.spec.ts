@@ -9,6 +9,7 @@ describe('InvoicesService automatic draft invoice', () => {
     orderRepo = { findOne: jest.fn() };
     repo = {
       findOne: jest.fn(),
+      update: jest.fn(async () => ({})),
       manager: { getRepository: jest.fn(() => orderRepo) },
     };
     service = new InvoicesService(repo as any, { logAction: jest.fn(async () => ({})) } as any);
@@ -158,6 +159,27 @@ describe('InvoicesService automatic draft invoice', () => {
     expect(result.created).toBe(false);
     expect(result.reason).toBe('order_not_completed');
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('repairs a legacy draft from its trip and client when orderId is missing', async () => {
+    const invoice = {
+      id: 'inv-legacy',
+      orderId: null,
+      trip: { id: 'trip-1' },
+      client: { id: 'client-1' },
+      transportDetails: null,
+    };
+    jest.spyOn(service, 'findOne').mockResolvedValue(invoice as any);
+    const resolve = jest.spyOn(service as any, 'resolveTransportDetails')
+      .mockResolvedValue({ loadingAddress: 'Warehouse A' });
+
+    const result = await service.findOneForPdf('inv-legacy');
+
+    expect(resolve).toHaveBeenCalledWith({ orderId: null, tripId: 'trip-1', clientId: 'client-1' });
+    expect(result?.transportDetails).toEqual({ loadingAddress: 'Warehouse A' });
+    expect(repo.update).toHaveBeenCalledWith('inv-legacy', {
+      transportDetails: { loadingAddress: 'Warehouse A' },
+    });
   });
 
   it('returns the concurrently-created invoice when the unique order key wins the race', async () => {

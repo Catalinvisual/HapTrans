@@ -72,6 +72,13 @@ export class InvoicesService implements OnModuleInit {
     return parts.length ? parts.join(', ') : (stop.companyName || null);
   }
 
+  /** Empty JSON objects from older drafts must be treated as missing data. */
+  private hasTransportDetails(details: any): boolean {
+    return !!details
+      && typeof details === 'object'
+      && Object.values(details).some((value) => value !== null && value !== undefined && value !== '');
+  }
+
   private buildTransportDetailsFrom(order: any, trip: any): InvoiceTransportDetails | null {
     const orderId = order?.id ? String(order.id) : null;
     const orderStops = Array.isArray(order?.stops) ? [...order.stops] : [];
@@ -407,8 +414,15 @@ export class InvoicesService implements OnModuleInit {
   async findOneForPdf(id: string) {
     const invoice = await this.findOne(id);
     if (!invoice) return null;
-    if (!invoice.transportDetails) {
-      const details = await this.resolveTransportDetails({ orderId: (invoice as any).orderId, tripId: invoice.trip?.id });
+    if (!this.hasTransportDetails(invoice.transportDetails)) {
+      // Older invoices may not carry orderId. Passing the client lets the
+      // resolver find the single order for that client on the trip, which
+      // restores details for drafts created before the snapshot existed.
+      const details = await this.resolveTransportDetails({
+        orderId: (invoice as any).orderId,
+        tripId: invoice.trip?.id,
+        clientId: invoice.client?.id,
+      });
       if (details) {
         invoice.transportDetails = details;
         await this.repo.update(invoice.id, { transportDetails: details } as any).catch(() => undefined);
@@ -556,6 +570,9 @@ export class InvoicesService implements OnModuleInit {
     }
 
     const amount = Number(order.price) || 0;
+    const paymentDays = Number((order.client as any)?.paymentTermsDays);
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + (Number.isFinite(paymentDays) && paymentDays >= 0 ? paymentDays : 30));
     const reference = order.orderNumber || order.id;
     const notes = amount > 0
       ? `Automatically generated from completed order ${reference}.`
@@ -573,6 +590,7 @@ export class InvoicesService implements OnModuleInit {
         vatType: 'NORMAL',
         status: InvoiceStatus.DRAFT,
         issueDate: new Date(),
+        dueDate,
         notes,
         transportDetails,
         items: amount > 0 ? [{
