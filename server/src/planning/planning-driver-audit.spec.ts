@@ -49,6 +49,39 @@ describe('PlanningService driver status audit', () => {
     }));
   });
 
+  it('mirrors the driver stage on every order attached to the trip', async () => {
+    const user = { id: 'u1', role: 'driver', name: 'Ion Popescu' };
+    const trip = {
+      id: 'trip-3',
+      tripNumber: 'TRP-3',
+      operationalStatus: 'ACCEPTED',
+      company: { id: 'company-1' },
+      orders: [{ id: 'order-1' }],
+      stops: [{ tasks: [{ order: { id: 'order-2' } }] }],
+    };
+
+    await service.auditDriverTripStatus(trip, user, 'dispatched', 'driver_accepted');
+
+    expect(actionLogs.logAction).toHaveBeenCalledWith(
+      'Order',
+      'order-1',
+      'STATUS_CHANGED',
+      user,
+      expect.objectContaining({ newStatus: 'driver_accepted', tripId: 'trip-3' }),
+      'company-1',
+      'mobile',
+    );
+    expect(actionLogs.logAction).toHaveBeenCalledWith(
+      'Order',
+      'order-2',
+      'STATUS_CHANGED',
+      user,
+      expect.objectContaining({ newStatus: 'driver_accepted', tripId: 'trip-3' }),
+      'company-1',
+      'mobile',
+    );
+  });
+
   it('never fails the acceptance because audit or notification failed', async () => {
     actionLogs.logAction.mockRejectedValue(new Error('audit unavailable'));
     notifications.createOnce.mockRejectedValue(new Error('notification unavailable'));

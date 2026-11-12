@@ -140,6 +140,26 @@ export class ActionLogsService implements OnModuleInit {
     }
   }
 
+  /**
+   * Status changes are written both on the trip and on each order. When the
+   * order timeline also aggregates the trip, collapse the mirror instead of
+   * showing the same stage twice.
+   */
+  private isMirroredTripEvent(log: any, orderLogs: any[]) {
+    if (log?.entityType !== 'Trip') return false;
+    if (!['STATUS_CHANGED', 'POD_SAVED', 'QUANTITIES_UPDATED'].includes(log.action)) return false;
+    const at = new Date(log.createdAt).getTime();
+    return orderLogs.some((orderLog: any) => {
+      if (orderLog?.entityType !== 'Order' || orderLog.action !== log.action) return false;
+      if (String(orderLog.details?.tripId || '') !== String(log.entityId)) return false;
+      if (Math.abs(new Date(orderLog.createdAt).getTime() - at) >= 15000) return false;
+      if (log.details?.newStatus && orderLog.details?.newStatus !== log.details.newStatus) return false;
+      if (log.details?.stopId && String(orderLog.details?.stopId || '') !== String(log.details.stopId)) return false;
+      if (log.details?.taskId && String(orderLog.details?.taskId || '') !== String(log.details.taskId)) return false;
+      return true;
+    });
+  }
+
   async getLogsForEntity(entityType: string, entityId: string, companyId?: string) {
     const logs: any[] = [...await this.queryLogs(entityType, entityId, companyId)];
 
@@ -158,8 +178,10 @@ export class ActionLogsService implements OnModuleInit {
 
     const unique = new Map<string, any>();
     for (const log of logs) unique.set(String(log.id), log);
-    return [...unique.values()].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    );
+    const all = [...unique.values()];
+    const orderLogs = all.filter((log: any) => log.entityType === 'Order');
+    return all
+      .filter((log: any) => !this.isMirroredTripEvent(log, orderLogs))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }
 }

@@ -43,7 +43,25 @@ export default function ActivityTimeline({
           if (cancelled) return;
           const merged = new Map<string, any>();
           responses.forEach(res => (res.data || []).forEach((log: any) => merged.set(String(log.id), log)));
-          setLogs([...merged.values()].sort(
+          const all = [...merged.values()];
+          const orderLogs = all.filter((log: any) => log.entityType === 'Order');
+          // A status change is mirrored on the order and kept on the trip.
+          // Show one copy when both requests return it.
+          const visible = all.filter((log: any) => {
+            if (log.entityType !== 'Trip') return true;
+            if (!['STATUS_CHANGED', 'POD_SAVED', 'QUANTITIES_UPDATED'].includes(log.action)) return true;
+            const at = new Date(log.createdAt).getTime();
+            return !orderLogs.some((orderLog: any) => {
+              if (orderLog.action !== log.action) return false;
+              if (String(orderLog.details?.tripId || '') !== String(log.entityId)) return false;
+              if (Math.abs(new Date(orderLog.createdAt).getTime() - at) >= 15000) return false;
+              if (log.details?.newStatus && orderLog.details?.newStatus !== log.details.newStatus) return false;
+              if (log.details?.stopId && String(orderLog.details?.stopId || '') !== String(log.details.stopId)) return false;
+              if (log.details?.taskId && String(orderLog.details?.taskId || '') !== String(log.details.taskId)) return false;
+              return true;
+            });
+          });
+          setLogs(visible.sort(
             (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
           ));
         })

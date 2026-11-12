@@ -959,6 +959,20 @@ export class TripsService {
       source,
       scope: 'stop',
     }, undefined, source);
+    if (data.orderId) {
+      await this.actionLogs.logAction('Order', data.orderId, 'POD_SAVED', user, {
+        recipientName: data.recipientName,
+        orderId: data.orderId,
+        stopId: target.id,
+        notes: data.notes,
+        previousStatus: target.status,
+        newStatus: 'completed',
+        operationalStatus: operational,
+        source,
+        scope: 'stop',
+        tripId,
+      }, (trip as any).companyId, source);
+    }
     this.chatGateway?.broadcastOperationalUpdate?.({
       tripId,
       operationalStatus: operational,
@@ -1094,6 +1108,20 @@ export class TripsService {
       ],
     });
     return trip ? normalizeTripOperationalStatus(trip) : trip;
+  }
+
+  /** Order ids reachable from a trip, including split stop allocations. */
+  private orderIdsForTrip(trip: any): string[] {
+    const ids = new Set<string>();
+    for (const order of trip?.orders || []) {
+      if (order?.id) ids.add(String(order.id));
+    }
+    for (const stop of trip?.stops || []) {
+      for (const task of stop?.tasks || []) {
+        if (task?.order?.id) ids.add(String(task.order.id));
+      }
+    }
+    return [...ids];
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
@@ -1362,6 +1390,23 @@ export class TripsService {
         source,
         scope: 'trip',
       }, undefined, source);
+      try {
+        // Mirror the trip stage on the order timeline: dispatchers audit the
+        // order, not the trip page, and legacy orders may not resolve their
+        // trip through the aggregate lookup.
+        for (const orderId of this.orderIdsForTrip(existing)) {
+          await this.actionLogs.logAction('Order', orderId, 'STATUS_CHANGED', user, {
+            previousStatus: existing.status,
+            newStatus: updateData.status,
+            operationalStatus: opStatus,
+            source,
+            scope: 'trip',
+            tripId: id,
+          }, (existing as any).companyId, source);
+        }
+      } catch (e: any) {
+        console.warn(`Order audit mirror failed for trip ${id}: ${e?.message}`);
+      }
       this.chatGateway?.broadcastOperationalUpdate?.({
         tripId: id,
         operationalStatus: opStatus,
@@ -1707,6 +1752,25 @@ export class TripsService {
       orderOperational,
       source,
     }, undefined, source);
+    try {
+      for (const orderId of orderIds) {
+        await this.actionLogs.logAction('Order', orderId, 'STATUS_CHANGED', user, {
+          scope: 'stop',
+          stopId: stop.id,
+          stopType,
+          previousStatus: previous,
+          newStatus: next,
+          tripStatus: derived,
+          operationalStatus,
+          orderStatus,
+          orderOperational,
+          source,
+          tripId: trip.id,
+        }, (trip as any).companyId, source);
+      }
+    } catch (e: any) {
+      console.warn(`Order stop audit mirror failed for trip ${trip.id}: ${e?.message}`);
+    }
 
     this.chatGateway?.broadcastOperationalUpdate?.({
       tripId: trip.id,
@@ -1776,6 +1840,11 @@ export class TripsService {
     await this.actionLogs.logAction('Trip', trip?.id || task.stop?.id, 'QUANTITIES_UPDATED', user, {
       scope: 'task', taskId, orderId: task.order?.id, ...patch,
     }, undefined, source);
+    if (trip && task.order?.id) {
+      await this.actionLogs.logAction('Order', task.order.id, 'QUANTITIES_UPDATED', user, {
+        scope: 'task', taskId, orderId: task.order.id, tripId: trip.id, ...patch,
+      }, (trip as any).companyId, source);
+    }
     if (trip) {
       this.chatGateway?.broadcastOperationalUpdate?.({
         tripId: trip.id,
@@ -1877,6 +1946,17 @@ export class TripsService {
         newStatus: status,
         source,
       }, undefined, source);
+      if (task.order?.id) {
+        await this.actionLogs.logAction('Order', task.order.id, 'STATUS_CHANGED', user, {
+          scope: 'task',
+          taskId: task.id,
+          stopId: task.stop?.id,
+          previousStatus,
+          newStatus: status,
+          source,
+          tripId: trip.id,
+        }, (trip as any).companyId, source);
+      }
       this.chatGateway?.broadcastOperationalUpdate?.({
         tripId: trip.id,
         operationalStatus: normalizeTripOperationalStatus(trip.operationalStatus || trip.status),

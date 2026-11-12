@@ -360,6 +360,31 @@ export class PlanningService {
       this.logger.warn(`Driver status audit failed for trip ${trip.id}: ${e?.message}`);
     }
     try {
+      // The order audit is the screen dispatchers actually open. Mirror the
+      // driver stage there so it does not depend on order-to-trip resolution.
+      const orderIds = new Set<string>();
+      for (const order of (trip as any).orders || []) {
+        if (order?.id) orderIds.add(String(order.id));
+      }
+      for (const stop of (trip as any).stops || []) {
+        for (const task of stop?.tasks || []) {
+          if (task?.order?.id) orderIds.add(String(task.order.id));
+        }
+      }
+      for (const orderId of orderIds) {
+        await this.actionLogs?.logAction('Order', orderId, 'STATUS_CHANGED', user, {
+          previousStatus,
+          newStatus,
+          operationalStatus: trip.operationalStatus,
+          source: 'mobile',
+          scope: 'trip',
+          tripId: trip.id,
+        }, trip.company?.id, 'mobile');
+      }
+    } catch (e: any) {
+      this.logger.warn(`Order audit mirror failed for trip ${trip.id}: ${e?.message}`);
+    }
+    try {
       const driverName = user?.name || trip?.driver?.user?.name || trip?.truck?.driver?.user?.name || 'Driver';
       await this.notificationsService?.createOnce({
         type: 'trip',

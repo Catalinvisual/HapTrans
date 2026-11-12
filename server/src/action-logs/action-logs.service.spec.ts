@@ -77,6 +77,23 @@ describe('ActionLogsService entity history', () => {
     );
   });
 
+  it('shows a mirrored order stage once, not twice from the trip', async () => {
+    rows.push({
+      id: 'order-loading',
+      entityType: 'Order',
+      entityId: 'order-1',
+      action: 'STATUS_CHANGED',
+      details: { newStatus: 'loading', tripId: 'trip-1', scope: 'stop' },
+      source: 'mobile',
+      createdAt: new Date('2026-11-02T08:00:01Z'),
+    });
+
+    const logs = await service.getLogsForEntity('Order', 'order-1', 'company-1');
+
+    expect(logs.some((log: any) => log.id === 'order-loading')).toBe(true);
+    expect(logs.some((log: any) => log.id === 'trip-log')).toBe(false);
+  });
+
   it('does not duplicate a driver acceptance that already has a real log', async () => {
     rows.push({
       id: 'accepted-log',
