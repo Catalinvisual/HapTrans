@@ -171,8 +171,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     deliveryOutcome?: string | null;
     hasOpenIncident?: boolean;
     event: string;
+    /** Trusted actor source; the driver app must never notify itself. */
+    source?: 'mobile' | 'tms' | 'system';
+    /** Assigned driver, so only that phone reacts to a TMS change. */
+    driverUserId?: string | null;
   }) {
-    const payload = { ...data, at: new Date().toISOString() };
+    const source = data.source || 'system';
+    const payload = {
+      ...data,
+      source,
+      isDriver: source === 'mobile',
+      at: new Date().toISOString(),
+    };
     this.server.emit('tripStatusUpdate', payload);
     this.server.emit('tripUpdated', payload);
     if (data.incidentId || data.event.includes('INCIDENT')) {

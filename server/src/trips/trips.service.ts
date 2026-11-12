@@ -328,7 +328,12 @@ export class TripsService {
   async getStatusHistory(tripId: string) {
     const logs = await this.actionLogs.getLogsForEntity('Trip', tripId);
     return logs
-      .filter((l: any) => ['STATUS_CHANGED', 'POD_SAVED', 'ISSUE_REPORTED', 'DELAY_REPORTED', 'DELIVERY_INCIDENT_REPORTED', 'DELIVERY_INCIDENT_RESOLVED'].includes(l.action))
+      .filter((l: any) => [
+        'STATUS_CHANGED', 'STOP_UPDATED', 'POD_SAVED', 'DOCUMENT_UPLOADED',
+        'QUANTITIES_UPDATED', 'CARGO_ALLOCATION_REVIEWED',
+        'ISSUE_REPORTED', 'DELAY_REPORTED',
+        'DELIVERY_INCIDENT_REPORTED', 'DELIVERY_INCIDENT_RESOLVED',
+      ].includes(l.action))
       .map((l: any) => ({
         id: l.id,
         action: l.action,
@@ -340,7 +345,8 @@ export class TripsService {
         scope: l.details?.scope ?? null,
         stopId: l.details?.stopId ?? null,
         orderId: l.details?.orderId ?? null,
-        notes: l.details?.notes ?? l.details?.description ?? null,
+        fileName: l.details?.fileName ?? null,
+        notes: l.details?.notes ?? l.details?.description ?? l.details?.fileName ?? null,
       }));
   }
 
@@ -572,6 +578,8 @@ export class TripsService {
       incidentId: saved.id,
       stopId: stop.id,
       event: 'DELIVERY_INCIDENT_REPORTED',
+      source,
+      driverUserId: resolveTripDriver(trip)?.user?.id || null,
     });
 
     return this.decorateIncident(saved);
@@ -647,6 +655,8 @@ export class TripsService {
       deliveryOutcome: saved.outcome,
       hasOpenIncident: otherOpen > 0,
       event: 'DELIVERY_INCIDENT_RESOLVED',
+      source: 'tms',
+      driverUserId: resolveTripDriver(trip)?.user?.id || null,
     });
     return this.decorateIncident(saved);
   }
@@ -955,6 +965,8 @@ export class TripsService {
       status: derived,
       stopId: target.id,
       event: 'POD_SUBMITTED',
+      source,
+      driverUserId: resolveTripDriver(trip)?.user?.id || null,
     });
     await this.notifyOperationalEvent(trip, target, String(target.status), 'completed', 'delivery', user);
     return { success: true, message: 'POD saved successfully', operationalStatus: operational };
@@ -1355,6 +1367,8 @@ export class TripsService {
         operationalStatus: opStatus,
         status: updateData.status,
         event: 'TRIP_STATUS_CHANGED',
+        source,
+        driverUserId: resolveTripDriver(existing)?.user?.id || null,
       });
       if (source === 'mobile') {
         const driverName = (existing as any).driver?.user?.name || (existing as any).truck?.driver?.user?.name || 'Driver';
@@ -1700,6 +1714,8 @@ export class TripsService {
       status: derived,
       stopId: stop.id,
       event: 'STOP_STATUS_CHANGED',
+      source,
+      driverUserId: resolveTripDriver(trip)?.user?.id || null,
     });
     await this.notifyOperationalEvent(trip, stop, previous, next, stopType, user);
 
@@ -1756,9 +1772,21 @@ export class TripsService {
       }).catch(() => undefined);
     }
 
+    const source = resolveStatusSource(user);
     await this.actionLogs.logAction('Trip', trip?.id || task.stop?.id, 'QUANTITIES_UPDATED', user, {
       scope: 'task', taskId, orderId: task.order?.id, ...patch,
-    }, undefined, resolveStatusSource(user));
+    }, undefined, source);
+    if (trip) {
+      this.chatGateway?.broadcastOperationalUpdate?.({
+        tripId: trip.id,
+        operationalStatus: normalizeTripOperationalStatus(trip.operationalStatus || trip.status),
+        status: trip.status,
+        stopId: task.stop?.id,
+        event: 'TASK_QUANTITIES_UPDATED',
+        source,
+        driverUserId: resolveTripDriver(trip)?.user?.id || null,
+      });
+    }
     return trip ? this.findOne(trip.id) : task;
   }
 
@@ -1780,7 +1808,7 @@ export class TripsService {
     }
     const task = (await this.repo.manager.findOne('StopTask', {
       where: { id: taskId },
-      relations: ['stop', 'stop.trip', 'order'],
+      relations: ['stop', 'stop.trip', 'stop.trip.driver', 'stop.trip.driver.user', 'stop.trip.truck', 'stop.trip.truck.driver', 'stop.trip.truck.driver.user', 'order'],
     })) as any;
     if (!task) throw new NotFoundException('Allocation not found');
     const trip = task.stop?.trip;
@@ -1817,6 +1845,8 @@ export class TripsService {
       status: trip.status,
       stopId: task.stop?.id,
       event: 'CARGO_ALLOCATION_REVIEWED',
+      source: 'tms',
+      driverUserId: resolveTripDriver(trip)?.user?.id || null,
     });
     return this.findOne(trip.id);
   }
@@ -1829,7 +1859,8 @@ export class TripsService {
     if (!task) throw new NotFoundException('Task not found');
     const trip = task.stop?.trip;
     if (trip) assertActorMayOperateTrip(trip, user);
-    if (task.status === status) return trip ? this.findOne(trip.id) : task;
+    const previousStatus = task.status;
+    if (previousStatus === status) return trip ? this.findOne(trip.id) : task;
     (task as any).status = status;
     if (status === 'completed') {
       (task as any).completedAt = new Date();
@@ -1842,10 +1873,19 @@ export class TripsService {
         scope: 'task',
         taskId: task.id,
         stopId: task.stop?.id,
-        previousStatus: task.status,
+        previousStatus,
         newStatus: status,
         source,
       }, undefined, source);
+      this.chatGateway?.broadcastOperationalUpdate?.({
+        tripId: trip.id,
+        operationalStatus: normalizeTripOperationalStatus(trip.operationalStatus || trip.status),
+        status: trip.status,
+        stopId: task.stop?.id,
+        event: 'TASK_STATUS_CHANGED',
+        source,
+        driverUserId: resolveTripDriver(trip)?.user?.id || null,
+      });
     }
     return trip ? this.findOne(trip.id) : saved;
   }
@@ -1916,6 +1956,8 @@ export class TripsService {
           status: trip.status,
           stopId: stop.id,
           event: 'STOP_CHANGED',
+          source: resolveStatusSource(user),
+          driverUserId: driverUser?.id || null,
         });
       }
     }

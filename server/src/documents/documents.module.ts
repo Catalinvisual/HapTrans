@@ -11,12 +11,14 @@ import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { MulterModule } from '@nestjs/platform-express';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ActionLogsModule } from '../action-logs/action-logs.module';
 import * as multer from 'multer';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Document, DocumentShare, Trip, Order, Driver]),
     NotificationsModule,
+    ActionLogsModule,
     MulterModule.register({
       storage: multer.memoryStorage(),
       limits: {

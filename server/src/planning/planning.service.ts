@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException, ConflictException, ServiceUnavailableException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, ConflictException, ServiceUnavailableException, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull, Not, Brackets, DataSource, EntityManager } from 'typeorm';
 import { buildOverrideAudit, isAcceptableReviewedSequence, normalizeConfirmationKey, validateInsertionSequence } from './assignment-confirmation';
@@ -25,6 +25,8 @@ import { PlanningEngine } from '../engines/planning.engine';
 import { OptimizationEngine } from '../engines/optimization.engine';
 import { PricingEngine } from '../engines/pricing.engine';
 import { TimelineService } from '../timeline/timeline.service';
+import { ActionLogsService } from '../action-logs/action-logs.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { OptimizationService } from './optimization.service';
 import { RoutingService, TruckRoadRoute } from '../routing/routing.service';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
@@ -187,6 +189,8 @@ export class PlanningService {
     private readonly optimizationService: OptimizationService,
     private readonly routingService: RoutingService,
     private readonly dataSource: DataSource,
+    @Optional() private readonly actionLogs?: ActionLogsService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {
     this.actionRepo = this.planningActionRepo;
   }
@@ -339,6 +343,38 @@ export class PlanningService {
         'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems',
         'orders.stops', 'costs', 'dispatcher'],
     });
+  }
+
+  /** Driver-app changes belong in the TMS audit feed and never notify the driver. */
+  private async auditDriverTripStatus(trip: any, user: any, previousStatus: string, newStatus: string) {
+    const label = newStatus === 'driver_accepted' ? 'Trip accepted' : newStatus === 'driver_received' ? 'Trip received' : newStatus;
+    try {
+      await this.actionLogs?.logAction('Trip', trip.id, 'STATUS_CHANGED', user, {
+        previousStatus,
+        newStatus,
+        operationalStatus: trip.operationalStatus,
+        source: 'mobile',
+        scope: 'trip',
+      }, undefined, 'mobile');
+    } catch (e: any) {
+      this.logger.warn(`Driver status audit failed for trip ${trip.id}: ${e?.message}`);
+    }
+    try {
+      const driverName = user?.name || trip?.driver?.user?.name || trip?.truck?.driver?.user?.name || 'Driver';
+      await this.notificationsService?.createOnce({
+        type: 'trip',
+        title: `${driverName}: ${label}`,
+        message: `${trip.tripNumber || 'Trip'}: ${label}.`,
+        relatedId: trip.id,
+        eventId: `driver-trip-status:${trip.id}:${newStatus}:${Date.now()}`,
+        origin: 'DRIVER_APP',
+        audience: 'tms',
+      });
+    } catch (e: any) {
+      // The operational status is already saved; a notification failure must
+      // never make the driver retry an accepted trip.
+      this.logger.warn(`TMS notification failed for trip ${trip.id}: ${e?.message}`);
+    }
   }
 
   private logTimeline(
@@ -4883,10 +4919,12 @@ export class PlanningService {
     if (!trip) throw new NotFoundException('Trip not found.');
     this.assertDriverOwnsTrip(trip, user);
     if (trip.status === 'driver_received') return trip; // idempotent
+    const previousStatus = trip.status;
     trip.status = 'driver_received';
     (trip as any).operationalStatus = 'PLANNING';
     trip.driverAcknowledgedAt = new Date();
     await this.tripRepo.save(trip);
+    await this.auditDriverTripStatus(trip, user, previousStatus, 'driver_received');
     return this.loadTrip(tripId);
   }
 
@@ -4920,10 +4958,12 @@ export class PlanningService {
         `Trip ${trip.tripNumber || tripId} cannot be accepted from status "${trip.status}".`,
       );
     }
+    const previousStatus = trip.status;
     trip.status = 'driver_accepted';
     (trip as any).operationalStatus = 'ACCEPTED';
     trip.driverAcceptedAt = new Date();
     await this.tripRepo.save(trip);
+    await this.auditDriverTripStatus(trip, user, previousStatus, 'driver_accepted');
     for (const order of (trip as any).orders || []) {
       if (!order?.id || String(order.status) === 'cancelled') continue;
       (order as any).operationalStatus = 'ACCEPTED';

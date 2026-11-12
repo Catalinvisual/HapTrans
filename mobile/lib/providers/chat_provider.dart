@@ -100,30 +100,34 @@ class ChatProvider extends ChangeNotifier {
       }
     });
 
-    // Listen for trip status updates from admin (via REST → Socket.IO broadcast)
+    // Listen for trip status updates. The socket is only a refresh signal; the
+    // server marks the actor source so the phone that made the change never
+    // notifies itself.
     _socket!.on('tripUpdated', (data) {
+      onTripUpdated?.call();
+      notifyListeners();
+
       final driverUserId = data['driverUserId'];
       final isDriver = data['isDriver'] ?? false;
-      // Only notify if this update is for the current driver and was NOT initiated by a driver
-      if (!isDriver && (driverUserId == null || driverUserId == currentUserId)) {
-        final status = data['status'] ?? '';
-        final label = tripStatusLabel(status, locale);
-        final titles = {
-          'ro': 'Cursă actualizată', 'en': 'Trip Updated',
-          'nl': 'Rit bijgewerkt', 'de': 'Fahrt aktualisiert', 'fr': 'Trajet mis à jour',
-         'es': 'Ruta actualizada', 'pl': 'Kurs zaktualizowany' };
-        final title = titles[locale] ?? 'Trip Updated';
-        NotificationService().showNotification(
-          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          title: title,
-          body: label.isNotEmpty ? 'Status: $label' : 'Cursa ta a fost actualizată',
-        );
-        // The event is only a wake-up signal. Reloading the authoritative trip
-        // payload also delivers dispatcher resolution instructions and covers
-        // missed or duplicated socket messages.
-        onTripUpdated?.call();
-        notifyListeners();
-      }
+      final source = data['source'];
+      final shouldNotify = !isDriver
+          && source != 'mobile'
+          && driverUserId != null
+          && driverUserId == currentUserId;
+      if (!shouldNotify) return;
+
+      final status = data['status'] ?? '';
+      final label = tripStatusLabel(status, locale);
+      final titles = {
+        'ro': 'Cursă actualizată', 'en': 'Trip Updated',
+        'nl': 'Rit bijgewerkt', 'de': 'Fahrt aktualisiert', 'fr': 'Trajet mis à jour',
+       'es': 'Ruta actualizada', 'pl': 'Kurs zaktualizowany' };
+      final title = titles[locale] ?? 'Trip Updated';
+      NotificationService().showNotification(
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: title,
+        body: label.isNotEmpty ? 'Status: $label' : 'Cursa ta a fost actualizată',
+      );
     });
 
     _socket!.onDisconnect((_) {

@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not, Like, In } from 'typeorm';
 import { Document, DocumentType, DocumentReviewStatus } from './document.entity';
@@ -9,11 +9,14 @@ import { Trip } from '../trips/trip.entity';
 import { Order } from '../orders/order.entity';
 import { Driver } from '../drivers/driver.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActionLogsService } from '../action-logs/action-logs.service';
+import { FirebaseService } from '../firebase/firebase.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import { randomBytes } from 'crypto';
 import { Readable } from 'stream';
-import { isDriverActor, actorOwnsTrip } from '../trips/trip-progress';
+import { isDriverActor, actorOwnsTrip, resolveStatusSource } from '../trips/trip-progress';
+import { resolveTripDriver } from '../trips/driver-assignment';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -30,6 +33,8 @@ export class DocumentsService implements OnModuleInit {
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     @InjectRepository(Driver) private driverRepo: Repository<Driver>,
     private notificationsService: NotificationsService,
+    @Optional() private actionLogs?: ActionLogsService,
+    @Optional() private firebaseService?: FirebaseService,
   ) {}
 
   async onModuleInit() {
@@ -426,7 +431,7 @@ export class DocumentsService implements OnModuleInit {
       try {
         resolvedTrip = await this.tripRepo.findOne({
           where: [{ id: dto.tripId }, { tripNumber: dto.tripId }],
-          relations: ['orders'],
+          relations: ['orders', 'driver', 'driver.user', 'truck', 'truck.driver', 'truck.driver.user'],
         });
         const isShipmentDoc = [
           DocumentType.POD,
@@ -578,21 +583,76 @@ export class DocumentsService implements OnModuleInit {
       }
     }
 
-    // 8. Notifications
+    // 8. Audit + notifications. A driver/client upload belongs to the TMS
+    // audit feed and must not push back to the phone that made it. A TMS upload
+    // is recorded for the driver's history and pushed only to that driver.
+    const source = resolveStatusSource(user);
+    const logEntityType = resolvedTrip?.id ? 'Trip' : resolvedOrder?.id ? 'Order' : null;
+    const logEntityId = resolvedTrip?.id || resolvedOrder?.id || null;
+    if (user?.id && logEntityType && logEntityId) {
+      try {
+        await this.actionLogs?.logAction(logEntityType, logEntityId, 'DOCUMENT_UPLOADED', user, {
+          documentId: savedId,
+          fileName: finalFileName,
+          documentType: displayType,
+          tripId: resolvedTrip?.id || null,
+          orderId: resolvedOrder?.id || null,
+          source,
+        }, undefined, source);
+      } catch (logErr) {
+        console.warn('Could not record document audit event:', logErr);
+      }
+    }
+
     if (user) {
       const uName = user.name || 'Utilizator';
-      const roleLabel = user.role === 'driver' ? 'Șofer' : (user.role === 'client' ? 'Client' : 'Dispecerat / Admin');
+      const isDriver = isDriverActor(user);
+      const isClient = String(user.role || '').toLowerCase() === 'client';
       const tripRef = resolvedTrip?.tripNumber || dto.tripId || 'N/A';
-      if (roleLabel === 'Șofer' || roleLabel === 'Client') {
+
+      if (isDriver || isClient) {
+        const roleLabel = isDriver ? 'Șofer' : 'Client';
         try {
-          await this.notificationsService.create({
+          await this.notificationsService.createOnce({
             type: 'document',
             title: `Document Nou de la ${roleLabel}: ${uName}`,
             message: `Fișier ${displayType} (${finalFileName}) încărcat pentru: ${tripRef}`,
             relatedId: savedId,
+            eventId: `document:${savedId}:tms`,
+            origin: 'DRIVER_APP',
+            audience: 'tms',
           });
         } catch (nErr) {
           console.warn('Could not create notification:', nErr);
+        }
+      } else if (resolvedTrip?.id) {
+        // A dispatcher/office upload is a TMS change: the assigned driver sees
+        // it in history and receives one push, the TMS feed stays quiet.
+        const driverUser = resolveTripDriver(resolvedTrip)?.user;
+        if (driverUser?.fcmToken) {
+          const title = 'Document nou în cursă';
+          const message = `${displayType} (${finalFileName}) a fost adăugat pentru ${tripRef}.`;
+          try {
+            const delivered = await this.notificationsService.createOnce({
+              type: 'document',
+              title,
+              message,
+              relatedId: savedId,
+              eventId: `document:${savedId}:driver`,
+              origin: 'TMS_DISPATCH',
+              audience: 'driver',
+            });
+            if (delivered.created) {
+              await this.firebaseService?.sendPushNotification(
+                driverUser.fcmToken,
+                title,
+                message,
+                { type: 'document', tripId: resolvedTrip.id, documentId: savedId },
+              );
+            }
+          } catch (nErr) {
+            console.warn('Could not create driver document notification:', nErr);
+          }
         }
       }
     }

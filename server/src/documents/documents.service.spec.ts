@@ -11,7 +11,9 @@ describe('DocumentsService - Clean Filename Resolution & Deduplication', () => {
       {} as any,
       {} as any,
       {} as any,
-      {} as any,
+      { createOnce: jest.fn() } as any,
+      { logAction: jest.fn() } as any,
+      { sendPushNotification: jest.fn() } as any,
     );
   });
 

@@ -1101,6 +1101,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
                                 '${(e['actorName'] ?? '').toString().isNotEmpty ? ' · ${e['actorName']}' : ''}',
                                 style: TextStyle(fontSize: 11, color: kTextSecondary),
                               ),
+                              if ((e['action'] ?? '').toString() == 'DOCUMENT_UPLOADED' &&
+                                  (e['fileName'] ?? '').toString().isNotEmpty)
+                                Text(
+                                  e['fileName'].toString(),
+                                  style: TextStyle(fontSize: 11, color: kTextMuted),
+                                ),
                             ],
                           ),
                         ),

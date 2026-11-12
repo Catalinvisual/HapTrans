@@ -128,6 +128,27 @@ export default function ActivityTimeline({
     expiryDate: t('expiry_date', 'Data expirării'),
   };
 
+  const actionLabel = (action: string): string => {
+    const labels: Record<string, string> = {
+      DOCUMENT_UPLOADED: t('action_document_uploaded', 'Document uploaded'),
+      STOP_UPDATED: t('action_stop_updated', 'Stop updated'),
+      QUANTITIES_UPDATED: t('action_quantities_updated', 'Cargo quantities updated'),
+      CARGO_ALLOCATION_REVIEWED: t('action_allocation_reviewed', 'Cargo allocation reviewed'),
+      POD_SAVED: t('action_pod_saved', 'POD saved'),
+      ISSUE_REPORTED: t('action_issue_reported', 'Issue reported'),
+      DELAY_REPORTED: t('action_delay_reported', 'Delay reported'),
+      DELIVERY_INCIDENT_REPORTED: t('action_incident_reported', 'Delivery incident reported'),
+      DELIVERY_INCIDENT_RESOLVED: t('action_incident_resolved', 'Delivery incident resolved'),
+    };
+    return labels[action] || action;
+  };
+
+  const sourceLabel = (source?: string): string => {
+    if (source === 'mobile') return t('source_mobile', 'Driver app');
+    if (source === 'system') return t('source_system', 'System');
+    return t('source_tms', 'TMS');
+  };
+
   const getFieldLabel = (field: string): string => {
     if (fieldLabels[field]) return fieldLabels[field];
     // Convert camelCase or snake_case to Human Readable Title (e.g. contactPerson -> Contact Person)
@@ -291,16 +312,10 @@ export default function ActivityTimeline({
                           ? t('action_updated', 'Updated')
                           : log.action === 'STATUS_CHANGED'
                             ? t('action_status_changed', 'Status changed')
-                            : log.action}
-                      {log.action === 'STATUS_CHANGED' && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-border bg-surface text-text-secondary">
-                          {log.source === 'mobile'
-                            ? t('source_mobile', 'Driver app')
-                            : log.source === 'system'
-                              ? t('source_system', 'System')
-                              : t('source_tms', 'TMS')}
-                        </span>
-                      )}
+                            : actionLabel(log.action)}
+                      <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-border bg-surface text-text-secondary">
+                        {sourceLabel(log.source)}
+                      </span>
                     </div>
                     <div className="text-[11px] text-text-secondary mt-0.5">
                       {t('by', 'by')}{' '}
@@ -323,6 +338,32 @@ export default function ActivityTimeline({
                         {log.details?.scope === 'stop' && (
                           <span className="text-[10px] uppercase tracking-wide text-text-muted">{t('jsx_stops', 'Stops')}</span>
                         )}
+                      </div>
+                    )}
+
+                    {log.action === 'DOCUMENT_UPLOADED' && (log.details?.fileName || log.details?.documentType) && (
+                      <div className="mt-1 text-[11px] text-text-secondary flex items-center gap-1.5 flex-wrap">
+                        {log.details?.documentType && (
+                          <span className="font-semibold text-text-primary">{log.details.documentType}</span>
+                        )}
+                        {log.details?.fileName && <span>{log.details.fileName}</span>}
+                      </div>
+                    )}
+
+                    {log.action === 'STOP_UPDATED' && Array.isArray(log.details?.changes) && log.details.changes.length > 0 && (
+                      <div className="mt-1.5 space-y-1 bg-surface/70 dark:bg-card/70 p-2 rounded-lg border border-border/60">
+                        {log.details.changes.map((change: any, changeIdx: number) => (
+                          <div key={`${change.field}-${changeIdx}`} className="text-[11px] flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-text-primary">{getFieldLabel(change.field)}:</span>
+                            <span className="text-text-secondary bg-surface dark:bg-card px-2 py-0.5 rounded border border-border/70 text-[11px] font-medium">
+                              {formatVal(change.field, change.from)}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 rounded text-[11px]">
+                              {formatVal(change.field, change.to)}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     )}
 

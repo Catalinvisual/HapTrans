@@ -26,6 +26,8 @@ import { OptimizationService } from './optimization.service';
 import { RoutingModule } from '../routing/routing.module';
 import { EnginesModule } from '../engines/engines.module';
 import { TimelineModule } from '../timeline/timeline.module';
+import { ActionLogsModule } from '../action-logs/action-logs.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -53,6 +55,8 @@ import { TimelineModule } from '../timeline/timeline.module';
     EnginesModule,
     TimelineModule,
     RoutingModule,
+    ActionLogsModule,
+    NotificationsModule,
   ],
   controllers: [PlanningController, CarriersController],
   providers: [PlanningService, OptimizationService],
