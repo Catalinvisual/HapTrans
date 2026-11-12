@@ -613,3 +613,12 @@ input[readonly] {
 .dark .flatpickr-calendar .flatpickr-time { border-top-color: #334155 !important; }
 .dark .flatpickr-calendar .flatpickr-time input,
 .dark .flatpickr-calendar .flatpickr-time .flatpickr-am-pm { color: #f8fafc !important; }
+
+/* Touch targets: on coarse pointers (tablets) the contextual bar keeps a 40px
+   minimum so a fingertip can hit it. */
+@media (pointer: coarse) {
+  .pv-touch {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

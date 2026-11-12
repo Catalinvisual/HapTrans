@@ -275,6 +275,41 @@ export const planningApi = {
     return data;
   },
 
+  // ─── Undo / Suggestions / Nearby ───
+  /** Undo the last undoable action of this dispatcher (8 s toast window). */
+  undo: async (actionId?: string) => {
+    const { data } = await api.post('/planning/undo', actionId ? { actionId } : {});
+    return data;
+  },
+  getSuggestions: async (params?: { from?: string; to?: string }) => {
+    const { data } = await api.get('/planning/suggestions', { params });
+    return data;
+  },
+  getNearbyOrders: async (params: {
+    tripId?: string;
+    stopId?: string;
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
+    limit?: number;
+  }) => {
+    const { data } = await api.get('/planning/nearby-orders', { params });
+    return data;
+  },
+  recalculateTrip: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/recalculate`);
+    return data;
+  },
+  /** Apply a modelled departure change: shifts the trip and all its stops. */
+  rescheduleTrip: async (tripId: string, plannedDeparture: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/reschedule`, { plannedDeparture });
+    return data;
+  },
+  moveOrder: async (payload: { orderId?: string; orderIds?: string[]; targetTripId?: string; tripId?: string }) => {
+    const { data } = await api.post('/planning/move', payload);
+    return data;
+  },
+
   // ─── Saved Views ───
   getViews: async () => {
     const { data } = await api.get('/planning/views');

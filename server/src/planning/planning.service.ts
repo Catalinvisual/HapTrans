@@ -72,6 +72,8 @@ import {
   normalizeEquipmentRequirements,
 } from './assignment-capacity';
 import { assessEquipment } from './equipment-capability';
+import { buildBoardKpis } from './board-kpis';
+import { pointOf, rankNearbyOrders } from './nearby-search';
 import {
   assessCandidateAvailability,
   assessTruckSchedule,
@@ -154,6 +156,7 @@ export interface RouteValidationResult {
   completeness: any[];
 }
 
+import { reschedulePlan } from './reschedule';
 import { validateAdrMatrix } from './validate-adr-matrix';
 export { validateAdrMatrix };
 
@@ -437,14 +440,26 @@ export class PlanningService {
   async undo(user: any, dto: any) {
     const companyId = user?.companyId || null;
     const actionId = dto?.actionId || null;
+    // The UI exposes undo for 8 seconds after a change. Only an action that
+    // stored a snapshot, belongs to this dispatcher and happened minutes ago may
+    // be reverted — the latest row in the company is otherwise someone else's
+    // committed work.
+    const undoWindowStart = new Date(Date.now() - 15 * 60 * 1000);
     const action = actionId
       ? await this.actionRepo.findOne({ where: { id: actionId } })
       : await this.actionRepo
           .createQueryBuilder('a')
           .where(companyId ? 'a.companyId = :cid' : 'a.companyId IS NULL', { cid: companyId })
+          .andWhere('a.undoData IS NOT NULL')
+          .andWhere('a.createdAt >= :since', { since: undoWindowStart })
+          .andWhere(user?.id ? 'a.userId = :uid' : '1=1', user?.id ? { uid: user.id } : {})
           .orderBy('a.createdAt', 'DESC')
           .getOne();
     if (!action) throw new BadRequestException('Nothing to undo.');
+    if (!action.undoData) throw new BadRequestException('This action cannot be undone.');
+    if (companyId && action.companyId && String(action.companyId) !== String(companyId)) {
+      throw new ForbiddenException('This action does not belong to your company.');
+    }
 
     const data = action.undoData || {};
     const orderSnapshots: { id: string; tripId: string | null; status: string }[] = data.orders || [];
@@ -461,6 +476,27 @@ export class PlanningService {
     for (const ts of tripStatusSnapshots) {
       await this.tripRepo.update(ts.id, { status: ts.status });
       affectedTripIds.add(ts.id);
+    }
+
+    // 0b. Put rescheduled departures and stop times back where they were
+    for (const rescheduled of data.reschedules || []) {
+      if (!rescheduled?.tripId) continue;
+      const tripPatch: any = {};
+      if (rescheduled.plannedDeparture !== undefined) {
+        tripPatch.plannedDeparture = rescheduled.plannedDeparture ? new Date(rescheduled.plannedDeparture) : null;
+      }
+      if (rescheduled.plannedArrival !== undefined) {
+        tripPatch.plannedArrival = rescheduled.plannedArrival ? new Date(rescheduled.plannedArrival) : null;
+      }
+      if (Object.keys(tripPatch).length) await this.tripRepo.update(rescheduled.tripId, tripPatch);
+      for (const stop of rescheduled.stops || []) {
+        if (!stop?.id) continue;
+        const stopPatch: any = {};
+        if (stop.plannedDate !== undefined) stopPatch.plannedDate = stop.plannedDate ? new Date(stop.plannedDate) : null;
+        if (stop.eta !== undefined) stopPatch.eta = stop.eta ? new Date(stop.eta) : null;
+        if (Object.keys(stopPatch).length) await this.stopRepo.update(stop.id, stopPatch);
+      }
+      affectedTripIds.add(rescheduled.tripId);
     }
 
     // 1. Remove orders from trips that were created by the action (so they can be deleted safely)
@@ -984,7 +1020,116 @@ export class PlanningService {
       hosSummary,
       counts,
       conflicts,
+      // One server-side computation of the board's headline numbers, each with
+      // its own provenance. The client renders these verbatim instead of
+      // re-deriving them from loaded rows.
+      kpis: buildBoardKpis({ trips, orders, resources, conflicts, hosSummary, totalUnplanned }),
       range: { from: fromStr, to: toStr },
+    };
+  }
+
+  /**
+   * Return loads in the direct vicinity of a stop or a leg.
+   *
+   * Geometry only: distances are great-circle, and the empty-km saving is an
+   * estimate. The planner still confirms through the normal preflight, so a
+   * nearby order is a suggestion, never an assignment.
+   */
+  async nearbyOrders(user: any, q: any) {
+    const companyId = user?.companyId || null;
+    const radiusKm = Math.min(500, Math.max(1, Number(q.radiusKm) || 50));
+    const limit = Math.min(100, Math.max(1, Number(q.limit) || 30));
+
+    let trip: any = null;
+    if (q.tripId) {
+      trip = await this.loadTrip(String(q.tripId));
+      if (!trip) throw new NotFoundException('Trip not found.');
+    }
+    const tripStops: any[] = ((trip?.stops || []) as any[])
+      .slice()
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+
+    const referenceStop = q.stopId
+      ? tripStops.find((stop) => String(stop.id) === String(q.stopId)) || null
+      : null;
+
+    const hasQueryPoint =
+      q.lat !== undefined && q.lat !== null && q.lat !== '' &&
+      q.lng !== undefined && q.lng !== null && q.lng !== '' &&
+      Number.isFinite(Number(q.lat)) && Number.isFinite(Number(q.lng));
+    const origin = hasQueryPoint
+      ? { lat: Number(q.lat), lng: Number(q.lng) }
+      : pointOf(referenceStop || tripStops.find((stop) => pointOf(stop)));
+
+    if (!origin) {
+      throw new BadRequestException(
+        'A geocoded reference is required: pass lat/lng, or a trip whose stops have coordinates.',
+      );
+    }
+
+    const referenceIndex = referenceStop ? tripStops.indexOf(referenceStop) : -1;
+    const nextStop = referenceIndex >= 0
+      ? tripStops.slice(referenceIndex + 1).find((stop) => pointOf(stop))
+      : tripStops.find((stop) => pointOf(stop) && pointOf(stop) !== origin);
+    const nextPoint = pointOf(nextStop);
+
+    let truck: any = trip?.truck || null;
+    if (!truck && q.truckId) {
+      truck = await this.truckRepo.findOne({ where: { id: String(q.truckId) }, relations: ['trailer'] });
+    }
+    const capacity = truck ? knownTruckCapacity(truck) : null;
+
+    // Capacity offered to a candidate is what is still free on the trip. The
+    // cargo currently assigned is subtracted once; the exact segment-by-segment
+    // figure is decided later by the cargo ledger during preflight.
+    let freeCapacity: any = capacity;
+    if (capacity && trip) {
+      const loaded = this.sumCargo(trip.orders || []);
+      freeCapacity = {
+        maxWeightKg: capacity.maxWeightKg !== null ? Math.max(0, capacity.maxWeightKg - loaded.weight) : null,
+        maxPallets: capacity.maxPallets !== null ? Math.max(0, capacity.maxPallets - loaded.pallets) : null,
+        maxLdm: capacity.maxLdm !== null ? Math.max(0, capacity.maxLdm - loaded.ldm) : null,
+      };
+    }
+
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+    const orderQb = this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.client', 'client')
+      .leftJoinAndSelect('order.cargoItems', 'cargoItems')
+      .leftJoinAndSelect('order.stops', 'stops')
+      .leftJoin('order.trip', 'orderTrip')
+      .where('order.tripId IS NULL')
+      .andWhere('orderTrip.id IS NULL')
+      .andWhere('LOWER(order.status) NOT IN (:...terminalOrderStatuses)', {
+        terminalOrderStatuses: TERMINAL_ORDER_STATUSES,
+      })
+      .take(1000);
+    if (!isAdmin && companyId) {
+      orderQb.andWhere(this.companyBracket(companyId, 'order.companyId'));
+    }
+
+    const orders = await orderQb.getMany();
+    const result = rankNearbyOrders({
+      orders,
+      origin,
+      radiusKm,
+      nextPoint,
+      capacity: freeCapacity,
+      limit,
+    });
+
+    return {
+      ...result,
+      origin,
+      tripId: trip?.id || null,
+      truckId: truck?.id || null,
+      referenceStopId: referenceStop?.id || null,
+      referenceCity: referenceStop?.city || null,
+      nextCity: nextStop?.city || null,
+      capacity,
+      freeCapacity,
+      generatedAt: new Date().toISOString(),
     };
   }
 
@@ -3062,6 +3207,95 @@ export class PlanningService {
       message: `Trip ${trip.tripNumber} deleted (${reason}).`,
       companyId: trip.company?.id || null,
     });
+  }
+
+  /**
+   * Apply a modelled departure change ("apply scenario").
+   *
+   * Every stop moves by the same number of minutes: re-optimising here would
+   * silently change distances and costs the dispatcher never approved. Customer
+   * windows stay where they are and the response reports which ones now break.
+   * The previous values are stored as an undo snapshot.
+   */
+  async rescheduleTrip(user: any, tripId: string, dto: any) {
+    if (!tripId) throw new BadRequestException('tripId is required.');
+    if (!dto?.plannedDeparture) throw new BadRequestException('plannedDeparture is required.');
+    const next = new Date(dto.plannedDeparture);
+    if (!Number.isFinite(next.getTime())) {
+      throw new BadRequestException('plannedDeparture is not a valid date.');
+    }
+
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const companyId = user?.companyId || null;
+    const tripCompanyId = (trip as any).company?.id || null;
+    if (companyId && tripCompanyId && String(companyId) !== String(tripCompanyId)) {
+      throw new ForbiddenException('This trip does not belong to your company.');
+    }
+    const tripStatus = String(trip.status || '').toLowerCase();
+    if (!['planning', 'planned', 'assigned', 'dispatched'].includes(tripStatus)) {
+      throw new BadRequestException('A trip that is already in progress cannot be rescheduled.');
+    }
+
+    const plan = reschedulePlan({
+      plannedDeparture: trip.plannedDeparture,
+      newDeparture: next,
+      stops: trip.stops || [],
+    });
+    if (!plan.deltaMin) {
+      return { tripId: trip.id, deltaMin: 0, stops: [], windowViolations: 0, undoAvailable: false };
+    }
+
+    const previous = {
+      tripId: trip.id,
+      plannedDeparture: trip.plannedDeparture ? new Date(trip.plannedDeparture).toISOString() : null,
+      plannedArrival: trip.plannedArrival ? new Date(trip.plannedArrival).toISOString() : null,
+      stops: (trip.stops || []).map((stop: any) => ({
+        id: stop.id,
+        plannedDate: stop.plannedDate ? new Date(stop.plannedDate).toISOString() : null,
+        eta: stop.eta ? new Date(stop.eta).toISOString() : null,
+      })),
+    };
+
+    const tripPatch: any = { plannedDeparture: next };
+    if (trip.plannedArrival) {
+      tripPatch.plannedArrival = new Date(new Date(trip.plannedArrival).getTime() + plan.deltaMin * 60000);
+    }
+    await this.tripRepo.update(trip.id, tripPatch);
+
+    for (const stop of plan.stops) {
+      if (!stop.id) continue;
+      const stopPatch: any = {};
+      if (stop.plannedDate) stopPatch.plannedDate = new Date(stop.plannedDate);
+      if (stop.eta) stopPatch.eta = new Date(stop.eta);
+      if (Object.keys(stopPatch).length) await this.stopRepo.update(stop.id, stopPatch);
+    }
+
+    await this.recordAction(
+      'trip_rescheduled',
+      {
+        reschedules: [previous],
+        tripId: trip.id,
+        truckId: (trip as any).truck?.id || null,
+        plannedDeparture: next.toISOString(),
+      },
+      companyId,
+      user?.id || null,
+      { plannedDeparture: previous.plannedDeparture },
+      { plannedDeparture: next.toISOString() },
+    );
+    await this.logTimeline('planning_reschedule', user, {
+      message: `Trip ${trip.tripNumber || trip.id} moved ${plan.deltaMin > 0 ? '+' : ''}${plan.deltaMin} min.`,
+      companyId: companyId || undefined,
+    });
+
+    return {
+      tripId: trip.id,
+      deltaMin: plan.deltaMin,
+      stops: plan.stops,
+      windowViolations: plan.windowViolations,
+      undoAvailable: true,
+    };
   }
 
   async moveOrder(user: any, dto: any) {

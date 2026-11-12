@@ -4,6 +4,7 @@
 import { humanName } from './driverName';
 import { FUEL_FACTORS, getTruckFuelProfile } from './truckFuel';
 import { operationalStatusForDisplay } from './operationalI18n';
+import { avgSpeedKmh, fixedCostOf, planVarianceMin } from './planningPremium';
 
 export { FUEL_FACTORS };
 
@@ -407,9 +408,20 @@ export function buildTripMetrics(trip: any) {
   else if (distanceKm === null || distanceKm <= 0) emissionMissing = 'distance';
   else if (emissionFactor === null) emissionMissing = 'factor';
 
+  // Two derived readings the dispatcher asks for constantly: how fast the trip
+  // actually runs, and how far it drifted from its own plan. Both are null when
+  // the inputs are missing rather than a confident zero.
+  const speed = avgSpeedKmh(distanceKm, drivingMin);
+  const variance = planVarianceMin(trip);
+  const fixedCost = fixedCostOf(estimatedBreakdown);
+
   return {
     id: String(trip?.id || ''),
     raw: trip,
+    avgSpeedKmh: speed,
+    planVarianceMin: variance.value,
+    planVarianceBasis: variance.basis,
+    fixedCost,
     tripNumber: trip?.tripNumber || '',
     status: operationalStatusForDisplay(trip),
     truckId: truck?.id || '',

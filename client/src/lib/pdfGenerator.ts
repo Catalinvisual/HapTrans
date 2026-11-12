@@ -60,7 +60,7 @@ async function addImageToDoc(doc: jsPDF, url: string, x: number, y: number, maxW
   });
 }
 
-async function createBaseDocument(title: string, company: CompanySettings | null, orientation: 'portrait' | 'landscape' = 'landscape') {
+export async function createBaseDocument(title: string, company: CompanySettings | null, orientation: 'portrait' | 'landscape' = 'landscape') {
   const doc = new jsPDF(orientation, 'pt', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   

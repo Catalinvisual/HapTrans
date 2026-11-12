@@ -11,6 +11,9 @@ import {
   Printer, Maximize2, Minimize2, RotateCcw, List, FileText, Pencil, CalendarDays,
   BookmarkPlus, Save, Trash2, GitMerge, Wand2, Clock3,
   ZoomIn, ZoomOut, Unplug, Link as LinkIcon, ArrowRightLeft, Building2, Euro,
+  Gauge, Repeat2, Eye, EyeOff, Command, MoreHorizontal, PanelRightClose, PanelRightOpen,
+  SlidersHorizontal, Lock, Unlock,
+  Info,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -62,8 +65,24 @@ import FleetOptimizationModal from '../components/planning/FleetOptimizationModa
 import RouteComparisonModal from '../components/planning/RouteComparisonModal';
 import DriverActivityTimeline from '../components/planning/DriverActivityTimeline';
 import TrafficIncidentsModal from '../components/planning/TrafficIncidentsModal';
+import PlanningCommandPalette, { type PaletteAction } from '../components/planning/PlanningCommandPalette';
+import PlanningSuggestionsPanel from '../components/planning/PlanningSuggestionsPanel';
+import NearbyLoadsPanel from '../components/planning/NearbyLoadsPanel';
+import PlanningScenariosPanel from '../components/planning/PlanningScenariosPanel';
+import PlanningDocumentsModal from '../components/planning/PlanningDocumentsModal';
+import PlanningRecoveryPanel from '../components/planning/PlanningRecoveryPanel';
+import StopEditorRow from '../components/planning/StopEditorRow';
+import {
+  PROVENANCE,
+  avgSpeedKmh,
+  isMovableTrip,
+  planVarianceMin,
+  provenanceOf,
+  shiftWindow,
+  toggleHiddenTrip,
+} from '../lib/planningPremium';
 
-function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
+function useResizableSidebar(initialWidth: number = 330, minWidth: number = 300, maxWidth: number = 650) {
   const [width, setWidth] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('planning_pool_width');
@@ -292,15 +311,17 @@ const KPI_COLORS: Record<string, { dot: string; active: string; idle: string }> 
 
 // ─── Map Component ──────────────────────────────────────────────────────────
 function PlanningMap({
-  mapData, selectedTripId, onSelectTrip, isLoading,
+  mapData, selectedTripId, onSelectTrip, isLoading, hiddenTripIds, compact = false,
 }: {
   mapData: any; selectedTripId: string | null; onSelectTrip: (id: string) => void; isLoading: boolean;
+  hiddenTripIds?: ReadonlySet<string>; compact?: boolean;
 }) {
   const { t } = useTranslation();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(false);
   const [showRoutes, setShowRoutes] = useState(true);
   const [showVehicles, setShowVehicles] = useState(true);
   const [showStops, setShowStops] = useState(true);
@@ -343,7 +364,9 @@ function PlanningMap({
     try { if (map.getLayer('routes')) map.removeLayer('routes'); if (map.getSource('routes')) map.removeSource('routes'); } catch {}
 
     if (showRoutes && mapData?.routes?.length) {
-      const features = mapData.routes.filter((r: any) => r.points?.length >= 2).map((r: any) => {
+      const features = mapData.routes
+        .filter((r: any) => r.points?.length >= 2 && !hiddenTripIds?.has(String(r.tripId)))
+        .map((r: any) => {
         const isDelayed = showTraffic && (r.trafficDelayMinutes > 0 || r.isDelayed);
         const color = isDelayed ? '#ef4444' : planningTone(r.status).accent;
         return {
@@ -365,6 +388,7 @@ function PlanningMap({
     if (showStops && mapData?.stops?.length) {
       for (const s of mapData.stops) {
         if (!s.lat || !s.lng) continue;
+        if (hiddenTripIds?.has(String(s.tripId))) continue;
         const el = document.createElement('div');
         const hasConflict = showConflicts && s.hasConflict;
         el.className = `w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px] font-black shadow cursor-pointer ${
@@ -423,13 +447,38 @@ function PlanningMap({
         try { map.fitBounds(b, { padding: 80, maxZoom: 12 }); } catch {}
       }
     } else fitAll();
-  }, [mapReady, mapData, showRoutes, showVehicles, showStops, showTraffic, showTolls, showDropHook, showCrossDock, showConflicts, selectedTripId, onSelectTrip, fitAll]);
+  }, [mapReady, mapData, showRoutes, showVehicles, showStops, showTraffic, showTolls, showDropHook, showCrossDock, showConflicts, selectedTripId, onSelectTrip, fitAll, hiddenTripIds]);
+
+  // Keep the panel pointed at what the dispatcher just selected, without
+  // resetting the zoom on every data refresh.
+  const lastCentredTrip = useRef<string | null>(null);
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady || !selectedTripId) return;
+    if (lastCentredTrip.current === selectedTripId) return;
+    const route = mapData?.routes?.find((candidate: any) => String(candidate.tripId) === String(selectedTripId));
+    if (!route?.points?.length) return;
+    lastCentredTrip.current = selectedTripId;
+    const bounds = new maplibregl.LngLatBounds();
+    route.points.forEach((point: number[]) => bounds.extend([point[1], point[0]]));
+    try { map.fitBounds(bounds, { padding: compact ? 40 : 80, maxZoom: 12 }); } catch { /* map not ready */ }
+  }, [selectedTripId, mapData, mapReady, compact]);
 
   return (
     <div className="relative h-full w-full">
       <div ref={mapRef} className="h-full w-full" />
-      <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur p-2 rounded-xl border border-border shadow-lg text-xs space-y-1.5 max-h-[85vh] overflow-y-auto">
-        <div className="text-[10px] font-bold text-text-secondary uppercase px-1 flex items-center gap-1.5 border-b border-border pb-1"><Layers className="w-3 h-3 text-primary" /> {t('layer_routes','Layers')}</div>
+      {/* Layers start collapsed so the map itself is the first thing you see. */}
+      <button
+        type="button"
+        onClick={() => setLayersOpen((value) => !value)}
+        aria-expanded={layersOpen}
+        className="absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-text-secondary shadow-sm backdrop-blur transition-colors hover:text-text-primary"
+      >
+        <Layers className="h-3 w-3 text-primary" />
+        {t('layer_routes', 'Layers')}
+      </button>
+      {layersOpen && (
+      <div className={`absolute z-10 bg-card/95 backdrop-blur p-2 rounded-xl border border-border shadow-lg space-y-1.5 overflow-y-auto ${compact ? 'top-11 left-3 text-[9px] max-h-[65%]' : 'top-12 left-3 text-xs max-h-[80vh]'}`}>
         {([
           ['showRoutes',showRoutes,setShowRoutes,t('layer_routes','Routes')],
           ['showStops',showStops,setShowStops,t('layer_stops','Stops')],
@@ -449,6 +498,7 @@ function PlanningMap({
           <Navigation className="w-3 h-3 text-primary" />{t('map_fit_all','Fit all')}
         </button>
       </div>
+      )}
       {isLoading && (
         <div className="absolute top-3 right-16 z-10 flex items-center gap-2 bg-card/90 px-3 py-1.5 rounded-full border border-border shadow text-xs">
           <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
@@ -514,7 +564,7 @@ function PoolOrderCard({
             className="text-text-secondary hover:text-primary shrink-0">
             {selected ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5" />}
           </button>
-          <span className="font-bold text-text-primary text-[11px] truncate">{order.orderNumber || '—'}</span>
+          <span className="font-bold text-text-primary text-[12px] truncate">{order.orderNumber || '—'}</span>
           {isCritical && (
             <span className="px-1 py-0 text-[7px] font-black bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 rounded shrink-0">
               {t('priority_critical', 'CRITICAL')}
@@ -539,28 +589,14 @@ function PoolOrderCard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-1 text-[10px] text-text-secondary truncate">
-        <div className="flex items-center gap-1 truncate">
-          <MapPin className="w-2.5 h-2.5 text-blue-500 shrink-0" />
-          <span className="truncate font-medium text-text-primary">{pickup?.city || pickup?.address?.split(',')[0] || '—'}</span>
-          <ArrowRight className="w-2 h-2 shrink-0 text-text-muted" />
-          <MapPin className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
-          <span className="truncate font-medium text-text-primary">{dropoff?.city || dropoff?.address?.split(',')[0] || '—'}</span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0 font-black text-text-primary text-[10px]">
-          {cargo.pallets > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <PalletIcon className="w-3.5 h-3.5" />
-              {cargo.pallets}p
-            </span>
-          )}
-          {cargo.weight > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <WeightKgIcon className="w-3.5 h-3.5" />
-              {fmtNumber(cargo.weight)}kg
-            </span>
-          )}
-        </div>
+      {/* Route gets the full width: truncated city names were the ugliest
+          thing in the pool. Cargo moves down to the dates row. */}
+      <div className="flex items-center gap-1.5 text-[11px] text-text-secondary min-w-0">
+        <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
+        <span className="min-w-0 flex-1 truncate font-semibold text-text-primary">{pickup?.city || pickup?.address?.split(',')[0] || '—'}</span>
+        <ArrowRight className="w-2.5 h-2.5 shrink-0 text-text-muted" />
+        <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
+        <span className="min-w-0 flex-1 truncate font-semibold text-text-primary">{dropoff?.city || dropoff?.address?.split(',')[0] || '—'}</span>
       </div>
 
       {(pickupDate || dropoffDate) && (
@@ -622,6 +658,22 @@ function TripBlock({
   const orderRefs = (trip.orders || []).map((o: any) => o.orderNumber || o.reference || '—').filter(Boolean);
   const stops = ((trip.stops?.length ? trip.stops : (trip.orders || []).flatMap((o: any) => o.stops || [])) || [])
     .slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+  // Window risk: a deterministic projection (arrival vs the customer window),
+  // not a probability. "At risk" means inside the last 30 minutes of the window.
+  const lateStops = (() => {
+    let missed = 0;
+    let atRisk = 0;
+    for (const stop of stops) {
+      const etaRaw = stop?.eta || stop?.plannedDate || stop?.liveEta;
+      const maxRaw = stop?.timeWindowMax || stop?.dateTo;
+      const eta = etaRaw ? new Date(etaRaw).getTime() : NaN;
+      const max = maxRaw ? new Date(maxRaw).getTime() : NaN;
+      if (!Number.isFinite(eta) || !Number.isFinite(max)) continue;
+      if (eta > max) missed += 1;
+      else if (eta > max - 30 * 60000) atRisk += 1;
+    }
+    return { missed, atRisk };
+  })();
   // Everything that does not fit on a compact card lives here, in the hover
   // panel, instead of being squeezed into the timeline row.
   const detailsTooltip = [
@@ -685,8 +737,8 @@ function TripBlock({
 
         <div className="pl-2 pr-1.5 pt-1 pb-1.5 flex flex-col justify-center flex-1 min-h-0 overflow-hidden gap-0.5">
           {/* Row 1: Trip number + sequence + status + fleet badge */}
-          <div className="flex items-center gap-1 min-w-0 flex-wrap">
-            <span className={`font-black truncate tracking-tight text-text-primary ${isVeryNarrow ? 'text-[8px]' : 'text-[11px]'}`} style={{ maxWidth: isNarrow ? '100%' : '55%' }}>
+          <div className="flex items-center gap-1 min-w-0 flex-nowrap overflow-hidden">
+            <span className={`font-black truncate tracking-tight text-text-primary ${isVeryNarrow ? 'text-[8px]' : 'text-[12px]'}`} style={{ maxWidth: isNarrow ? '100%' : '55%' }}>
               {trip.tripNumber || '—'}
             </span>
             {!isNarrow && (trip.truck?.plateNumber || trip.truckPlate) && (
@@ -711,6 +763,23 @@ function TripBlock({
               >
                 <span className="w-1 h-1 rounded-full" style={{ backgroundColor: hex }} />
                 {opLabel}
+              </span>
+            )}
+            {!isVeryNarrow && (lateStops.missed > 0 || lateStops.atRisk > 0) && (
+              <span
+                className={`shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase border ${
+                  lateStops.missed > 0
+                    ? 'bg-rose-500/20 text-rose-600 border-rose-500/30'
+                    : 'bg-amber-500/20 text-amber-700 border-amber-500/30 dark:text-amber-300'
+                }`}
+                title={`${t(
+                  'win_basis',
+                  'Projected arrival versus the customer window, from live or planned ETA. A projection, not a probability.',
+                )}`}
+              >
+                {lateStops.missed > 0
+                  ? `${lateStops.missed} ${t('win_missed', 'late')}`
+                  : `${lateStops.atRisk} ${t('win_at_risk', 'at risk')}`}
               </span>
             )}
             {overlapCount > 0 && (
@@ -743,8 +812,8 @@ function TripBlock({
 
           {/* Row 2: Route */}
           {!isNarrow && origin !== '—' && (
-            <div className="text-[9px] font-semibold text-text-primary truncate flex items-center gap-1">
-              <MapPin className="w-2 h-2 shrink-0 text-blue-500" />
+            <div className="text-[10.5px] font-bold text-text-primary truncate flex items-center gap-1">
+              <MapPin className="w-2.5 h-2.5 shrink-0 text-blue-500" />
               <span className="truncate">{origin}</span>
               {dest !== '—' && <><ArrowRight className="w-1.5 h-1.5 shrink-0 opacity-60" /><span className="truncate">{dest}</span></>}
             </div>
@@ -753,7 +822,7 @@ function TripBlock({
           {/* Row 3: the one operational detail worth keeping inline. Everything
               else (cargo, revenue, driver, trailer, orders) is in the tooltip. */}
           {!isVeryNarrow && (
-            <div className="flex items-center gap-1.5 min-w-0 text-[8.5px] font-bold text-text-secondary tabular-nums">
+            <div className="flex items-center gap-1.5 min-w-0 text-[9.5px] font-semibold text-text-secondary tabular-nums">
               {trip.plannedDeparture && (
                 <span className="truncate">
                   {fmtTime(trip.plannedDeparture)}{trip.plannedArrival ? `–${fmtTime(trip.plannedArrival)}` : ''}
@@ -815,11 +884,13 @@ function CapacityIndicator({ icon: Icon, text, pct, tooltip }: {
 
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
-  resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder, onOpenPlanner,
+  resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, onDropTrip, draggingId, draggingOrder, onOpenPlanner,
   hosSummary = {}, grouping = 'truck', colWidth = 52, timelineWidth, now = Date.now(), nowOffsetMinutes,
 }: {
   resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
-  onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string, orderId?: string) => void; draggingId: string | null; draggingOrder?: any;
+  onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string, orderId?: string) => void;
+  onDropTrip?: (resourceId: string, tripId: string) => void;
+  draggingId: string | null; draggingOrder?: any;
   onOpenPlanner: (resource: any) => void;
   hosSummary?: Record<string, any>; grouping?: 'truck' | 'driver' | 'trailer';
   colWidth?: number; timelineWidth?: number; now?: number; nowOffsetMinutes?: number;
@@ -926,6 +997,25 @@ function ResourceRow({
   const handleRowDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    // A whole trip can be dragged from the timeline onto another truck. The
+    // move still runs through the assignment review, so the preflight decides
+    // feasibility; this handler only forwards the intent.
+    const raw = e.dataTransfer.getData('application/json');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.type === 'assigned-trip' && parsed.tripId) {
+          if (resource.id === '__unassigned_trips__') {
+            toast.error(t('pv_drag_trip_hint', 'Drag the trip onto another truck to move it'));
+            return;
+          }
+          if (!isMaintenance) onDropTrip?.(resource.id, String(parsed.tripId));
+          return;
+        }
+      } catch {
+        /* not a trip payload */
+      }
+    }
     const droppedId = e.dataTransfer.getData('orderId') || e.dataTransfer.getData('text/plain') || draggingId;
     if (!isMaintenance && droppedId) {
       onDropOrder(resource.id, droppedId);
@@ -1168,6 +1258,7 @@ function TripDetailDrawer({
   tripSummary, resources = [], drivers = [], trailers = [], conflicts = [], hosSummary = {},
   onClose, onAction, onReorderStops, onEditOrder, onSplitTrip, onCombineTrip, onAutoOrderStops,
   onDropHook, onCrossDock, onSubcontractor, onOpenDriverActivity,
+  onSaveStop, onStopLockChange,
   loadingAction, refreshKey,
 }: {
   tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[]; hosSummary?: Record<string, any>;
@@ -1181,6 +1272,8 @@ function TripDetailDrawer({
   onCrossDock?: (payload: { tripId?: string }) => void;
   onSubcontractor?: (trip: any) => void;
   onOpenDriverActivity?: (driver: any) => void;
+  onSaveStop?: (stopId: string, patch: any) => Promise<void>;
+  onStopLockChange?: (routePlanId: string, routePlanStopId: string, locked: boolean) => Promise<void>;
   loadingAction?: string | null;
   refreshKey?: number;
 }) {
@@ -1195,6 +1288,10 @@ function TripDetailDrawer({
   const [cargoLedger, setCargoLedger] = useState<any>(null);
   const [cargoLedgerLoading, setCargoLedgerLoading] = useState(false);
   const [cargoLedgerError, setCargoLedgerError] = useState<string | null>(null);
+  // Inline stop editing: one stop at a time, so the drawer never becomes a form.
+  const [editingStopId, setEditingStopId] = useState<string | null>(null);
+  const [stopSaving, setStopSaving] = useState(false);
+  const [stopLockBusyId, setStopLockBusyId] = useState<string | null>(null);
 
   // Live traffic & European toll state
   const [checkingTraffic, setCheckingTraffic] = useState(false);
@@ -1393,6 +1490,19 @@ function TripDetailDrawer({
     } catch {
       return details;
     }
+  };
+
+  // The route plan carries the optimisation lock; the trip stop does not.
+  const routePlanForTrip: any = (trip as any).routePlan || (tripSummary as any).routePlan || null;
+  const routePlanStopFor = (stop: any): any | null => {
+    const planStops: any[] = routePlanForTrip?.stops || [];
+    if (!planStops.length) return null;
+    const kind = String(stop?.type || '').toLowerCase() === 'pickup' ? 'pickup' : 'delivery';
+    return planStops.find((candidate: any) => candidate.id && candidate.id === stop?.routePlanStopId)
+      || planStops.find((candidate: any) => candidate.orderId && stop?.orderId && candidate.orderId === stop.orderId
+        && String(candidate.type || '').toLowerCase().includes(kind))
+      || planStops.find((candidate: any) => Number(candidate.sequence) === Number(stop?.sequence))
+      || null;
   };
 
   const moveStop = (idx: number, dir: 'up' | 'down') => {
@@ -2047,12 +2157,23 @@ function TripDetailDrawer({
                           <p className="text-xs text-text-secondary truncate">{s.address}{s.postalCode ? `, ${s.postalCode}` : ''} {s.country || ''}</p>
                         </div>
                       </div>
-                      {isPlanning && (
-                        <div className="flex flex-col gap-0.5 shrink-0">
-                          <button disabled={idx === 0 || !!loadingAction} onClick={() => moveStop(idx, 'up')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
-                          <button disabled={idx === stops.length - 1 || !!loadingAction} onClick={() => moveStop(idx, 'down')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
-                        </div>
-                      )}
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingStopId(editingStopId === s.id ? null : s.id)}
+                          className={`rounded p-1 transition-colors hover:bg-surface ${editingStopId === s.id ? 'text-primary' : 'text-text-secondary'}`}
+                          title={t('pv_stop_edit', 'Edit stop')}
+                          aria-label={t('pv_stop_edit', 'Edit stop')}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        {isPlanning && (
+                          <div className="flex flex-col gap-0.5">
+                            <button disabled={idx === 0 || !!loadingAction} onClick={() => moveStop(idx, 'up')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
+                            <button disabled={idx === stops.length - 1 || !!loadingAction} onClick={() => moveStop(idx, 'down')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* Stop operational details */}
                     <div className="px-3 py-2 space-y-1.5">
@@ -2092,6 +2213,33 @@ function TripDetailDrawer({
                       )}
                       {s.notes && (
                         <p className="text-[10px] text-text-secondary italic border-t border-border/40 pt-1">{s.notes}</p>
+                      )}
+                      {editingStopId === s.id && (
+                        <StopEditorRow
+                          stop={s}
+                          locked={Boolean(routePlanStopFor(s)?.locked)}
+                          canEdit
+                          saving={stopSaving}
+                          lockBusy={stopLockBusyId === s.id}
+                          onSave={async (patch) => {
+                            setStopSaving(true);
+                            try {
+                              await onSaveStop?.(s.id, patch);
+                              setEditingStopId(null);
+                            } finally {
+                              setStopSaving(false);
+                            }
+                          }}
+                          onToggleLock={routePlanForTrip && routePlanStopFor(s)
+                            ? () => {
+                              const planStop = routePlanStopFor(s);
+                              setStopLockBusyId(s.id);
+                              void Promise.resolve(onStopLockChange?.(routePlanForTrip.id, planStop.id, Boolean(planStop.locked)))
+                                .finally(() => setStopLockBusyId(null));
+                            }
+                            : undefined}
+                          onClose={() => setEditingStopId(null)}
+                        />
                       )}
                     </div>
                   </div>
@@ -2564,7 +2712,55 @@ export default function PlanningPage() {
   const [selectedDate, setSelectedDate] = useState<string>(() => dayStr(new Date()));
   // A week is the only range where a dispatch card is still readable at 100%
   // zoom in the workspace width the board actually gets.
+  // Four ways to read the same plan: a day, a week, a month, or the map panel
+  // alongside any of them. The old 'all' (31 days) and 'timeline' (day with
+  // lanes) modes duplicated these and only added choices, so they are no
+  // longer offered — legacy saved views are coerced below.
   const [viewMode, setViewMode] = useState<'all' | 'day' | 'week' | 'timeline' | 'month' | 'map'>('week');
+  const [mapOpen, setMapOpen] = useState<boolean>(() => {
+    // No stored preference yet: on a wide desk the map panel starts open, so the
+    // board and the map are visible together the first time. Narrow screens keep
+    // it closed and offer it as a toggle.
+    try {
+      const saved = window.localStorage.getItem('planning_map_open');
+      if (saved !== null) return saved === '1';
+      return window.innerWidth >= 1440;
+    } catch {
+      return window.innerWidth >= 1440;
+    }
+  });
+  const [mapWidth, setMapWidth] = useState<number>(() => {
+    try {
+      const saved = Number(window.localStorage.getItem('planning_map_width'));
+      if (Number.isFinite(saved) && saved >= 300 && saved <= 900) return saved;
+    } catch { /* ignore */ }
+    return 420;
+  });
+  const mapResizingRef = useRef(false);
+  const [hiddenTripIds, setHiddenTripIds] = useState<Set<string>>(new Set());
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [suggestionsData, setSuggestionsData] = useState<any>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const [suggestionBusyId, setSuggestionBusyId] = useState<string | null>(null);
+  const [scenariosOpen, setScenariosOpen] = useState(false);
+  const [scenarioApplying, setScenarioApplying] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  // Closing the drawer must not drop the selection: the contextual bar keeps the
+  // trip's actions available while the board stays readable.
+  const [drawerDismissed, setDrawerDismissed] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [nearby, setNearby] = useState<{
+    open: boolean; loading: boolean; error: string | null; data: any; radius: number; stopId: string | null;
+  }>({ open: false, loading: false, error: null, data: null, radius: 50, stopId: null });
+  const [nearbyBusyOrderId, setNearbyBusyOrderId] = useState<string | null>(null);
+  const [moveSourceTripId, setMoveSourceTripId] = useState<string | null>(null);
+  const [repeatBusy, setRepeatBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [truckFilter, setTruckFilter] = useState('');
@@ -2735,7 +2931,14 @@ export default function PlanningPage() {
       return;
     }
     setCurrentViewId(view.id);
-    if (view.viewMode) setViewMode(view.viewMode);
+    if (view.viewMode) {
+      // Saved views written before the board simplification may point at a mode
+      // that no longer exists; open the closest current one instead of a blank
+      // board.
+      if (view.viewMode === 'map') { setMapOpen(true); setViewMode('week'); }
+      else if (view.viewMode === 'all' || view.viewMode === 'timeline') setViewMode('day');
+      else setViewMode(view.viewMode);
+    }
     if (view.grouping) setGrouping(view.grouping);
     if (view.dateRange?.from) setSelectedDate(view.dateRange.from);
     if (view.filters) {
@@ -2862,11 +3065,11 @@ export default function PlanningPage() {
       if (isInput) return;
 
       const code = e.code;
-      if (code === 'Digit1' || code === 'Numpad1' || e.key === '1') { e.preventDefault(); setViewMode('all'); return; }
-      if (code === 'Digit2' || code === 'Numpad2' || e.key === '2') { e.preventDefault(); setViewMode('day'); return; }
-      if (code === 'Digit3' || code === 'Numpad3' || e.key === '3') { e.preventDefault(); setViewMode('week'); return; }
-      if (code === 'Digit4' || code === 'Numpad4' || e.key === '4') { e.preventDefault(); setViewMode('timeline'); return; }
-      if (code === 'Digit5' || code === 'Numpad5' || e.key === '5') { e.preventDefault(); setViewMode('map'); return; }
+      if (code === 'Digit1' || code === 'Numpad1' || e.key === '1') { e.preventDefault(); setViewMode('day'); return; }
+      if (code === 'Digit2' || code === 'Numpad2' || e.key === '2') { e.preventDefault(); setViewMode('week'); return; }
+      if (code === 'Digit3' || code === 'Numpad3' || e.key === '3') { e.preventDefault(); setViewMode('month'); return; }
+      if (code === 'Digit4' || code === 'Numpad4' || e.key === '4') { e.preventDefault(); setMapOpen((value) => !value); return; }
+      if (code === 'Digit5' || code === 'Numpad5' || e.key === '5') { e.preventDefault(); setPaletteOpen(true); return; }
       if (/^(Digit[6-9]|Digit0|Numpad[6-9]|Numpad0)$/.test(code) || /^[6-90]$/.test(e.key)) {
          e.preventDefault();
          return; 
@@ -2919,7 +3122,7 @@ export default function PlanningPage() {
         // The map payload carries geometry for every trip and is only consumed
         // by the map view. Requesting it on every board refresh (each action,
         // each live update) added latency the board never used.
-        viewMode === 'map'
+        viewMode === 'map' || mapOpen
           ? api.get('/planning/map-data', { params: { from, to } }).catch(() => api.get('/planning/map', { params: { from, to } }))
           : Promise.resolve(null),
       ]);
@@ -2938,7 +3141,7 @@ export default function PlanningPage() {
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [from, to, boardSearch, statusFilter, truckFilter, driverFilter, priorityFilter, viewMode]);
+  }, [from, to, boardSearch, statusFilter, truckFilter, driverFilter, priorityFilter, viewMode, mapOpen]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -2984,7 +3187,7 @@ export default function PlanningPage() {
         if (!orderId) return { ok: false };
         const response: any = await planningApi.unassignOrder(tripId, orderId);
         // The toast is raised only after the backend confirmed the change.
-        toast.success(t('order_unassigned_ok', 'Order unassigned from trip'));
+        offerUndo(t('order_unassigned_ok', 'Order unassigned from trip'));
         setDrawerRefreshKey(k => k + 1);
         if (response?.deleted) setSelectedTripId(null);
         // Refresh in the background: the action is already committed, and
@@ -2993,7 +3196,7 @@ export default function PlanningPage() {
         return { ok: true, deleted: Boolean(response?.deleted) };
       } else if (action === 'unplan-trip') {
         await planningApi.unplanTrip(tripId);
-        toast.success(t('trip_unplanned_ok', 'Trip unplanned and removed'));
+        offerUndo(t('trip_unplanned_ok', 'Trip unplanned and removed'));
         setSelectedTripId(null);
       } else if (action === 'split') {
         const tr = trips.find((t: any) => t.id === tripId) || selectedTrip;
@@ -3195,11 +3398,15 @@ export default function PlanningPage() {
         ...(preview ? { preview } : {}),
         ...(confirmationKey ? { confirmationKey } : {}),
       });
-      toast.success(t('jsx_assignedOk', 'Orders assigned'));
+      const sourceTripId = moveSourceTripId;
       setSelectedPoolOrderIds(new Set());
       setDraggingOrderId(null);
       setAssignmentReview(null);
-      loadData();
+      setMoveSourceTripId(null);
+      // The backend already stored an undo snapshot; the toast only exposes it.
+      offerUndo(t('jsx_assignedOk', 'Orders assigned'));
+      void loadData(true);
+      void cleanupSourceTrip(sourceTripId, orderIds);
     } catch (err: any) {
       const data = err.response?.data || {};
       // The backend revalidates at confirmation time. If the proposal moved, the
@@ -3265,6 +3472,360 @@ export default function PlanningPage() {
       assignmentReview.confirmationKey || newConfirmationKey(),
     );
   };
+
+  // ── Undo window (8 s) ──────────────────────────────────────────────────────
+  // POST /planning/undo already existed and stored snapshots; nothing in the UI
+  // exposed it. The toast is that exposure: it never writes anything itself.
+  const handleUndo = async () => {
+    try {
+      await planningApi.undo();
+      toast.success(t('pv_undo_done', 'The action was undone.'));
+      void loadData(true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('pv_undo_failed', 'Undo failed.'));
+    }
+  };
+
+  const offerUndo = (message: string) => {
+    toast.custom((instance) => (
+      <div
+        className={`pointer-events-auto flex w-[330px] items-center gap-2 rounded-xl border border-border bg-card px-2.5 py-2 shadow-xl ${
+          instance.visible ? 'animate-enter' : 'animate-leave'
+        }`}
+      >
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+        <span className="min-w-0 flex-1 text-[11px] font-bold leading-snug text-text-primary">{message}</span>
+        <button
+          type="button"
+          onClick={() => { toast.dismiss(instance.id); void handleUndo(); }}
+          className="flex h-6 shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 text-[10px] font-black text-primary transition-colors hover:bg-primary/20"
+        >
+          <Undo2 className="h-3 w-3" />
+          {t('pv_undo', 'Undo')}
+        </button>
+      </div>
+    ), { duration: 8000 });
+  };
+
+  /**
+   * Moving a whole trip leaves the source trip without orders. The trip itself
+   * is removed only when the refreshed board confirms it is empty — never on a
+   * guess, and never while it still carries other orders.
+   */
+  const cleanupSourceTrip = async (sourceTripId: string | null, movedOrderIds: string[]) => {
+    if (!sourceTripId) return;
+    try {
+      const { data } = await api.get('/planning/board', { params: { from, to } });
+      const source = (data?.trips || []).find((candidate: any) => String(candidate.id) === String(sourceTripId));
+      if (!source) return;
+      const remaining = (source.orders || []).filter((order: any) => order?.id && !movedOrderIds.includes(order.id));
+      if (remaining.length === 0) {
+        await planningApi.unplanTrip(sourceTripId);
+        void loadData(true);
+      }
+    } catch {
+      /* Cleanup is best effort: the board reload stays authoritative. */
+    }
+  };
+
+  // ── Drag a whole trip onto another truck ──────────────────────────────────
+  // The drag only opens the same review the dispatcher would get from dropping
+  // an order: preflight, alternatives, override reason, confirmation key.
+  const handleDropTrip = (targetResourceId: string, tripId: string) => {
+    const trip = trips.find((candidate: any) => String(candidate.id) === String(tripId));
+    if (!trip) return;
+    if (!isMovableTrip(trip)) {
+      toast.error(t('pv_drag_trip_hint', 'Drag the trip onto another truck to move it'));
+      return;
+    }
+    if (String(trip.truck?.id || trip.truckId || '') === String(targetResourceId)) return;
+    const orderIds = (trip.orders || []).map((order: any) => order?.id).filter(Boolean);
+    if (!orderIds.length) {
+      toast.error(t('jsx_noTrips', 'No vehicles found for this period.'));
+      return;
+    }
+    setMoveSourceTripId(String(tripId));
+    reviewAssignment(orderIds, targetResourceId);
+  };
+
+  // ── Repeat a plan (the practical form of a recurring route) ───────────────
+  const handleRepeatPlan = async (days = 7) => {
+    const targets = selectedTrip ? [selectedTrip] : trips.filter((trip: any) => isMovableTrip(trip));
+    if (!targets.length) return;
+    const ok = await confirm({
+      type: 'warning',
+      title: t('pv_repeat', 'Repeat plan'),
+      message: `${t('pv_repeat_hint', 'Move the selected trips 7 days ahead, keeping their times.')} (${targets.length})`,
+      confirmText: t('pv_repeat', 'Repeat plan'),
+      cancelText: t('cancel', 'Cancel'),
+    });
+    if (!ok) return;
+    setRepeatBusy(true);
+    let done = 0;
+    for (const trip of targets) {
+      try {
+        const orderedStops = [...(trip.stops || [])].sort(
+          (a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0),
+        );
+        for (const stop of orderedStops) {
+          const patch = shiftWindow(stop.timeWindowMin, stop.timeWindowMax, days);
+          if (!patch.timeWindowMin && !patch.timeWindowMax) continue;
+          await api.patch(`/trips/stops/${stop.id}`, {
+            ...(patch.timeWindowMin ? { timeWindowMin: patch.timeWindowMin } : {}),
+            ...(patch.timeWindowMax ? { timeWindowMax: patch.timeWindowMax } : {}),
+          });
+        }
+        await planningApi.recalculateTrip(trip.id);
+        done += 1;
+      } catch {
+        /* per-trip failure is reported by the summary below */
+      }
+    }
+    setRepeatBusy(false);
+    if (done > 0) {
+      toast.success(t('pv_repeat_done', { count: done, defaultValue: 'Plan repeated for {{count}} trips.' }));
+      void loadData();
+    } else {
+      toast.error(t('pv_repeat_failed', 'Repeating the plan failed.'));
+    }
+  };
+
+  // ── Suggestions (backend ranking, opened through the normal review) ───────
+  const loadSuggestions = async () => {
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+    try {
+      const data = await planningApi.getSuggestions({ from, to });
+      setSuggestionsData(data);
+    } catch (err: any) {
+      setSuggestionsError(err?.response?.data?.message || err?.message || 'Suggestions failed');
+      setSuggestionsData(null);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  const openSuggestions = () => {
+    setSuggestionsOpen(true);
+    void loadSuggestions();
+  };
+
+  /**
+   * Apply a modelled scenario. The departure goes through the reschedule
+   * endpoint (shifts the trip and every stop, stores an undo snapshot); a truck
+   * change goes through the normal assignment review so the preflight and the
+   * override step are never skipped.
+   */
+  const applyScenario = async (payload: { departure: string | null; truckId: string | null }) => {
+    if (!selectedTrip) return;
+    setScenarioApplying(true);
+    try {
+      if (payload.departure) {
+        const result = await planningApi.rescheduleTrip(selectedTrip.id, payload.departure);
+        if (result?.windowViolations > 0) {
+          toast.error(
+            `${result.windowViolations} ${t('sc_windows_broken', 'windows broken')}`,
+          );
+        }
+      }
+      const currentTruckId = selectedTrip.truck?.id || selectedTrip.truckId || null;
+      if (payload.truckId && payload.truckId !== currentTruckId) {
+        const orderIds = (selectedTrip.orders || []).map((order: any) => order?.id).filter(Boolean);
+        if (!orderIds.length) {
+          toast.error(t('pv_drag_trip_hint', 'Drag the trip onto another truck to move it'));
+          return;
+        }
+        setScenariosOpen(false);
+        reviewAssignment(orderIds, payload.truckId, 'existing', selectedTrip);
+        return;
+      }
+      toast.success(t('sc_applied', 'Scenario applied.'));
+      setScenariosOpen(false);
+      setDrawerRefreshKey((key) => key + 1);
+      void loadData(true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('jsv_actionError', 'Action failed'));
+    } finally {
+      setScenarioApplying(false);
+    }
+  };
+
+  /**
+   * Bulk assign: asks the existing recommendation endpoint which truck fits the
+   * whole selection, then opens the normal assignment review for that pair. No
+   * second feasibility path is introduced.
+   */
+  /** Bulk dispatch: sends every planned trip of the current board to its driver,
+   * one call per trip on the existing endpoint. Failures are reported, not
+   * swallowed, so a half-sent plan is visible. */
+  const bulkSendToDrivers = async () => {
+    const targets = trips.filter((trip: any) =>
+      ['assigned', 'dispatched', 'planned'].includes(String(trip.status || '').toLowerCase()),
+    );
+    if (!targets.length) {
+      toast.error(t('bulk_send_none', 'No planned trip to send.'));
+      return;
+    }
+    if (!window.confirm(t('bulk_send_confirm', 'Send {{count}} trips to their drivers?', { count: targets.length }))) return;
+    setBulkBusy(true);
+    let sent = 0;
+    let failed = 0;
+    for (const trip of targets) {
+      try {
+        await planningApi.sendToDriver(trip.id);
+        sent += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBulkBusy(false);
+    if (failed) toast.error(t('bulk_send_partial', 'Sent {{sent}}, failed {{failed}}.', { sent, failed }));
+    else toast.success(t('bulk_send_done', 'Sent {{count}} trips to drivers.', { count: sent }));
+    await loadData(true);
+  };
+
+  const bulkAssignRecommended = async () => {
+    const orderIds = Array.from(selectedPoolOrderIds);
+    if (!orderIds.length) return;
+    setBulkBusy(true);
+    try {
+      const result = await planningApi.recommendTrucks(orderIds);
+      const best = result?.candidates?.[0];
+      const truckId = best?.truckId || best?.truck?.id || best?.id || null;
+      if (!truckId) {
+        toast.error(
+          result?.reason === 'ORDER_COORDINATES_MISSING'
+            ? t('bulk_no_coordinates', 'Orders without coordinates cannot be matched to a truck.')
+            : t('bulk_no_truck', 'No truck can take this selection.'),
+        );
+        return;
+      }
+      reviewAssignment(orderIds, truckId, 'new');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('jsv_actionError', 'Action failed'));
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  /** Recovery "move": reuses the normal assignment review, so the preflight and
+   * the override step are the same ones the board uses everywhere else. */
+  const handleRecoveryMove = (orderId: string, targetTrip: any) => {
+    const truckId = targetTrip?.truck?.id || targetTrip?.truckId;
+    if (!orderId || !truckId) return;
+    setRecoveryOpen(false);
+    reviewAssignment([orderId], truckId, 'existing', targetTrip);
+  };
+
+  const applySuggestion = (suggestion: any) => {
+    if (!suggestion?.orderId || !suggestion?.truckId) return;
+    setSuggestionBusyId(suggestion.id);
+    setSuggestionsOpen(false);
+    reviewAssignment([suggestion.orderId], suggestion.truckId);
+    setSuggestionBusyId(null);
+  };
+
+  // ── Nearby loads ──────────────────────────────────────────────────────────
+  const loadNearby = async (trip: any, stopId: string | null, radius: number) => {
+    if (!trip?.id) return;
+    setNearby((prev) => ({ ...prev, open: true, loading: true, error: null, radius, stopId }));
+    try {
+      const data = await planningApi.getNearbyOrders({
+        tripId: trip.id,
+        stopId: stopId || undefined,
+        radiusKm: radius,
+        limit: 30,
+      });
+      setNearby((prev) => ({ ...prev, loading: false, data }));
+    } catch (err: any) {
+      setNearby((prev) => ({
+        ...prev,
+        loading: false,
+        data: null,
+        error: err?.response?.data?.message || err?.message || 'Nearby search failed',
+      }));
+    }
+  };
+
+  const openNearbyForTrip = (trip: any, stopId?: string | null) => {
+    void loadNearby(trip, stopId ?? null, nearby.radius);
+  };
+
+  const changeNearbyRadius = (radius: number) => {
+    if (selectedTrip) void loadNearby(selectedTrip, nearby.stopId, radius);
+    else setNearby((prev) => ({ ...prev, radius }));
+  };
+
+  const handleSaveStop = async (stopId: string, patch: any) => {
+    try {
+      await api.patch(`/trips/stops/${stopId}`, patch);
+      toast.success(t('pv_stop_saved', 'The stop was saved.'));
+      setDrawerRefreshKey((key) => key + 1);
+      void loadData(true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('jsv_actionError', 'Action failed'));
+    }
+  };
+
+  const handleStopLockChange = async (routePlanId: string, routePlanStopId: string, locked: boolean) => {
+    try {
+      if (locked) await planningApi.unlockStop(routePlanStopId, routePlanId);
+      else await planningApi.lockStop(routePlanStopId, routePlanId, true);
+      setDrawerRefreshKey((key) => key + 1);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('jsv_actionError', 'Action failed'));
+    }
+  };
+
+  const addNearbyOrder = (orderId: string) => {
+    if (!selectedTrip) return;
+    const truckId = selectedTrip.truck?.id || selectedTrip.truckId;
+    if (!truckId || !isMovableTrip(selectedTrip)) {
+      toast.error(t('pv_drag_trip_hint', 'Drag the trip onto another truck to move it'));
+      return;
+    }
+    setNearbyBusyOrderId(orderId);
+    reviewAssignment([orderId], truckId, 'existing', selectedTrip);
+    setNearbyBusyOrderId(null);
+  };
+
+  // ── Map panel ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    try { window.localStorage.setItem('planning_map_open', mapOpen ? '1' : '0'); } catch { /* ignore */ }
+  }, [mapOpen]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem('planning_map_width', String(mapWidth)); } catch { /* ignore */ }
+  }, [mapWidth]);
+
+  useEffect(() => {
+    const onMove = (event: MouseEvent) => {
+      if (!mapResizingRef.current) return;
+      setMapWidth(Math.max(300, Math.min(900, window.innerWidth - event.clientX)));
+    };
+    const onUp = () => {
+      if (!mapResizingRef.current) return;
+      mapResizingRef.current = false;
+      document.body.style.cursor = '';
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((value) => !value);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const handleConfirmPastDate = async () => {
     if (!pastDateConflict) return;
@@ -3569,235 +4130,721 @@ export default function PlanningPage() {
     return list;
   }, [resources, unassignedResource, unassignedTrips, truckFilter, driverFilter, grouping, boardData, attentionActive, attentionResourceIds, statusFilter, priorityFilter, searchFilter, trips]);
 
+  // ── Feature flag ──
+  // The premium layer (KPI strip, scenarios, documents, recovery) can be turned
+  // off per browser without a deploy: the board itself stays fully usable.
+  const boardV2 = useMemo(() => {
+    try {
+      return localStorage.getItem('planning_board_v2') !== '0';
+    } catch {
+      return true;
+    }
+  }, []);
+
+  // Icon per KPI keeps the strip scannable instead of a wall of numbers.
+  const KPI_ICONS: Record<string, any> = {
+    planned: Calendar,
+    unplanned: Package,
+    conflicts: AlertTriangle,
+    driving: TruckIcon,
+    utilisationPct: Gauge,
+    emptyKmPct: Navigation,
+    margin: Euro,
+    driversAtRisk: Users,
+    onTimePct: Clock,
+  };
+
+  // ── Headline figures ──
+  // Operational counts stay client-side (they follow the active filter), every
+  // financial/utilisation figure comes from the server KPI payload with its own
+  // provenance. A null value renders as "—", never as 0.
+  const kpiCards: Array<{
+    key: string;
+    label: string;
+    display: string;
+    value: number | null;
+    tone: string;
+    provenance?: 'recorded' | 'estimated' | 'unverified';
+    onClick?: () => void;
+    active?: boolean;
+    title?: string;
+  }> = (() => {
+    const server = (key: string) => boardData?.kpis?.byKey?.[key] || null;
+    const money = (entry: any) => (entry && entry.value != null
+      ? fmtMoney(Number(entry.value), entry.currency || boardData?.kpis?.currency || 'EUR')
+      : null);
+    const pct = (entry: any) => (entry && entry.value != null ? `${fmtNumber(Number(entry.value), 1)}%` : null);
+    const count = (entry: any) => (entry && entry.value != null ? fmtNumber(Number(entry.value), 0) : null);
+    const cards = [
+      {
+        key: 'planned',
+        label: t('kpi_planned', 'Planned'),
+        display: fmtNumber(plannedTripsCount, 0),
+        value: plannedTripsCount,
+        tone: 'text-blue-600',
+        active: statusFilter === 'planned',
+        onClick: () => setStatusFilter(statusFilter === 'planned' ? '' : 'planned'),
+      },
+      {
+        key: 'unplanned',
+        label: t('kpi_unassigned', 'Unassigned'),
+        display: fmtNumber(boardData?.totalUnplanned ?? orders.length, 0),
+        value: boardData?.totalUnplanned ?? orders.length,
+        tone: 'text-amber-600',
+        active: statusFilter === 'unassigned',
+        onClick: () => { setPoolCollapsed(false); setStatusFilter(statusFilter === 'unassigned' ? '' : 'unassigned'); },
+      },
+      {
+        key: 'conflicts',
+        label: t('jsx_attention', 'Attention'),
+        display: fmtNumber(attentionResourceIds.size, 0),
+        value: attentionResourceIds.size,
+        tone: 'text-rose-600',
+        active: attentionActive,
+        onClick: () => setAttentionActive((value) => !value),
+      },
+      {
+        key: 'driving',
+        label: t('status_driving', 'Driving'),
+        display: fmtNumber(drivingTripsCount, 0),
+        value: drivingTripsCount,
+        tone: 'text-emerald-600',
+        active: statusFilter === 'driving',
+        onClick: () => setStatusFilter(statusFilter === 'driving' ? '' : 'driving'),
+      },
+      {
+        key: 'utilisationPct',
+        label: t('kpi_utilisation', 'Utilisation'),
+        display: pct(server('utilisationPct')) || '—',
+        value: server('utilisationPct')?.value ?? null,
+        tone: 'text-emerald-600',
+        provenance: provenanceOf(server('utilisationPct')?.provenance),
+        title: t('pv_kpi_unverified_hint', 'Not enough data for this figure.'),
+      },
+      {
+        key: 'emptyKmPct',
+        label: t('kpi_empty_km', 'Empty km'),
+        display: pct(server('emptyKmPct')) || '—',
+        value: server('emptyKmPct')?.value ?? null,
+        tone: 'text-amber-600',
+        provenance: provenanceOf(server('emptyKmPct')?.provenance),
+        title: t('pv_kpi_unverified_hint', 'Not enough data for this figure.'),
+      },
+      {
+        key: 'margin',
+        label: t('pv_kpi_margin', 'Margin'),
+        display: money(server('margin')) || '—',
+        value: server('margin')?.value ?? null,
+        tone: Number(server('margin')?.value) < 0 ? 'text-rose-600' : 'text-emerald-600',
+        provenance: provenanceOf(server('margin')?.provenance),
+        title: t('pv_kpi_unverified_hint', 'Not enough data for this figure.'),
+      },
+      {
+        key: 'driversAtRisk',
+        label: t('kpi_hos_risk', 'HOS risk'),
+        display: count(server('driversAtRisk')) || '—',
+        value: server('driversAtRisk')?.value ?? null,
+        tone: Number(server('driversAtRisk')?.value) > 0 ? 'text-rose-600' : 'text-emerald-600',
+        provenance: provenanceOf(server('driversAtRisk')?.provenance),
+        title: t('pv_kpi_unverified_hint', 'Not enough data for this figure.'),
+      },
+      {
+        key: 'onTimePct',
+        label: t('pv_kpi_ontime', 'On time'),
+        display: pct(server('onTimePct')) || '—',
+        value: server('onTimePct')?.value ?? null,
+        tone: 'text-emerald-600',
+        provenance: provenanceOf(server('onTimePct')?.provenance),
+      },
+    ];
+    return cards;
+  })();
+
+  useEffect(() => {
+    setDrawerDismissed(false);
+  }, [selectedTripId]);
+
+  // ── Command palette actions ──
+  // Only existing behaviour: switching the period, opening a record or a panel,
+  // running the same handlers the buttons run.
+  const paletteActions: PaletteAction[] = [
+    { id: 'view-day', label: t('pv_day', 'Day'), group: t('pv_context', 'Selection'), run: () => setViewMode('day') },
+    { id: 'view-week', label: t('pv_week', 'Week'), group: t('pv_context', 'Selection'), run: () => setViewMode('week') },
+    { id: 'view-month', label: t('pv_month', 'Month'), group: t('pv_context', 'Selection'), run: () => setViewMode('month') },
+    { id: 'map-toggle', label: mapOpen ? t('pv_map_hide', 'Hide map') : t('pv_map_show', 'Show map'), run: () => setMapOpen((value) => !value) },
+    { id: 'suggestions', label: t('pv_suggestions', 'Suggestions'), run: openSuggestions },
+    { id: 'repeat', label: t('pv_repeat', 'Repeat plan'), hint: selectedTrip?.tripNumber || '', run: () => void handleRepeatPlan(7) },
+    { id: 'optimize', label: t('jsx_optimize', 'AI Auto-plan'), run: () => setShowOptimizeModal(true) },
+    { id: 'export', label: t('export_planning', 'Export'), run: () => setShowExportModal(true) },
+    { id: 'refresh', label: t('jsx_recalc', 'Refresh'), run: () => void loadData() },
+    { id: 'new', label: t('jsx_newTransport', 'New transport'), run: () => navigate('/orders/new') },
+  ];
+  for (const trip of trips.slice(0, 80)) {
+    const route = tripOriginDestination(trip);
+    paletteActions.push({
+      id: `trip-${trip.id}`,
+      label: trip.tripNumber || trip.id,
+      hint: [trip.truck?.plateNumber, `${route.origin} → ${route.dest}`].filter(Boolean).join(' · '),
+      group: t('jsx_trips', 'Trips'),
+      keywords: [trip.truck?.plateNumber, trip.driver?.name, ...(trip.orders || []).map((order: any) => order?.orderNumber)].filter(Boolean).join(' '),
+      run: () => setSelectedTripId(trip.id),
+    });
+  }
+  for (const order of orders.slice(0, 80)) {
+    paletteActions.push({
+      id: `order-${order.id}`,
+      label: order.orderNumber || order.id,
+      hint: [order.client?.name, order.stops?.[0]?.city].filter(Boolean).join(' · '),
+      group: t('jsx_orders', 'Orders'),
+      keywords: [order.customerReference, order.client?.name, ...(order.stops || []).map((stop: any) => stop?.city)].filter(Boolean).join(' '),
+      run: () => setSelectedOrderId(order.id),
+    });
+  }
+
   return (
-    <div className={`flex flex-col gap-0 bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
+    <div className={`flex w-full min-w-0 flex-col gap-0 overflow-hidden bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
 
-            {/* ── SINGLE COMPACT CONTROL TOOLBAR ────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface shrink-0 print:hidden overflow-x-auto min-h-[44px]">
-        {/* Left: Views & Grouping */}
-        <div className="flex bg-card p-0.5 rounded-lg border border-border shadow-sm shrink-0">
-          {([['all', t('jsx_all','All'), List],['day', t('jsx_day','Day'), Clock],['week', t('jsx_week','Week'), Calendar],['timeline', t('view_timeline','Timeline'), LayoutGrid],['month', t('jsx_month','Month'), CalendarDays],['map', t('jsx_map','Map'), MapIcon]] as [string, string, any][]).map(([id, label, Icon]) => (
-            <button key={id} onClick={() => setViewMode(id as any)} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === id ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:text-text-primary'}`} title={label}>
-              <Icon className="w-3.5 h-3.5" />
-            </button>
-          ))}
-        </div>
-
-        <div className="w-32 shrink-0">
-          <CustomSelect
-            value={grouping}
-            onChange={(val) => setGrouping(val as any)}
-            size="sm"
-            icon={Layers}
-            options={[
-              { value: 'truck', label: t('jsx_groupVehicle','Truck') },
-              { value: 'driver', label: t('jsx_groupDriver','Driver') },
-              { value: 'trailer', label: t('jsx_groupTrailer','Trailer') }
-            ]}
-          />
-        </div>
-
-        <div className="w-[1px] h-5 bg-border mx-1 shrink-0"></div>
-
-        {/* Center: Search & Filters & KPI Pills */}
-        <div className="relative shrink-0">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('search_order_placeholder','Search order, client, location…')}
-            className="pl-8 pr-3 py-1 text-[11px] h-[28px] bg-card border border-border rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-primary w-48"
-          />
-        </div>
-
-        <div className="flex gap-1.5 shrink-0">
-          <div className="w-32">
-            <CustomSelect size="sm" icon={TruckIcon} title={t('jsx_allVehicles','All Trucks')} value={truckFilter} onChange={setTruckFilter} options={[{ value: '', label: t('tb_trucks','Trucks') }, ...resources.map((r: any) => ({ value: r.id, label: r.plateNumber }))] } />
+                        {/* ── PLANNING HEADER ─────────────────────────────────────────────── */}
+      <header className="shrink-0 border-b border-border bg-gradient-to-b from-surface to-surface/40 print:hidden">
+        <div className="flex items-center gap-3 px-3 pt-2">
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+              <Activity className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="flex items-center gap-1.5 truncate text-[13px] font-black leading-none text-text-primary">
+                {t('board_title', 'Planning board')}
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-600">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                  {t('timeline_live', 'Live')}
+                </span>
+              </h1>
+              <p className="mt-1 truncate text-[10px] font-semibold text-text-secondary">{rangeLabel}</p>
+            </div>
           </div>
-          <div className="w-32">
-            <CustomSelect size="sm" icon={Users} title={t('jsx_allDrivers','All Drivers')} value={driverFilter} onChange={setDriverFilter} options={[{ value: '', label: t('tb_drivers','Drivers') }, ...(boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean)).filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i).map((d: any) => ({ value: d.id, label: driverDisplayName(d) || d.name || d.user?.name || '—' }))] } />
-          </div>
-          <div className="w-28">
-            <CustomSelect size="sm" icon={AlertTriangle} value={priorityFilter} onChange={setPriorityFilter} options={[{ value: '', label: t('jsx_allPriorities','Priority') }, ...['critical','high','normal','low'].map(p => ({ value: p, label: t(`priority_${p}`, p) }))] } />
-          </div>
-        </div>
 
-        {activeFilterCount > 0 && (
-          <button onClick={() => { setSearch(''); setStatusFilter(''); setTruckFilter(''); setDriverFilter(''); setPriorityFilter(''); setAttentionActive(false); }} className="flex items-center justify-center w-7 h-7 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors shrink-0" title={`${t('jsx_clearFilters','Clear')} (${activeFilterCount})`}>
-            <X className="w-3.5 h-3.5" />
+          <div className="flex min-w-0 flex-1 items-stretch gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {boardV2 && kpiCards.filter((card) => card.value !== null || !card.provenance).map((card) => {
+              const provenance = card.provenance ? PROVENANCE[card.provenance] : null;
+              const Icon = KPI_ICONS[card.key] || Activity;
+              return (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={card.onClick}
+                  disabled={!card.onClick}
+                  title={card.title ? `${card.label} · ${card.title}` : card.label}
+                  className={`group relative min-w-[104px] shrink-0 items-center gap-2 rounded-xl border px-2 py-1.5 text-left transition-all ${
+                    card.provenance ? 'hidden lg:flex' : 'flex'
+                  } ${
+                    card.active
+                      ? 'border-primary/50 bg-primary/10'
+                      : 'border-border bg-card hover:bg-surface'
+                  } ${card.onClick ? 'hover:shadow-sm' : 'cursor-default'}`}
+                >
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                    card.active ? 'bg-primary/15 text-primary' : card.value == null ? 'bg-surface text-text-muted' : `${card.tone} bg-surface`
+                  }`}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[8px] font-black uppercase leading-tight tracking-wide text-text-muted">
+                      {card.label}
+                    </span>
+                    <span className={`block text-[14px] font-black leading-tight tabular-nums ${card.value == null ? 'text-text-muted' : card.tone}`}>
+                      {card.display}
+                    </span>
+                  </span>
+                  {provenance && (
+                    <span className={`absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full ${provenance.dot}`} title={provenance.label} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/orders/new')}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-xl bg-orange-500 px-3 text-[11px] font-black text-white shadow-sm transition-colors hover:bg-orange-600"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden lg:inline">{t('jsx_newTransport', 'New transport')}</span>
           </button>
-        )}
-
-        {/* KPI Pills */}
-        <div className="flex gap-1 bg-card rounded-lg p-0.5 border border-border shrink-0 ml-1">
-          {([
-            { filter: 'planned', value: plannedTripsCount, color: 'blue', isAttention: false },
-            { filter: 'unassigned', value: boardData?.totalUnplanned || orders.length || 0, color: 'amber', isAttention: false },
-            { filter: 'attention', value: attentionResourceIds.size, color: 'red', isAttention: true },
-            { filter: 'driving', value: drivingTripsCount, color: 'emerald', isAttention: false },
-            { filter: 'delayed', value: delayedTripsCount, color: 'purple', isAttention: false },
-          ] as { filter: string; value: number; color: string; isAttention: boolean }[]).map(({ filter, value, color, isAttention }) => {
-            const isActive = isAttention ? attentionActive : statusFilter === filter;
-            const kpiStyle = KPI_COLORS[color] || KPI_COLORS.blue;
-            return (
-              <button
-                key={filter}
-                onClick={() => {
-                  if (isAttention) { setAttentionActive(a => !a); }
-                  else if (filter === 'unassigned') { setPoolCollapsed(false); setStatusFilter(statusFilter === 'unassigned' ? '' : 'unassigned'); }
-                  else { setStatusFilter(statusFilter === filter ? '' : filter); }
-                }}
-                className={`flex items-center gap-1 min-w-[34px] h-[22px] px-1.5 rounded-md text-[11px] font-black border transition-all ${isActive ? `${kpiStyle.active} shadow-sm` : kpiStyle.idle}`}
-                title={t(isAttention ? 'jsx_attention' : (filter === 'unassigned' ? 'kpi_unassigned' : (filter === 'planned' ? 'kpi_planned' : `status_${filter}`)), filter)}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-white/90' : kpiStyle.dot}`} />
-                {value}
-              </button>
-            );
-          })}
         </div>
 
-        <div className="flex-1"></div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Saved Views Control */}
-          <div className="flex items-center gap-1 bg-card p-0.5 rounded-lg border border-border shadow-sm">
-            <button
-              onClick={() => setShowSaveViewModal(true)}
-              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors"
-              title={t('save_current_view', 'Save View')}
-            >
-              <BookmarkPlus className="w-3.5 h-3.5 text-primary" />
-            </button>
-            {savedViews.length > 0 && (
-              <select
-                value={currentViewId || ''}
-                onChange={e => {
-                  const v = savedViews.find(s => s.id === e.target.value);
-                  handleApplySavedView(v || null);
-                }}
-                className="bg-transparent text-[11px] font-medium text-text-secondary pr-2 py-0.5 border-none focus:outline-none cursor-pointer max-w-[110px] truncate"
-                title={t('select_saved_view', 'Select Saved View')}
+        {/* One toolbar. Everything that is not daily work lives behind “⋯”. */}
+        <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2 pt-2">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card p-0.5 shadow-sm">
+            {([
+              ['day', t('pv_day', 'Day'), Clock],
+              ['week', t('pv_week', 'Week'), Calendar],
+              ['month', t('pv_month', 'Month'), CalendarDays],
+            ] as [string, string, any][]).map(([id, label, Icon]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setViewMode(id as any)}
+                title={label}
+                aria-pressed={viewMode === id}
+                className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-black transition-colors ${
+                  viewMode === id ? 'bg-primary/12 text-primary' : 'text-text-secondary hover:bg-surface hover:text-text-primary'
+                }`}
               >
-                <option value="">{t('default_view', 'Default View')}</option>
-                {savedViews.map(v => (
-                  <option key={v.id} value={v.id}>{v.name}</option>
-                ))}
-              </select>
-            )}
-            {currentViewId && (
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card px-1 py-0.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setSelectedDate((d) => shiftPeriod(d, viewMode, -1))}
+              className="rounded-md p-1 text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
+              title={t('timeline_previous', 'Previous period')}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <DateField
+              value={selectedDate}
+              onChange={(v) => v && setSelectedDate(v)}
+              lang={lang}
+              size="sm"
+              className="w-[140px]"
+              title={t('timeline_selected_date', 'Selected date')}
+            />
+            <button
+              type="button"
+              onClick={() => setSelectedDate((d) => shiftPeriod(d, viewMode, 1))}
+              className="rounded-md p-1 text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
+              title={t('timeline_next', 'Next period')}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(dayStr(new Date()))}
+              className="rounded-md px-1.5 text-[10px] font-black uppercase tracking-wide text-primary transition-colors hover:bg-primary/10"
+              title={t('jsx_today', 'Today')}
+            >
+              {t('jsx_today', 'Today')}
+            </button>
+          </div>
+
+          <div className="relative min-w-[150px] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t('search_order_placeholder', 'Search order, client, location…')}
+              className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-14 text-[11px] text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+            />
+            <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-surface px-1 text-[9px] font-black text-text-muted xl:block">
+              Ctrl K
+            </kbd>
+          </div>
+
+          <select
+            value={grouping}
+            onChange={(event) => setGrouping(event.target.value as any)}
+            title={t('tb_group', 'Group')}
+            className="h-8 shrink-0 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-text-secondary focus:border-primary focus:outline-none"
+          >
+            <option value="truck">{t('jsx_groupVehicle', 'Truck')}</option>
+            <option value="driver">{t('jsx_groupDriver', 'Driver')}</option>
+            <option value="trailer">{t('jsx_groupTrailer', 'Trailer')}</option>
+          </select>
+
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((value) => !value)}
+              aria-expanded={filtersOpen}
+              className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-black transition-colors ${
+                activeFilterCount > 0
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border bg-card text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {t('filters', 'Filters')}
+              {activeFilterCount > 0 && (
+                <span className="rounded-full bg-primary px-1 text-[9px] font-black text-white">{activeFilterCount}</span>
+              )}
+            </button>
+            {filtersOpen && (
               <>
-                <button
-                  onClick={handleUpdateCurrentView}
-                  className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors"
-                  title={t('update_view', 'Update View')}
-                >
-                  <Save className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleDeleteSavedView(currentViewId)}
-                  className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-red-500 transition-colors"
-                  title={t('delete_view', 'Delete View')}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="fixed inset-0 z-30" onClick={() => setFiltersOpen(false)} />
+                <div className="absolute right-0 top-10 z-40 w-72 space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-2xl">
+                  <p className="text-[9px] font-black uppercase tracking-wide text-text-muted">{t('filters', 'Filters')}</p>
+                  <label className="block">
+                    <span className="mb-0.5 block text-[9px] font-bold text-text-secondary">{t('jsx_allVehicles', 'All Trucks')}</span>
+                    <select
+                      value={truckFilter}
+                      onChange={(event) => setTruckFilter(event.target.value)}
+                      className="h-8 w-full rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
+                    >
+                      <option value="">{t('jsx_allVehicles', 'All Trucks')}</option>
+                      {resources.map((resource: any) => (
+                        <option key={resource.id} value={resource.id}>{resource.plateNumber}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-0.5 block text-[9px] font-bold text-text-secondary">{t('jsx_allDrivers', 'All Drivers')}</span>
+                    <select
+                      value={driverFilter}
+                      onChange={(event) => setDriverFilter(event.target.value)}
+                      className="h-8 w-full rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
+                    >
+                      <option value="">{t('jsx_allDrivers', 'All Drivers')}</option>
+                      {(boardData?.drivers || resources.map((resource: any) => resource.driver).filter(Boolean))
+                        .filter((driver: any, index: number, list: any[]) => driver && list.findIndex((candidate: any) => candidate.id === driver.id) === index)
+                        .map((driver: any) => (
+                          <option key={driver.id} value={driver.id}>{driverDisplayName(driver) || driver.name || '—'}</option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-0.5 block text-[9px] font-bold text-text-secondary">{t('tb_priority', 'Priority')}</span>
+                    <select
+                      value={priorityFilter}
+                      onChange={(event) => setPriorityFilter(event.target.value)}
+                      className="h-8 w-full rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
+                    >
+                      <option value="">{t('tb_allPriorities', 'All priorities')}</option>
+                      {['critical', 'high', 'normal', 'low'].map((priority) => (
+                        <option key={priority} value={priority}>{t(`priority_${priority}`, priority)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-lg border border-border bg-surface/60 px-2 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={attentionActive}
+                      onChange={(event) => setAttentionActive(event.target.checked)}
+                      className="h-3.5 w-3.5 accent-orange-500"
+                    />
+                    <span className="text-[10px] font-bold text-text-primary">{t('jsx_attention', 'Attention')}</span>
+                    <span className="ml-auto text-[10px] font-black text-rose-600">{attentionResourceIds.size}</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setStatusFilter('');
+                      setTruckFilter('');
+                      setDriverFilter('');
+                      setPriorityFilter('');
+                      setAttentionActive(false);
+                      setFiltersOpen(false);
+                    }}
+                    className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border text-[11px] font-black text-text-secondary transition-colors hover:text-rose-500"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    {t('jsx_clearFilters', 'Clear filters')}
+                  </button>
+                </div>
               </>
             )}
           </div>
 
-          <button onClick={() => setShowCombineModal(true)} className="btn-secondary h-[28px] px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] font-bold" title={t('combine_trips', 'Combine Trips')}>
-            <GitMerge className="w-3.5 h-3.5 text-primary" /><span className="hidden xl:inline">{t('combine_trips', 'Combine')}</span>
+          <button
+            type="button"
+            onClick={() => setMapOpen((value) => !value)}
+            title={mapOpen ? t('pv_map_hide', 'Hide map') : t('pv_map_show', 'Show map')}
+            aria-pressed={mapOpen}
+            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-black transition-colors ${
+              mapOpen ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-card text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <MapIcon className="h-3.5 w-3.5" />
+            {t('pv_map_panel', 'Map')}
           </button>
-          
-          {/* Contextual planning tools */}
-          <div className="flex items-center gap-0.5 bg-card p-0.5 rounded-lg border border-border shadow-sm">
-            <button
-              type="button"
-              onClick={() => selectedTrip && setCompareTrip(selectedTrip)}
-              disabled={!selectedTrip}
-              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              title={t('up_compare_routes', 'Compare routes')}
-              aria-label={t('up_compare_routes', 'Compare routes')}
-            >
-              <Navigation className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const truckId = selectedTrip?.truck?.id || selectedTrip?.truckId;
-                if (truckId) navigate(buildTruckDimensionsEditUrl(truckId, '/planning'));
-              }}
-              disabled={!selectedTrip?.truck?.id && !selectedTrip?.truckId}
-              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              title={t('up_cmp_profile', 'Routing profile')}
-              aria-label={t('up_cmp_profile', 'Routing profile')}
-            >
-              <TruckIcon className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const drv = selectedTrip?.driver || selectedTrip?.truck?.driver;
-                if (drv?.id) setActivityDriver({ id: drv.id, name: driverEntityDisplayName(drv) });
-              }}
-              disabled={!(selectedTrip?.driver?.id || selectedTrip?.truck?.driver?.id)}
-              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              title={t('up_driver_activity', 'Driver activity')}
-              aria-label={t('up_driver_activity', 'Driver activity')}
-            >
-              <Activity className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => selectedTrip && setTrafficTrip(selectedTrip)}
-              disabled={!selectedTrip}
-              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              title={t('up_traffic_incidents', 'Traffic & incidents')}
-              aria-label={t('up_traffic_incidents', 'Traffic & incidents')}
-            >
-              <Clock3 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setResultsSignal((value) => value + 1)}
-              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors"
-              title={t('up_planning_results', 'Planning results')}
-              aria-label={t('up_planning_results', 'Planning results')}
-            >
-              <List className="w-3.5 h-3.5" />
-            </button>
-          </div>
 
-          <div className="flex bg-card p-0.5 rounded-lg border border-border shadow-sm">
-            <button onClick={() => setShowExportModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('export_planning', 'Export')}>
-              <ExcelIcon className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => loadData()} disabled={isLoading} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_recalc','Refresh')}>
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-primary' : ''}`} />
-            </button>
-            <button onClick={() => setShowOptimizeModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_optimize','AI Auto-plan')}>
-              <Wand2 className="w-3.5 h-3.5 text-amber-500" />
-            </button>
-            <button onClick={handlePrint} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_print','Print')}>
-              <Printer className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={handleFullscreen} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_fullscreen','Fullscreen')}>
-              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-
-          <button onClick={() => navigate('/orders/new')} className="h-[28px] px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg flex items-center gap-1.5 text-[11px] font-black shadow-sm transition-colors">
-            <Plus className="w-3.5 h-3.5" /><span className="hidden lg:inline">{t('jsx_newTransport','New transport')}</span>
+          <button
+            type="button"
+            onClick={openSuggestions}
+            title={t('pv_suggestions_hint', 'Unplanned orders with a matching truck, ranked by cost.')}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 text-[11px] font-black text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {t('pv_suggestions', 'Suggestions')}
+            {Array.isArray(suggestionsData?.suggestions) && suggestionsData.suggestions.length > 0 && (
+              <span className="rounded-full bg-amber-500 px-1.5 text-[9px] font-black text-white">{suggestionsData.suggestions.length}</span>
+            )}
           </button>
+
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setHeaderMenuOpen((value) => !value)}
+              aria-expanded={headerMenuOpen}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+                headerMenuOpen ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-card text-text-secondary hover:text-text-primary'
+              }`}
+              title={t('pv_more', 'More')}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {headerMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setHeaderMenuOpen(false)} />
+                <div className="absolute right-0 top-10 z-40 w-64 overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+                  <div className="border-b border-border p-2">
+                    <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-text-muted">{t('saved_views', 'Saved views')}</p>
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={currentViewId || ''}
+                        onChange={(event) => {
+                          const view = savedViews.find((candidate) => candidate.id === event.target.value);
+                          handleApplySavedView(view || null);
+                        }}
+                        className="h-8 min-w-0 flex-1 rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
+                      >
+                        <option value="">{t('default_view', 'Default view')}</option>
+                        {savedViews.map((view) => (
+                          <option key={view.id} value={view.id}>{view.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => { setHeaderMenuOpen(false); setShowSaveViewModal(true); }}
+                        className="rounded-md p-1.5 text-text-secondary hover:bg-surface hover:text-primary"
+                        title={t('save_current_view', 'Save view')}
+                      >
+                        <BookmarkPlus className="h-4 w-4" />
+                      </button>
+                      {currentViewId && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleUpdateCurrentView}
+                            className="rounded-md p-1.5 text-text-secondary hover:bg-surface hover:text-primary"
+                            title={t('update_view', 'Update view')}
+                          >
+                            <Save className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSavedView(currentViewId)}
+                            className="rounded-md p-1.5 text-text-secondary hover:bg-surface hover:text-rose-500"
+                            title={t('delete_view', 'Delete view')}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-1">
+                    {[
+                      { key: 'combine', icon: GitMerge, label: t('combine_trips', 'Combine trips'), run: () => setShowCombineModal(true) },
+                      { key: 'palette', icon: Command, label: t('pv_cmd_hint', 'Ctrl+K opens quick commands'), run: () => setPaletteOpen(true) },
+                      { key: 'flag', icon: SlidersHorizontal, label: boardV2 ? t('pv_flag_off', 'Compact mode (hide premium layer)') : t('pv_flag_on', 'Premium mode'), run: () => {
+                        try { localStorage.setItem('planning_board_v2', boardV2 ? '0' : '1'); } catch { /* storage unavailable */ }
+                        window.location.reload();
+                      } },
+                      { key: 'repeat', icon: Repeat2, label: t('pv_repeat', 'Repeat plan'), run: () => void handleRepeatPlan(7), disabled: repeatBusy },
+                      { key: 'optimize', icon: Wand2, label: t('jsx_optimize', 'AI Auto-plan'), run: () => setShowOptimizeModal(true) },
+                      { key: 'export', icon: ExcelIcon, label: t('export_planning', 'Export'), run: () => setShowExportModal(true) },
+                      { key: 'documents', icon: FileText, label: t('pv_documents', 'Documents'), run: () => setDocumentsOpen(true) },
+                      { key: 'bulk-send', icon: Send, label: t('bulk_send', 'Send planned trips to drivers'), run: () => void bulkSendToDrivers() },
+                      { key: 'print', icon: Printer, label: t('jsx_print', 'Print'), run: handlePrint },
+                      { key: 'fullscreen', icon: isFullscreen ? Minimize2 : Maximize2, label: t('jsx_fullscreen', 'Fullscreen'), run: handleFullscreen },
+                      { key: 'refresh', icon: RefreshCw, label: t('jsx_recalc', 'Refresh'), run: () => void loadData() },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        disabled={item.disabled}
+                        onClick={() => { setHeaderMenuOpen(false); item.run(); }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] font-bold text-text-primary transition-colors hover:bg-surface disabled:opacity-50"
+                      >
+                        <item.icon className="h-3.5 w-3.5 text-text-muted" />
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+        <div className="h-[2px] w-full bg-gradient-to-r from-orange-500/80 via-orange-500/25 to-transparent" />
+      </header>
 
-      {/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden bg-surface/50 p-2 gap-0">
+{/* ── CONTEXTUAL BAR · appears only when something is selected ── */}
+      {(selectedTrip || selectedPoolOrderIds.size > 0) && (
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-primary/20 bg-primary/[0.05] px-3 py-1.5 print:hidden">
+          <span className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-primary">
+            {t('pv_context', 'Selection')}
+          </span>
+
+          {selectedTrip ? (
+            <>
+              <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                <span className="truncate text-[11px] font-black text-text-primary">{selectedTrip.tripNumber || '—'}</span>
+                <span className="rounded border border-border bg-card px-1 text-[9px] font-black tabular-nums text-text-secondary">
+                  {selectedTrip.truck?.plateNumber || selectedTrip.truckPlate || '—'}
+                </span>
+                <span className="hidden truncate text-[10px] font-semibold text-text-secondary md:inline">
+                  {tripOriginDestination(selectedTrip).origin} → {tripOriginDestination(selectedTrip).dest}
+                </span>
+              </div>
+              <span className="h-4 w-px shrink-0 bg-primary/20" />
+              {[
+                {
+                  key: 'planner',
+                  icon: Navigation,
+                  label: t('pln_open_planner', 'Open Truck Route & Load Planner'),
+                  short: t('planning', 'Planning'),
+                  run: () => {
+                    const truckId = selectedTrip.truck?.id || selectedTrip.truckId;
+                    if (!truckId) return;
+                    const tripParam = selectedTrip.id ? `&trip=${selectedTrip.id}` : '';
+                    navigate(`/planning/planner/${truckId}?date=${selectedDate}${tripParam}`);
+                  },
+                  disabled: !(selectedTrip.truck?.id || selectedTrip.truckId),
+                },
+                {
+                  key: 'nearby',
+                  icon: Package,
+                  label: t('pv_nearby', 'Nearby'),
+                  short: t('pv_nearby', 'Nearby'),
+                  run: () => openNearbyForTrip(selectedTrip),
+                },
+                {
+                  key: 'results',
+                  icon: List,
+                  label: t('up_planning_results', 'Planning results'),
+                  short: t('results', 'Results'),
+                  run: () => setResultsSignal((value) => value + 1),
+                },
+                {
+                  key: 'traffic',
+                  icon: Clock3,
+                  label: t('up_traffic_incidents', 'Traffic & incidents'),
+                  short: t('up_traffic', 'Traffic'),
+                  run: () => setTrafficTrip(selectedTrip),
+                },
+                {
+                  key: 'driver',
+                  icon: Activity,
+                  label: t('up_driver_activity', 'Driver activity'),
+                  short: t('driver', 'Driver'),
+                  run: () => {
+                    const driver = selectedTrip.driver || selectedTrip.truck?.driver;
+                    if (driver?.id) setActivityDriver({ id: driver.id, name: driverEntityDisplayName(driver) });
+                  },
+                  disabled: !(selectedTrip.driver?.id || selectedTrip.truck?.driver?.id),
+                },
+                {
+                  key: 'compare',
+                  icon: ArrowRightLeft,
+                  label: t('up_compare_routes', 'Compare routes'),
+                  short: t('up_compare', 'Compare'),
+                  run: () => setCompareTrip(selectedTrip),
+                },
+                {
+                  key: 'recovery',
+                  icon: AlertTriangle,
+                  label: t('rec_title', 'Recovery'),
+                  short: t('rec_title', 'Recovery'),
+                  run: () => setRecoveryOpen(true),
+                },
+                {
+                  key: 'scenarios',
+                  icon: SlidersHorizontal,
+                  label: t('sc_title', 'Scenarios'),
+                  short: t('pv_scenarios', 'Scenarios'),
+                  run: () => setScenariosOpen(true),
+                },
+                {
+                  key: 'documents',
+                  icon: FileText,
+                  label: t('pv_documents', 'Documents'),
+                  short: t('pv_documents', 'Documents'),
+                  run: () => setDocumentsOpen(true),
+                },
+                {
+                  key: 'repeat',
+                  icon: Repeat2,
+                  label: t('pv_repeat', 'Repeat plan'),
+                  short: t('pv_repeat', 'Repeat plan'),
+                  run: () => void handleRepeatPlan(7),
+                  disabled: repeatBusy || !isMovableTrip(selectedTrip),
+                },
+                {
+                  key: 'dispatch',
+                  icon: Send,
+                  label: t('action_send_to_driver', 'Send to Driver'),
+                  short: t('action_send_to_driver', 'Send'),
+                  run: () => setDispatchModalTrip(selectedTrip),
+                  disabled: !['assigned', 'dispatched', 'confirmed'].includes(String(selectedTrip.status || '').toLowerCase()),
+                },
+              ].filter((action) => boardV2 || !['recovery', 'scenarios', 'documents'].includes(action.key)).map((action) => (
+                <button
+                  key={action.key}
+                  type="button"
+                  disabled={action.disabled}
+                  onClick={action.run}
+                  title={action.label}
+                  className="pv-touch flex h-6 shrink-0 items-center gap-1 rounded-md border border-transparent px-1.5 text-[10px] font-bold text-text-secondary transition-colors hover:border-border hover:bg-card hover:text-text-primary disabled:opacity-40"
+                >
+                  <action.icon className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">{action.short}</span>
+                </button>
+              ))}
+              <span className="min-w-2 flex-1" />
+              <button
+                type="button"
+                onClick={() => setSelectedTripId(null)}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-card hover:text-text-primary"
+                title={t('pv_stop_close', 'Close')}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="shrink-0 text-[11px] font-bold text-text-primary">
+                {selectedPoolOrderIds.size} {t('jsx_selected', 'selected')}
+              </span>
+              <span className="hidden shrink-0 text-[10px] text-text-secondary md:inline">
+                {t('drag_hint', 'Drag orders onto truck rows to assign')}
+              </span>
+              <span className="min-w-2 flex-1" />
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => void bulkAssignRecommended()}
+                className="flex h-6 shrink-0 items-center gap-1 rounded-md bg-orange-500 px-2 text-[10px] font-black text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+              >
+                {bulkBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {t('bulk_recommend', 'Assign recommended truck')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPoolOrderIds(new Set())}
+                className="flex h-6 shrink-0 items-center gap-1 rounded-md border border-border bg-card px-1.5 text-[10px] font-bold text-text-secondary transition-colors hover:text-text-primary"
+              >
+                <X className="h-3 w-3" />
+                {t('jsx_cancel', 'Clear')}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+{/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
+      <div className="flex-1 flex overflow-hidden bg-surface/50 p-2 gap-2.5">
 
         {/* ORDER POOL (left panel) */}
         <div 
-          className={`relative flex flex-col border border-border rounded-xl shadow-sm bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'} ${isPoolDragOver ? 'ring-2 ring-primary border-primary bg-primary/5' : ''}`}
+          className={`relative flex flex-col border border-border rounded-2xl shadow-sm bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'} ${isPoolDragOver ? 'ring-2 ring-primary border-primary bg-primary/5' : ''}`}
           style={{ width: poolCollapsed ? 40 : poolWidth }}
           onDragOver={(e) => {
             e.preventDefault();
@@ -3946,8 +4993,9 @@ export default function PlanningPage() {
           </div>
         )}
 
-        {/* MAIN WORKSPACE */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-card rounded-xl border border-border shadow-sm">
+        {/* MAIN WORKSPACE + MAP PANEL */}
+        <div className="flex-1 flex gap-2 min-w-0">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-card rounded-2xl border border-border shadow-sm">
           {viewMode === 'map' ? (
             <PlanningMap mapData={mapData} selectedTripId={selectedTripId} onSelectTrip={setSelectedTripId} isLoading={isLoading} />
           ) : (
@@ -3967,23 +5015,39 @@ export default function PlanningPage() {
                   </div>
                 </div>
 
-                <div className="hidden md:flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-bold text-text-secondary">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[8px] font-black uppercase tracking-wide text-text-muted">{t('timeline_legend_trip_status', 'Trip status')}</span>
-                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('planning').accent }} />{t('timeline_legend_planned', 'Planned')}</span>
-                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('assigned').accent }} />{t('timeline_legend_assigned', 'Assigned')}</span>
-                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('in_transit').accent }} />{t('timeline_legend_active', 'In execution')}</span>
-                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ backgroundColor: planningTone('delayed').accent }} />{t('timeline_legend_conflict', 'Conflict')}</span>
-                  </div>
-                  <span className="w-px h-3 bg-border" />
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[8px] font-black uppercase tracking-wide text-text-muted">{t('timeline_stop_sequence', 'Stop sequence')}</span>
-                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500" />{t('timeline_legend_pickup', 'Pickup')}</span>
-                    <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" />{t('timeline_legend_delivery', 'Delivery')}</span>
-                  </div>
-                </div>
-
                 <div className="ml-auto flex items-center gap-2 shrink-0">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setLegendOpen((value) => !value)}
+                      aria-expanded={legendOpen}
+                      className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-surface/60 px-2 text-[10px] font-bold text-text-secondary transition-colors hover:text-text-primary"
+                    >
+                      <Info className="h-3 w-3" />
+                      {t('legend', 'Legend')}
+                    </button>
+                    {legendOpen && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setLegendOpen(false)} />
+                        <div className="absolute right-0 top-9 z-40 w-56 space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-2xl">
+                          <p className="text-[9px] font-black uppercase tracking-wide text-text-muted">{t('timeline_legend_trip_status', 'Trip status')}</p>
+                          <div className="grid grid-cols-2 gap-1 text-[10px] font-bold text-text-secondary">
+                            {([['planning', t('timeline_legend_planned', 'Planned')], ['assigned', t('timeline_legend_assigned', 'Assigned')], ['in_transit', t('timeline_legend_active', 'In execution')], ['delayed', t('timeline_legend_conflict', 'Conflict')]] as [string, string][]).map(([tone, label]) => (
+                              <span key={tone} className="inline-flex items-center gap-1.5">
+                                <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: planningTone(tone).accent }} />
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="border-t border-border pt-2 text-[9px] font-black uppercase tracking-wide text-text-muted">{t('timeline_stop_sequence', 'Stop sequence')}</p>
+                          <div className="grid grid-cols-2 gap-1 text-[10px] font-bold text-text-secondary">
+                            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-blue-500" />{t('timeline_legend_pickup', 'Pickup')}</span>
+                            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-emerald-500" />{t('timeline_legend_delivery', 'Delivery')}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1 rounded-lg border border-border bg-surface/60 px-1.5 py-1">
                     <button onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary" title={t('zoom_out', 'Zoom out')}><ZoomOut className="w-3 h-3" /></button>
                     <span className="text-[9px] font-mono font-bold w-8 text-center">{Math.round(zoomLevel * 100)}%</span>
@@ -4000,7 +5064,7 @@ export default function PlanningPage() {
                 ref={timelineRef}
                 tabIndex={0}
                 data-testid="planning-timeline-scroll"
-                className="flex-1 min-h-[300px] overflow-auto relative outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20 rounded-b-xl custom-scrollbar"
+                className="flex-1 min-h-0 overflow-auto relative outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20 rounded-b-xl custom-scrollbar"
               >
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3">
@@ -4116,6 +5180,7 @@ export default function PlanningPage() {
                                 selectedTripId={selectedTripId}
                                 onSelectTrip={setSelectedTripId}
                                 onDropOrder={handleDropOrder}
+                                onDropTrip={handleDropTrip}
                                 draggingId={draggingOrderId}
                                 draggingOrder={draggingOrder}
                                 hosSummary={boardData?.hosSummary || {}}
@@ -4158,6 +5223,8 @@ export default function PlanningPage() {
         onSelectTrip={setSelectedTripId}
         onRefresh={loadData}
         focusSignal={resultsSignal}
+        hiddenTripIds={hiddenTripIds}
+        onToggleTripVisibility={(tripId) => setHiddenTripIds((prev) => toggleHiddenTrip(prev, tripId))}
       />
       </div>
     ) : null}
@@ -4171,10 +5238,59 @@ export default function PlanningPage() {
             </>
           )}
         </div>
+
+        {/* Map is a panel, never a mode: the board stays visible next to it. */}
+        {mapOpen && (
+          <div className="hidden shrink-0 items-stretch lg:flex print:hidden">
+            <div
+              onMouseDown={() => {
+                mapResizingRef.current = true;
+                document.body.style.cursor = 'col-resize';
+              }}
+              className="mx-0.5 w-1.5 cursor-col-resize self-stretch rounded-full bg-border/70 transition-colors hover:bg-primary/60"
+              title={t("drag_to_resize", "Drag to resize")}
+              role="separator"
+              aria-orientation="vertical"
+            />
+            <div
+              style={{ width: mapWidth }}
+              className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1">
+                <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wide text-text-muted">
+                  <MapIcon className="h-3 w-3 text-primary" />
+                  {t("pv_map_panel", "Map")}
+                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] font-semibold text-text-muted">{hiddenTripIds.size > 0 ? `${hiddenTripIds.size} ${t("pr_map_hidden", "Hidden on map")}` : ""}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMapOpen(false)}
+                    className="rounded-md p-1 text-text-muted transition-colors hover:bg-surface hover:text-text-primary"
+                    title={t("pv_map_hide", "Hide map")}
+                  >
+                    <PanelRightClose className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div className="min-h-0 flex-1">
+                <PlanningMap
+                  mapData={mapData}
+                  selectedTripId={selectedTripId}
+                  onSelectTrip={setSelectedTripId}
+                  isLoading={isLoading}
+                  hiddenTripIds={hiddenTripIds}
+                  compact
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
 
       {/* ── DRAWERS & MODALS ────────────────────────────────────────────── */}
-      {selectedTrip && (
+      {selectedTrip && !drawerDismissed && (
         <TripDetailDrawer
           tripSummary={selectedTrip}
           resources={resources}
@@ -4185,7 +5301,7 @@ export default function PlanningPage() {
           onClose={() => {
             const openParam = searchParams.get('openTrip') || searchParams.get('tripId');
             if (openParam) handledOpenTripRef.current = openParam;
-            setSelectedTripId(null);
+            setDrawerDismissed(true);
             if (openParam) {
               const nextParams = new URLSearchParams(searchParams);
               nextParams.delete('openTrip');
@@ -4214,6 +5330,8 @@ export default function PlanningPage() {
           }}
           loadingAction={loadingAction}
           refreshKey={drawerRefreshKey}
+          onSaveStop={handleSaveStop}
+          onStopLockChange={handleStopLockChange}
         />
       )}
 
@@ -4352,6 +5470,105 @@ export default function PlanningPage() {
           </div>
         </div>,
         document.body,
+      )}
+
+      <PlanningCommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        actions={paletteActions}
+      />
+
+      <PlanningSuggestionsPanel
+        open={suggestionsOpen}
+        onClose={() => setSuggestionsOpen(false)}
+        loading={suggestionsLoading}
+        error={suggestionsError}
+        data={suggestionsData}
+        busyId={suggestionBusyId}
+        onApply={applySuggestion}
+        onOpenOrder={(orderId) => {
+          setSuggestionsOpen(false);
+          setSelectedOrderId(orderId);
+        }}
+      />
+
+      {boardV2 && recoveryOpen && selectedTrip && (
+        <div
+          className="fixed inset-0 z-[10045] flex items-end justify-center bg-slate-950/40 p-3 backdrop-blur-[2px] sm:items-center print:hidden"
+          onClick={() => setRecoveryOpen(false)}
+        >
+          <div className="w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
+            <PlanningRecoveryPanel
+              open={recoveryOpen}
+              onClose={() => setRecoveryOpen(false)}
+              trip={selectedTrip}
+              trips={trips}
+              onMoveOrder={handleRecoveryMove}
+              onOpenScenarios={() => {
+                setRecoveryOpen(false);
+                setScenariosOpen(true);
+              }}
+              onSubcontract={() => {
+                setRecoveryOpen(false);
+                setSubcontractorTargetTrip(selectedTrip);
+              }}
+              onSplit={() => {
+                setRecoveryOpen(false);
+                setSplitTripTarget(selectedTrip);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {boardV2 && scenariosOpen && selectedTrip && (
+        <div
+          className="fixed inset-0 z-[10045] flex items-end justify-center bg-slate-950/40 p-3 backdrop-blur-[2px] sm:items-center print:hidden"
+          onClick={() => setScenariosOpen(false)}
+        >
+          <div className="w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
+            <PlanningScenariosPanel
+              open={scenariosOpen}
+              onClose={() => setScenariosOpen(false)}
+              trip={selectedTrip}
+              resources={resources}
+              onApply={applyScenario}
+              applying={scenarioApplying}
+            />
+          </div>
+        </div>
+      )}
+
+      <PlanningDocumentsModal
+        open={boardV2 && documentsOpen}
+        onClose={() => setDocumentsOpen(false)}
+        trips={selectedTrip ? [selectedTrip] : trips.slice(0, 50)}
+        company={useSettingsStore.getState().company}
+      />
+
+      {nearby.open && (
+        <div
+          className="fixed inset-0 z-[10045] flex items-end justify-center bg-slate-950/40 p-3 backdrop-blur-[2px] sm:items-center print:hidden"
+          onClick={() => setNearby((prev) => ({ ...prev, open: false }))}
+        >
+          <div className="w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
+            <NearbyLoadsPanel
+              open={nearby.open}
+              onClose={() => setNearby((prev) => ({ ...prev, open: false }))}
+              loading={nearby.loading}
+              error={nearby.error}
+              data={nearby.data}
+              radiusKm={nearby.radius}
+              onRadiusChange={changeNearbyRadius}
+              busyOrderId={nearbyBusyOrderId}
+              onAdd={addNearbyOrder}
+              onOpenOrder={(orderId) => {
+                setNearby((prev) => ({ ...prev, open: false }));
+                setSelectedOrderId(orderId);
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Enterprise Planning Export Modal */}

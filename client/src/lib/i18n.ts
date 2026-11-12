@@ -8,6 +8,8 @@ import { planningResultsResources } from './planningResultsResources';
 import { planningUpgradeResources } from './planningUpgradeI18n';
 import { planningRouteResources } from './planningRouteI18n';
 import { planningDataQualityResources } from './planningDataQualityI18n';
+import { planningPremiumResources } from './planningPremiumI18n';
+import { planningDocsResources } from './planningDocsI18n';
 import { truckFuelResources } from './truckFuelI18n';
 import { truckFormResources } from './truckFormI18n';
 import { langOverrides } from './langOverrides';
@@ -11237,6 +11239,18 @@ for (const lng of Object.keys(planningRouteResources)) {
 for (const lng of Object.keys(planningDataQualityResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, (planningDataQualityResources as any)[lng]);
+}
+
+// Premium planning board (header, contextual bar, undo, suggestions, nearby
+// loads, stop editor, command palette, new result columns).
+for (const lng of Object.keys(planningPremiumResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, planningPremiumResources[lng]);
+}
+
+for (const lng of Object.keys(planningDocsResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, planningDocsResources[lng]);
 }
 
 for (const lng of Object.keys(truckFuelResources)) {

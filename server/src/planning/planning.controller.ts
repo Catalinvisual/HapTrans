@@ -24,6 +24,16 @@ export class PlanningController {
     return this.planningService.getBoard(req.user, query);
   }
 
+  /**
+   * Unplanned orders near a stop/leg — "search in the direct vicinity".
+   * Read-only: every candidate still goes through the normal assignment
+   * preflight before it can be planned.
+   */
+  @Get('nearby-orders')
+  nearbyOrders(@Request() req: any, @Query() query: any) {
+    return this.planningService.nearbyOrders(req.user, query);
+  }
+
   @Get('pool')
   pool(@Request() req: any, @Query() query: any) {
     return this.planningService.pool(req.user, query);
@@ -72,6 +82,11 @@ export class PlanningController {
   @Post('trips/:tripId/reorder')
   reorderStops(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
     return this.planningService.reorderStops(req.user, tripId, body);
+  }
+
+  @Post('trips/:tripId/reschedule')
+  rescheduleTrip(@Param('tripId') tripId: string, @Body() dto: any, @Request() req: any) {
+    return this.planningService.rescheduleTrip(req.user, tripId, dto);
   }
 
   @Post('trips/:tripId/recalculate')

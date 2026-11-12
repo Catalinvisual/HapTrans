@@ -19,6 +19,8 @@ import {
   Box,
   Search,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import CustomSelect from '../CustomSelect';
 import { appLocale, fmtMoney, fmtNumber } from '../../lib/format';
@@ -55,9 +57,12 @@ const energyUnit = (consumptionUnit?: string | null): string =>
 const HEIGHT_KEY = 'hapcargo:planningResultsHeight';
 const COLLAPSED_KEY = 'hapcargo:planningResultsCollapsed';
 const VIEW_KEY = 'hapcargo:planningResultsView';
-const MIN_HEIGHT = 260;
+const MIN_HEIGHT = 220;
 const MAX_HEIGHT = 800;
-const DEFAULT_HEIGHT = 360;
+const DEFAULT_HEIGHT = 280;
+// The board must leave room for the timeline. A height saved on a big screen
+// used to push the results table out of view on a laptop.
+const maxHeightForViewport = () => (typeof window === 'undefined' ? MAX_HEIGHT : Math.round(window.innerHeight * 0.32));
 // The persisted TripStatus enum. Transition aliases (in_transit, confirmed, etc.)
 // are workflow inputs, not stored statuses, so they must not appear as filters.
 // Canonical lifecycle codes only. Legacy workflow aliases are not operational
@@ -142,7 +147,7 @@ function readStoredHeight(): number {
   if (typeof window === 'undefined') return DEFAULT_HEIGHT;
   try {
     const raw = Number(window.localStorage.getItem(HEIGHT_KEY));
-    if (Number.isFinite(raw) && raw >= MIN_HEIGHT && raw <= MAX_HEIGHT) return raw;
+    if (Number.isFinite(raw) && raw >= MIN_HEIGHT && raw <= MAX_HEIGHT) return Math.max(MIN_HEIGHT, Math.min(raw, maxHeightForViewport()));
   } catch {
     /* ignore */
   }
@@ -181,6 +186,8 @@ export default function PlanningResultsPanel({
   onSelectTrip,
   onRefresh,
   focusSignal,
+  hiddenTripIds,
+  onToggleTripVisibility,
 }: {
   boardData: any;
   selectedTripId: string | null;
@@ -194,6 +201,9 @@ export default function PlanningResultsPanel({
   onSelectTrip?: (id: string) => void;
   onRefresh?: () => void | Promise<void>;
   focusSignal?: number;
+  /** Trips whose route is hidden on the map panel. */
+  hiddenTripIds?: ReadonlySet<string>;
+  onToggleTripVisibility?: (tripId: string) => void;
 }) {
   const { t } = useTranslation();
 
@@ -692,7 +702,13 @@ export default function PlanningResultsPanel({
       : source === 'carrier'
       ? t('up_res_from_carrier', 'Carrier resource')
       : undefined;
-  const nc = () => <span className="italic text-text-muted/70">{t('pr.not_calculated', 'Not calculated')}</span>;
+  // A muted dash instead of "Not calculated" eight times per row: the tooltip
+  // still says why, but the table reads as data, not as a list of errors.
+  const nc = () => (
+    <span className="text-text-muted/60" title={t('pr.not_calculated', 'Not calculated')}>
+      —
+    </span>
+  );
   const na = () => <span className="italic text-text-muted/70">{t('pr.unavailable', 'Unavailable')}</span>;
 
   const moneyOr = (value: number | null, currency: string) =>
@@ -763,6 +779,9 @@ export default function PlanningResultsPanel({
           { key: 'costBasis', label: t('up_res_cost_basis', 'Cost basis') },
           { key: 'emptyKm', label: t('pr.empty_km', 'Empty km'), align: 'right' },
           { key: 'utilization', label: `${t('pr.utilization', 'Utilization')} (%)`, align: 'right' },
+          { key: 'avgSpeed', label: `${t('pr_avg_speed', 'Average speed')} (km/h)`, align: 'right' },
+          { key: 'planVariance', label: `${t('pr_plan_variance', 'vs. plan')} (min)`, align: 'right' },
+          { key: 'fixedCost', label: t('pr_fixed_cost', 'Fixed cost/trip'), align: 'right' },
           { key: 'currency', label: t('pr.currency', 'Currency') },
           { key: 'status', label: t('pr.status', 'Status') },
         ];
@@ -790,6 +809,9 @@ export default function PlanningResultsPanel({
           costBasis: m.costBasis,
           emptyKm: m.emptyKm ?? '',
           utilization: m.utilizationPct ?? '',
+          avgSpeed: m.avgSpeedKmh ?? '',
+          planVariance: m.planVarianceMin ?? '',
+          fixedCost: m.fixedCost ?? '',
           currency: m.currency,
           status: t(`operational_${operationalStatusForDisplay({ status: m.status })}`, m.status || ''),
         }));
@@ -1224,7 +1246,10 @@ export default function PlanningResultsPanel({
     { key: 'profit', index: 19, label: t('pr.profit', 'Profit') },
     { key: 'emptyKm', index: 20, label: t('pr.empty_km', 'Empty km') },
     { key: 'utilizationPct', index: 21, label: t('pr.utilization', 'Utilization') },
-    { key: 'status', index: 22, label: t('pr.status', 'Status') },
+    { key: 'avgSpeedKmh', index: 22, label: t('pr_avg_speed', 'Average speed') },
+    { key: 'planVarianceMin', index: 23, label: t('pr_plan_variance', 'vs. plan') },
+    { key: 'fixedCost', index: 24, label: t('pr_fixed_cost', 'Fixed cost/trip') },
+    { key: 'status', index: 25, label: t('pr.status', 'Status') },
   ];
 
   const hiddenColumnCss = resultColumns
@@ -1402,6 +1427,9 @@ export default function PlanningResultsPanel({
               <th className={thR}>{t('pr.profit', 'Profit')}</th>
               <th className={thR}>{t('pr.empty_km', 'Empty km')}</th>
               <th className={thR}>{t('pr.utilization', 'Utilization')}</th>
+              <th className={thR} title={t('pr_avg_speed', 'Average speed')}>{t('pr_avg_speed', 'Average speed')}</th>
+              <th className={thR} title={t('pr_plan_variance', 'vs. plan')}>{t('pr_plan_variance', 'vs. plan')}</th>
+              <th className={thR} title={t('pr_fixed_cost', 'Fixed cost/trip')}>{t('pr_fixed_cost', 'Fixed cost/trip')}</th>
               <th className={thL}>{t('pr.status', 'Status')}</th>
             </tr>
           </thead>
@@ -1418,7 +1446,27 @@ export default function PlanningResultsPanel({
                     : 'hover:bg-primary/5'
                 }`}
               >
-                <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
+                <td className={`${td} font-bold`}>
+                  <span className="flex items-center gap-1">
+                    <span className="truncate">{m.tripNumber || np()}</span>
+                    {onToggleTripVisibility && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleTripVisibility(m.id);
+                        }}
+                        className={`rounded p-0.5 transition-colors hover:bg-surface ${
+                          hiddenTripIds?.has(m.id) ? 'text-text-muted' : 'text-primary/70'
+                        }`}
+                        title={hiddenTripIds?.has(m.id) ? t('pr_map_hidden', 'Hidden on map') : t('pr_map_visible', 'Visible on map')}
+                        aria-label={hiddenTripIds?.has(m.id) ? t('pr_map_hidden', 'Hidden on map') : t('pr_map_visible', 'Visible on map')}
+                      >
+                        {hiddenTripIds?.has(m.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    )}
+                  </span>
+                </td>
                 <td className={td}>{m.truckPlate || np()}</td>
                 <td className={td}>
                   {m.trailerPlate ? (
@@ -1497,6 +1545,20 @@ export default function PlanningResultsPanel({
                 <td className={tdR}>
                   {m.utilizationPct === null ? nc() : `${fmtNumber(m.utilizationPct, 0)}%`}
                 </td>
+                <td className={tdR}>
+                  {m.avgSpeedKmh === null ? nc() : `${fmtNumber(m.avgSpeedKmh, 1)} km/h`}
+                </td>
+                <td
+                  className={`${tdR} ${
+                    m.planVarianceMin === null ? '' : m.planVarianceMin > 0 ? 'text-rose-500' : 'text-emerald-600'
+                  }`}
+                  title={m.planVarianceBasis === 'actual' ? t('up_time_actual', 'actual') : m.planVarianceBasis === 'mixed' ? t('up_res_basis_mixed', 'Mixed (recorded + estimated)') : t('pr.not_calculated', 'Not calculated')}
+                >
+                  {m.planVarianceMin === null ? nc() : fmtMinutes(m.planVarianceMin)}
+                </td>
+                <td className={tdR}>
+                  {m.fixedCost === null ? nc() : fmtMoney(m.fixedCost, m.currency)}
+                </td>
                 <td className={td}>{statusBadge(m.status)}</td>
               </tr>
             ))}
@@ -1526,6 +1588,9 @@ export default function PlanningResultsPanel({
               <td className={tdR}>
                 {totals.utilization === null ? '—' : `${fmtNumber(totals.utilization, 0)}%`}
               </td>
+              <td className={tdR} />
+              <td className={tdR} />
+              <td className={tdR} />
               <td className={td} />
             </tr>
           </tbody>
@@ -2185,7 +2250,27 @@ export default function PlanningResultsPanel({
                   selected?.id === m.id ? 'bg-primary/10' : 'hover:bg-primary/5'
                 }`}
               >
-                <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
+                <td className={`${td} font-bold`}>
+                  <span className="flex items-center gap-1">
+                    <span className="truncate">{m.tripNumber || np()}</span>
+                    {onToggleTripVisibility && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleTripVisibility(m.id);
+                        }}
+                        className={`rounded p-0.5 transition-colors hover:bg-surface ${
+                          hiddenTripIds?.has(m.id) ? 'text-text-muted' : 'text-primary/70'
+                        }`}
+                        title={hiddenTripIds?.has(m.id) ? t('pr_map_hidden', 'Hidden on map') : t('pr_map_visible', 'Visible on map')}
+                        aria-label={hiddenTripIds?.has(m.id) ? t('pr_map_hidden', 'Hidden on map') : t('pr_map_visible', 'Visible on map')}
+                      >
+                        {hiddenTripIds?.has(m.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      </button>
+                    )}
+                  </span>
+                </td>
                 <td className={td}>{m.truckPlate || np()}</td>
                 <td className={td}>
                   {m.fuelType ? (
