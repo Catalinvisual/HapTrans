@@ -94,6 +94,58 @@ describe('InvoicesService automatic draft invoice', () => {
     }), undefined);
   });
 
+  it('creates a separate draft for each client/order on the same trip', async () => {
+    repo.findOne.mockResolvedValue(null);
+    const trip = { id: 'trip-1', tripNumber: 'TRP-1', orders: [{ id: 'ord-a' }, { id: 'ord-b' }] };
+    orderRepo.findOne
+      .mockResolvedValueOnce({
+        id: 'ord-a', orderNumber: 'ORD-A', status: 'delivered', price: 500,
+        client: { id: 'client-a' }, trip,
+        stops: [{ type: 'pickup', sequence: 1, address: 'A pickup' }, { type: 'delivery', sequence: 2, address: 'A delivery' }],
+        cargoItems: [{ unit: 'pallet', quantity: 5, weightKg: 1000 }],
+      })
+      .mockResolvedValueOnce({
+        id: 'ord-b', orderNumber: 'ORD-B', status: 'delivered', price: 700,
+        client: { id: 'client-b' }, trip,
+        stops: [{ type: 'pickup', sequence: 1, address: 'B pickup' }, { type: 'delivery', sequence: 2, address: 'B delivery' }],
+        cargoItems: [{ unit: 'pallet', quantity: 8, weightKg: 2000 }],
+      });
+    const create = jest.spyOn(service, 'create')
+      .mockResolvedValueOnce({ id: 'inv-a' } as any)
+      .mockResolvedValueOnce({ id: 'inv-b' } as any);
+
+    await service.createDraftForCompletedOrder('ord-a');
+    await service.createDraftForCompletedOrder('ord-b');
+
+    expect(create).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      orderId: 'ord-a', clientId: 'client-a', tripId: 'trip-1',
+      transportDetails: expect.objectContaining({ loadingAddress: 'A pickup', unloadingAddress: 'A delivery', pallets: 5 }),
+    }), undefined);
+    expect(create).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      orderId: 'ord-b', clientId: 'client-b', tripId: 'trip-1',
+      transportDetails: expect.objectContaining({ loadingAddress: 'B pickup', unloadingAddress: 'B delivery', pallets: 8 }),
+    }), undefined);
+  });
+
+  it('does not mix another client stop when the order has no stop rows', () => {
+    const trip = {
+      id: 'trip-1',
+      orders: [{ id: 'ord-a' }, { id: 'ord-b' }],
+      stops: [
+        { type: 'pickup', sequence: 1, address: 'A pickup', tasks: [{ order: { id: 'ord-a' } }] },
+        { type: 'pickup', sequence: 2, address: 'B pickup', tasks: [{ order: { id: 'ord-b' } }] },
+        { type: 'delivery', sequence: 3, address: 'A delivery', tasks: [{ order: { id: 'ord-a' } }] },
+        { type: 'delivery', sequence: 4, address: 'B delivery', tasks: [{ order: { id: 'ord-b' } }] },
+      ],
+    };
+
+    const details = (service as any).buildTransportDetailsFrom({ id: 'ord-a', client: { id: 'client-a' } }, trip);
+
+    expect(details.loadingAddress).toBe('A pickup');
+    expect(details.unloadingAddress).toBe('A delivery');
+    expect(details.loadingAddress).not.toContain('B pickup');
+  });
+
   it('does not invoice an order that is not operationally completed', async () => {
     repo.findOne.mockResolvedValue(null);
     orderRepo.findOne.mockResolvedValue({

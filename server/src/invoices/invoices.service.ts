@@ -73,13 +73,29 @@ export class InvoicesService implements OnModuleInit {
   }
 
   private buildTransportDetailsFrom(order: any, trip: any): InvoiceTransportDetails | null {
+    const orderId = order?.id ? String(order.id) : null;
     const orderStops = Array.isArray(order?.stops) ? [...order.stops] : [];
     const tripStops = Array.isArray(trip?.stops) ? [...trip.stops] : [];
+    const tripOrders = Array.isArray(trip?.orders) ? trip.orders : [];
+    const onlyOrderOnTrip = tripOrders.length <= 1;
+    const taskStops = orderId
+      ? tripStops.filter((stop: any) => (stop.tasks || []).some((task: any) => String(task?.order?.id || '') === orderId))
+      : [];
+    // Never fall back to all trip stops when the trip carries several orders:
+    // that would put another client's addresses and cargo on this invoice.
+    const scopedStops = orderStops.length > 0
+      ? orderStops
+      : taskStops.length > 0
+        ? taskStops
+        : onlyOrderOnTrip ? tripStops : [];
+    const fallbackTripStops = taskStops.length > 0
+      ? taskStops
+      : onlyOrderOnTrip ? tripStops : [];
     const sortStops = (stops: any[]) => stops.sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
     const isPickup = (stop: any) => ['pickup', 'loading', 'warehouse', 'terminal'].includes(String(stop?.type || '').toLowerCase());
     const isDelivery = (stop: any) => ['delivery', 'dropoff', 'unloading'].includes(String(stop?.type || '').toLowerCase());
-    const sortedOrderStops = sortStops(orderStops);
-    const sortedTripStops = sortStops(tripStops);
+    const sortedOrderStops = sortStops(scopedStops);
+    const sortedTripStops = sortStops(fallbackTripStops);
     const orderPickup = sortedOrderStops.find(isPickup) || sortedOrderStops[0];
     const orderDelivery = [...sortedOrderStops].reverse().find(isDelivery) || sortedOrderStops[sortedOrderStops.length - 1];
     const tripPickup = sortedTripStops.find(isPickup) || sortedTripStops[0];
@@ -89,11 +105,26 @@ export class InvoicesService implements OnModuleInit {
     const pickupTripStop = tripPickup;
     const deliveryTripStop = tripDelivery;
 
-    const cargoItems = Array.isArray(order?.cargoItems) && order.cargoItems.length > 0
-      ? order.cargoItems
-      : Array.isArray(trip?.orders)
-        ? trip.orders.flatMap((item: any) => item?.cargoItems || [])
-        : [];
+    const orderCargoItems = Array.isArray(order?.cargoItems) ? order.cargoItems : [];
+    const taskCargoItems = orderId
+      ? taskStops.flatMap((stop: any) => (stop.tasks || [])
+        .filter((task: any) => String(task?.order?.id || '') === orderId)
+        .map((task: any) => ({
+          unit: 'pallet',
+          quantity: task.pallets,
+          weightKg: task.weightKg,
+          volumeCbm: task.volumeCbm,
+          description: task.order?.orderNumber ? `Order ${task.order.orderNumber}` : '',
+        })))
+      : [];
+    const fallbackCargoItems = onlyOrderOnTrip
+      ? tripOrders.flatMap((item: any) => item?.cargoItems || [])
+      : [];
+    const cargoItems = orderCargoItems.length > 0
+      ? orderCargoItems
+      : taskCargoItems.length > 0
+        ? taskCargoItems
+        : fallbackCargoItems;
     const pallets = cargoItems
       .filter((item: any) => String(item.unit || 'pallet').toLowerCase() === 'pallet')
       .reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0)
@@ -142,6 +173,7 @@ export class InvoicesService implements OnModuleInit {
 
     const orderId = dto?.orderId || (typeof dto?.order === 'object' ? dto.order?.id : null);
     const tripId = dto?.tripId || (typeof dto?.trip === 'object' ? dto.trip?.id : null);
+    const clientId = dto?.clientId || (typeof dto?.client === 'object' ? dto.client?.id : null);
     if (!orderId && !tripId) return null;
 
     try {
@@ -150,15 +182,19 @@ export class InvoicesService implements OnModuleInit {
       if (orderId) {
         order = await this.repo.manager.getRepository(Order).findOne({
           where: { id: orderId },
-          relations: ['stops', 'cargoItems', 'trip', 'trip.stops', 'trip.truck', 'trip.trailer', 'trip.driver.user', 'trip.orders', 'trip.orders.cargoItems'],
+          relations: ['stops', 'cargoItems', 'trip', 'trip.stops', 'trip.stops.tasks', 'trip.stops.tasks.order', 'trip.truck', 'trip.trailer', 'trip.driver.user', 'trip.orders', 'trip.orders.cargoItems'],
         });
         trip = order?.trip || null;
       }
       if (!trip && tripId) {
         trip = await this.repo.manager.getRepository(Trip).findOne({
           where: { id: tripId },
-          relations: ['stops', 'truck', 'trailer', 'driver.user', 'orders', 'orders.cargoItems'],
+          relations: ['stops', 'stops.tasks', 'stops.tasks.order', 'truck', 'trailer', 'driver.user', 'orders', 'orders.client', 'orders.cargoItems', 'orders.stops'],
         });
+      }
+      if (!order && clientId && Array.isArray(trip?.orders)) {
+        const clientOrders = trip.orders.filter((candidate: any) => String(candidate.client?.id || candidate.clientId || '') === String(clientId));
+        if (clientOrders.length === 1) order = clientOrders[0];
       }
       if (!order && trip?.orders?.length === 1) order = trip.orders[0];
       return this.buildTransportDetailsFrom(order, trip);
@@ -507,7 +543,7 @@ export class InvoicesService implements OnModuleInit {
 
     const order = await this.repo.manager.getRepository(Order).findOne({
       where: { id: orderId },
-      relations: ['client', 'trip', 'trip.stops', 'trip.truck', 'trip.trailer', 'trip.driver.user', 'trip.orders', 'trip.orders.cargoItems', 'cargoItems', 'stops'],
+      relations: ['client', 'trip', 'trip.stops', 'trip.stops.tasks', 'trip.stops.tasks.order', 'trip.truck', 'trip.trailer', 'trip.driver.user', 'trip.orders', 'trip.orders.cargoItems', 'cargoItems', 'stops'],
     });
     if (!order) return { invoice: null, created: false, reason: 'order_not_found' };
 
