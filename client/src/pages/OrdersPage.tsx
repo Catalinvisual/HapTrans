@@ -327,6 +327,7 @@ export default function OrdersPage() {
 
       const res = await api.post('/invoices', {
         clientId,
+        orderId: o.id,
         tripId: o.trip?.id || null,
         amount: price,
         fuelSurcharge,

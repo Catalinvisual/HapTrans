@@ -669,6 +669,12 @@ export default function InvoicesPage({
     { value: 'cancelled', label: t('cancelled'), color: statusTextClass('cancelled') },
   ];
   const updateStatus = async (inv: any, val: string) => {
+    // Approving a draft must finalise it, not just change the label. This also
+    // covers the status dropdown in the table, not only the green check button.
+    if (val === 'approved' && inv.status === 'draft') {
+      await handleApprove(inv, false);
+      return;
+    }
     try {
       await api.patch(`/invoices/${inv.id}`, { status: val });
       toast.success(t('statusUpdated'));

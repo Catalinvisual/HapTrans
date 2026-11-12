@@ -3,6 +3,12 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   function fmtDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
+    // Transport dates are stored as calendar dates. Formatting them through
+    // Date() would shift the day in negative UTC offsets.
+    if (typeof dateStr === 'string') {
+      const dateOnly = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+    }
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return '—';
     const dd = String(d.getDate()).padStart(2, '0');
@@ -51,9 +57,12 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       paymentTerms: 'Payment Terms:',
       address: 'Address',
       pickupDate: 'Pickup date:',
+      loadingAddress: 'Loading address:',
       loadingRef: 'Loading reference:',
       deliveryDate: 'Delivery date:',
+      unloadingAddress: 'Unloading address:',
       unloadingRef: 'Unloading reference:',
+      goods: 'Goods:',
       transportDetails: 'Transport Details',
       summary: 'Summary',
       vatInfo: 'VAT INFORMATION',
@@ -104,9 +113,12 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       paymentTerms: 'Betalingsvoorwaarden:',
       address: 'Adres',
       pickupDate: 'Laaddatum:',
+      loadingAddress: 'Laadadres:',
       loadingRef: 'Laadreferentie:',
       deliveryDate: 'Leverdatum:',
+      unloadingAddress: 'Losadres:',
       unloadingRef: 'Losreferentie:',
+      goods: 'Goederen:',
       transportDetails: 'Transportgegevens',
       summary: 'Overzicht',
       vatInfo: 'BTW INFORMATIE',
@@ -152,10 +164,27 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
   const finalTotal = subtotal + vatAmt;
 
+  const rawTransport = invoice.transportDetails;
+  const transport = typeof rawTransport === 'string'
+    ? (() => { try { return JSON.parse(rawTransport); } catch { return {}; } })()
+    : (rawTransport || {});
+  const loadingAddress = transport.loadingAddress || trip.pickupAddress || '';
+  const unloadingAddress = transport.unloadingAddress || trip.dropoffAddress || '';
+  const loadingDate = transport.loadingDate || trip.pickupDate;
+  const unloadingDate = transport.unloadingDate || trip.dropoffDate;
+  const loadingTime = transport.loadingTime || '';
+  const unloadingTime = transport.unloadingTime || '';
+  const loadingReference = transport.loadingReference || trip.loadingReference || '';
+  const unloadingReference = transport.unloadingReference || trip.unloadingReference || '';
+  const vehicle = transport.vehicle || '';
+  const driver = transport.driver || '';
   const cargoArr = [];
-  if (trip.pallets) cargoArr.push(`${trip.pallets} pallets`);
-  if (trip.weightKg) cargoArr.push(`${trip.weightKg} kg`);
-  if (trip.volumeCbm) cargoArr.push(`${trip.volumeCbm} m3`);
+  const pallets = transport.pallets ?? trip.pallets;
+  const weightKg = transport.weightKg ?? trip.weightKg;
+  const volumeCbm = transport.volumeCbm ?? trip.volumeCbm;
+  if (pallets) cargoArr.push(`${pallets} ${Number(pallets) === 1 ? 'pallet' : 'pallets'}`);
+  if (weightKg) cargoArr.push(`${weightKg} kg`);
+  if (volumeCbm) cargoArr.push(`${volumeCbm} m3`);
   const cargoStr = cargoArr.join(', ');
 
   let itemsHtml = '';
@@ -645,40 +674,62 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     <div class="section-box">
       <div class="section-title">${t.transportDetails}</div>
 
-      ${(trip.pickupAddress || trip.dropoffAddress) ? `
+      ${(loadingAddress || unloadingAddress) ? `
       <div class="detail-row">
-        <div class="detail-label">${t.route}</div>
-        <div>${trip.pickupAddress || ''} - ${trip.dropoffAddress || ''}</div>
+        <div class="detail-label">${t.loadingAddress}</div>
+        <div>${loadingAddress || '—'}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">${t.unloadingAddress}</div>
+        <div>${unloadingAddress || '—'}</div>
       </div>` : ''}
 
-      ${trip.pickupDate ? `
+      ${loadingDate ? `
       <div class="detail-row">
         <div class="detail-label">${t.pickupDate}</div>
-        <div>${fmtDate(trip.pickupDate)}</div>
+        <div>${fmtDate(loadingDate)}${loadingTime ? ` · ${loadingTime}` : ''}</div>
       </div>` : ''}
 
-      ${trip.loadingReference ? `
+      ${loadingReference ? `
       <div class="detail-row">
         <div class="detail-label">${t.loadingRef}</div>
-        <div>${trip.loadingReference}</div>
+        <div>${loadingReference}</div>
       </div>` : ''}
 
-      ${trip.dropoffDate ? `
+      ${unloadingDate ? `
       <div class="detail-row">
         <div class="detail-label">${t.deliveryDate}</div>
-        <div>${fmtDate(trip.dropoffDate)}</div>
+        <div>${fmtDate(unloadingDate)}${unloadingTime ? ` · ${unloadingTime}` : ''}</div>
       </div>` : ''}
 
-      ${trip.unloadingReference ? `
+      ${unloadingReference ? `
       <div class="detail-row">
         <div class="detail-label">${t.unloadingRef}</div>
-        <div>${trip.unloadingReference}</div>
+        <div>${unloadingReference}</div>
       </div>` : ''}
 
       ${cargoStr ? `
       <div class="detail-row">
         <div class="detail-label">${t.cargo}</div>
         <div>${cargoStr}</div>
+      </div>` : ''}
+
+      ${transport.cargoDescription ? `
+      <div class="detail-row">
+        <div class="detail-label">${t.goods}</div>
+        <div>${transport.cargoDescription}</div>
+      </div>` : ''}
+
+      ${vehicle ? `
+      <div class="detail-row">
+        <div class="detail-label">${t.vehicle}</div>
+        <div>${vehicle}</div>
+      </div>` : ''}
+
+      ${driver ? `
+      <div class="detail-row">
+        <div class="detail-label">${t.driver}</div>
+        <div>${driver}</div>
       </div>` : ''}
     </div>
 

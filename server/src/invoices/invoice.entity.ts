@@ -20,6 +20,24 @@ export enum VatType {
   EXEMPT = 'EXEMPT',
 }
 
+/** Immutable transport snapshot printed on the invoice. */
+export interface InvoiceTransportDetails {
+  loadingAddress?: string | null;
+  unloadingAddress?: string | null;
+  loadingDate?: string | null;
+  loadingTime?: string | null;
+  unloadingDate?: string | null;
+  unloadingTime?: string | null;
+  loadingReference?: string | null;
+  unloadingReference?: string | null;
+  pallets?: number | null;
+  weightKg?: number | null;
+  volumeCbm?: number | null;
+  cargoDescription?: string | null;
+  vehicle?: string | null;
+  driver?: string | null;
+}
+
 @Entity('invoices')
 export class Invoice {
   @PrimaryGeneratedColumn('uuid')
@@ -110,6 +128,10 @@ export class Invoice {
 
   @Column({ nullable: true, type: 'text' })
   notes: string;
+
+  /** Snapshot of the order/trip data shown in the invoice transport card. */
+  @Column({ nullable: true, type: 'jsonb' })
+  transportDetails: InvoiceTransportDetails | null;
 
   @Column({ default: 0 })
   draftReminderLevel: number; // 0 = none, 1 = 3 days notified, 2 = 7 days notified & emailed

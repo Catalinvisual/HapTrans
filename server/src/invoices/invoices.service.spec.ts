@@ -46,6 +46,54 @@ describe('InvoicesService automatic draft invoice', () => {
     }), { id: 'u1' });
   });
 
+  it('stores the full transport snapshot on the automatic draft', async () => {
+    repo.findOne.mockResolvedValueOnce(null);
+    orderRepo.findOne.mockResolvedValue({
+      id: 'ord-1',
+      orderNumber: 'ORD-1',
+      status: 'delivered',
+      price: 1200,
+      client: { id: 'client-1' },
+      loadingReference: 'LOAD-1',
+      unloadingReference: 'UNLOAD-1',
+      stops: [
+        { type: 'pickup', sequence: 1, address: 'Warehouse A, Bucharest', dateFrom: '2026-11-01', timeFrom: '08:00' },
+        { type: 'delivery', sequence: 2, address: 'Warehouse B, Rotterdam', dateFrom: '2026-11-03', timeFrom: '10:30' },
+      ],
+      cargoItems: [{ unit: 'pallet', quantity: 33, weightKg: 24000, volumeCbm: 40, description: 'General cargo' }],
+      trip: {
+        id: 'trip-1',
+        tripNumber: 'TRP-1',
+        stops: [],
+        truck: { plateNumber: 'B-123-XY' },
+        trailer: { plateNumber: 'TR-456' },
+        driver: { user: { name: 'Ion Popescu' } },
+      },
+    });
+    const create = jest.spyOn(service, 'create').mockResolvedValue({ id: 'inv-1' } as any);
+
+    await service.createDraftForCompletedOrder('ord-1');
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      transportDetails: expect.objectContaining({
+        loadingAddress: 'Warehouse A, Bucharest',
+        unloadingAddress: 'Warehouse B, Rotterdam',
+        loadingDate: '2026-11-01',
+        loadingTime: '08:00',
+        unloadingDate: '2026-11-03',
+        unloadingTime: '10:30',
+        loadingReference: 'LOAD-1',
+        unloadingReference: 'UNLOAD-1',
+        pallets: 33,
+        weightKg: 24000,
+        volumeCbm: 40,
+        cargoDescription: 'General cargo',
+        vehicle: 'B-123-XY / TR-456',
+        driver: 'Ion Popescu',
+      }),
+    }), undefined);
+  });
+
   it('does not invoice an order that is not operationally completed', async () => {
     repo.findOne.mockResolvedValue(null);
     orderRepo.findOne.mockResolvedValue({

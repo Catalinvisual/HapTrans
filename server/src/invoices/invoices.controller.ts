@@ -41,6 +41,23 @@ export class InvoicesController {
 
   @Post('generate-pdf')
   async generatePdf(@Body() body: { invoice: any, company: any, lang: 'en' | 'nl' }) {
+    // Saved invoices are always rendered from the database record. This keeps
+    // the final PDF in sync with approval status and repairs old drafts that
+    // predate the transport snapshot.
+    if (body.invoice?.id) {
+      const stored = await this.service.findOneForPdf(body.invoice.id);
+      if (stored) {
+        body.invoice = {
+          ...body.invoice,
+          ...stored,
+          status: stored.status,
+          client: stored.client || body.invoice.client,
+          trip: stored.trip || body.invoice.trip,
+          items: stored.items?.length ? stored.items : body.invoice.items,
+          transportDetails: stored.transportDetails || body.invoice.transportDetails,
+        };
+      }
+    }
     if (!body.company) body.company = {};
     const cmsSettings = await this.resendService.usersService.getCompanySettingsCms();
     if (cmsSettings) {
@@ -76,7 +93,7 @@ export class InvoicesController {
 
   @Post('send-email/:id')
   async sendEmail(@Param('id') id: string, @Body('company') companyStr?: string) {
-    const inv = await this.service.findOne(id);
+    const inv = await this.service.findOneForPdf(id);
     if (inv) {
       let company = null;
       try {

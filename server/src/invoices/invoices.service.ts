@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Like } from 'typeorm';
 import * as crypto from 'crypto';
-import { Invoice, InvoiceStatus } from './invoice.entity';
+import { Invoice, InvoiceStatus, InvoiceTransportDetails } from './invoice.entity';
 import { InvoiceItem } from './invoice-item.entity';
 import { Trip } from '../trips/trip.entity';
 import { Order } from '../orders/order.entity';
@@ -39,6 +39,134 @@ export class InvoicesService implements OnModuleInit {
     @InjectRepository(Invoice) private repo: Repository<Invoice>,
     private actionLogs: ActionLogsService,
   ) {}
+
+  private transportDate(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      const dateOnly = value.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (dateOnly) return dateOnly[1];
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  private transportTime(value: any): string | null {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+      const time = value.match(/(?:T|\s)(\d{2}:\d{2})/);
+      if (time) return time[1];
+      const timeOnly = value.match(/^(\d{2}:\d{2})/);
+      if (timeOnly) return timeOnly[1];
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  }
+
+  private stopAddress(stop: any): string | null {
+    if (!stop) return null;
+    if (stop.address) return String(stop.address);
+    const parts = [stop.city, stop.postalCode, stop.country].filter(Boolean);
+    return parts.length ? parts.join(', ') : (stop.companyName || null);
+  }
+
+  private buildTransportDetailsFrom(order: any, trip: any): InvoiceTransportDetails | null {
+    const orderStops = Array.isArray(order?.stops) ? [...order.stops] : [];
+    const tripStops = Array.isArray(trip?.stops) ? [...trip.stops] : [];
+    const sortStops = (stops: any[]) => stops.sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+    const isPickup = (stop: any) => ['pickup', 'loading', 'warehouse', 'terminal'].includes(String(stop?.type || '').toLowerCase());
+    const isDelivery = (stop: any) => ['delivery', 'dropoff', 'unloading'].includes(String(stop?.type || '').toLowerCase());
+    const sortedOrderStops = sortStops(orderStops);
+    const sortedTripStops = sortStops(tripStops);
+    const orderPickup = sortedOrderStops.find(isPickup) || sortedOrderStops[0];
+    const orderDelivery = [...sortedOrderStops].reverse().find(isDelivery) || sortedOrderStops[sortedOrderStops.length - 1];
+    const tripPickup = sortedTripStops.find(isPickup) || sortedTripStops[0];
+    const tripDelivery = [...sortedTripStops].reverse().find(isDelivery) || sortedTripStops[sortedTripStops.length - 1];
+    const pickupStop = orderPickup || tripPickup;
+    const deliveryStop = orderDelivery || tripDelivery;
+    const pickupTripStop = tripPickup;
+    const deliveryTripStop = tripDelivery;
+
+    const cargoItems = Array.isArray(order?.cargoItems) && order.cargoItems.length > 0
+      ? order.cargoItems
+      : Array.isArray(trip?.orders)
+        ? trip.orders.flatMap((item: any) => item?.cargoItems || [])
+        : [];
+    const pallets = cargoItems
+      .filter((item: any) => String(item.unit || 'pallet').toLowerCase() === 'pallet')
+      .reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0)
+      || Number(order?.pallets || order?.totalPallets || 0);
+    const weightKg = cargoItems.reduce((sum: number, item: any) => sum + (Number(item.weightKg) || 0), 0);
+    const volumeCbm = cargoItems.reduce((sum: number, item: any) => sum + (Number(item.volumeCbm) || 0), 0);
+    const cargoDescription = [...new Set(cargoItems
+      .map((item: any) => String(item.description || '').trim())
+      .filter(Boolean))].join(', ') || null;
+
+    const details: InvoiceTransportDetails = {
+      loadingAddress: this.stopAddress(pickupStop),
+      unloadingAddress: this.stopAddress(deliveryStop),
+      loadingDate: this.transportDate(pickupStop?.dateFrom)
+        || this.transportDate(pickupTripStop?.timeWindowMin)
+        || this.transportDate(pickupTripStop?.ata)
+        || this.transportDate(pickupTripStop?.completedAt),
+      loadingTime: this.transportTime(pickupStop?.timeFrom)
+        || this.transportTime(pickupTripStop?.timeWindowMin)
+        || this.transportTime(pickupTripStop?.ata)
+        || this.transportTime(pickupTripStop?.completedAt),
+      unloadingDate: this.transportDate(deliveryStop?.dateFrom)
+        || this.transportDate(deliveryTripStop?.timeWindowMin)
+        || this.transportDate(deliveryTripStop?.ata)
+        || this.transportDate(deliveryTripStop?.completedAt),
+      unloadingTime: this.transportTime(deliveryStop?.timeFrom)
+        || this.transportTime(deliveryTripStop?.timeWindowMin)
+        || this.transportTime(deliveryTripStop?.ata)
+        || this.transportTime(deliveryTripStop?.completedAt),
+      loadingReference: order?.loadingReference || pickupStop?.reference || null,
+      unloadingReference: order?.unloadingReference || deliveryStop?.reference || null,
+      pallets: pallets || null,
+      weightKg: weightKg || null,
+      volumeCbm: volumeCbm || null,
+      cargoDescription,
+      vehicle: [trip?.truck?.plateNumber, trip?.trailer?.plateNumber].filter(Boolean).join(' / ')
+        || trip?.carrierTruckPlate || null,
+      driver: trip?.driver?.user?.name || trip?.carrierDriverName || null,
+    };
+
+    return Object.values(details).some((value) => value !== null && value !== '') ? details : null;
+  }
+
+  private async resolveTransportDetails(dto: any): Promise<InvoiceTransportDetails | null> {
+    if (dto?.transportDetails && typeof dto.transportDetails === 'object') return dto.transportDetails;
+
+    const orderId = dto?.orderId || (typeof dto?.order === 'object' ? dto.order?.id : null);
+    const tripId = dto?.tripId || (typeof dto?.trip === 'object' ? dto.trip?.id : null);
+    if (!orderId && !tripId) return null;
+
+    try {
+      let order: any = null;
+      let trip: any = null;
+      if (orderId) {
+        order = await this.repo.manager.getRepository(Order).findOne({
+          where: { id: orderId },
+          relations: ['stops', 'cargoItems', 'trip', 'trip.stops', 'trip.truck', 'trip.trailer', 'trip.driver.user', 'trip.orders', 'trip.orders.cargoItems'],
+        });
+        trip = order?.trip || null;
+      }
+      if (!trip && tripId) {
+        trip = await this.repo.manager.getRepository(Trip).findOne({
+          where: { id: tripId },
+          relations: ['stops', 'truck', 'trailer', 'driver.user', 'orders', 'orders.cargoItems'],
+        });
+      }
+      if (!order && trip?.orders?.length === 1) order = trip.orders[0];
+      return this.buildTransportDetailsFrom(order, trip);
+    } catch (error: any) {
+      console.warn('Could not build invoice transport details:', error?.message);
+      return null;
+    }
+  }
 
   private async buildInvoiceItemsAndTotals(inv: Invoice, dto: any, tripRepo: Repository<Trip>) {
     const amount = dto.amount !== undefined ? Number(dto.amount) : Number(inv.amount || 0);
@@ -191,6 +319,7 @@ export class InvoicesService implements OnModuleInit {
       // Additive production safety for automatic order drafts. The migration
       // remains the source of truth; this only repairs pre-migration rows.
       await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "orderId" uuid`).catch(() => {});
+      await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "transportDetails" jsonb`).catch(() => {});
       await this.repo.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_invoices_order_unique" ON "invoices" ("orderId") WHERE "orderId" IS NOT NULL`).catch(() => {});
       await this.repo.query(`UPDATE "invoices" SET "id" = gen_random_uuid() WHERE "id" IS NULL`).catch(() => {});
       await this.repo.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
@@ -238,6 +367,20 @@ export class InvoicesService implements OnModuleInit {
     }
   }
 
+  /** Loads an invoice and repairs its transport snapshot for older drafts. */
+  async findOneForPdf(id: string) {
+    const invoice = await this.findOne(id);
+    if (!invoice) return null;
+    if (!invoice.transportDetails) {
+      const details = await this.resolveTransportDetails({ orderId: (invoice as any).orderId, tripId: invoice.trip?.id });
+      if (details) {
+        invoice.transportDetails = details;
+        await this.repo.update(invoice.id, { transportDetails: details } as any).catch(() => undefined);
+      }
+    }
+    return invoice;
+  }
+
   async create(dto: any, user?: any) {
     const payload: any = { 
       ...dto, 
@@ -277,6 +420,10 @@ export class InvoicesService implements OnModuleInit {
       payload.trip = null;
     }
     delete payload.tripId;
+
+    if (!payload.transportDetails) {
+      payload.transportDetails = await this.resolveTransportDetails(dto);
+    }
 
     // Clean empty string dates to null for Postgres date columns
     if (payload.issueDate === '' || payload.issueDate === undefined) payload.issueDate = null;
@@ -360,7 +507,7 @@ export class InvoicesService implements OnModuleInit {
 
     const order = await this.repo.manager.getRepository(Order).findOne({
       where: { id: orderId },
-      relations: ['client', 'trip', 'cargoItems', 'stops'],
+      relations: ['client', 'trip', 'trip.stops', 'trip.truck', 'trip.trailer', 'trip.driver.user', 'trip.orders', 'trip.orders.cargoItems', 'cargoItems', 'stops'],
     });
     if (!order) return { invoice: null, created: false, reason: 'order_not_found' };
 
@@ -377,6 +524,7 @@ export class InvoicesService implements OnModuleInit {
     const notes = amount > 0
       ? `Automatically generated from completed order ${reference}.`
       : `Automatically generated from completed order ${reference}. Freight rate is missing and must be entered before approval.`;
+    const transportDetails = this.buildTransportDetailsFrom(order, order.trip);
 
     try {
       const invoice = await this.create({
@@ -390,6 +538,7 @@ export class InvoicesService implements OnModuleInit {
         status: InvoiceStatus.DRAFT,
         issueDate: new Date(),
         notes,
+        transportDetails,
         items: amount > 0 ? [{
           description: `Transport order ${reference}${order.trip?.tripNumber ? ` · ${order.trip.tripNumber}` : ''}`,
           quantity: 1,
@@ -419,10 +568,9 @@ export class InvoicesService implements OnModuleInit {
   }
 
   async approve(id: string, user?: any) {
-    const inv = await this.repo.findOne({ where: { id } });
+    const inv = await this.findOneForPdf(id);
     if (!inv) throw new BadRequestException('Invoice not found');
-    inv.status = InvoiceStatus.APPROVED;
-    const saved = await this.repo.save(inv);
+    await this.repo.update(id, { status: InvoiceStatus.APPROVED } as any);
     if (user) {
       try {
         await this.actionLogs.logAction('Invoice', id, 'APPROVED', user);
@@ -430,7 +578,9 @@ export class InvoicesService implements OnModuleInit {
         console.warn('Action log failed for invoice approval:', err?.message);
       }
     }
-    return saved;
+    // The client immediately renders the final PDF from this response, so it
+    // must include client, trip, items and the transport snapshot.
+    return this.findOneForPdf(id);
   }
 
   async update(id: string, dto: any, user?: any) {
