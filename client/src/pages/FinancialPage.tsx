@@ -151,29 +151,59 @@ export default function FinancialPage() {
 
   return (
     <div className="space-y-6 pb-12 animate-fade-in">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-text bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-600">
-            {t('financial')}
-          </h1>
-          <p className="text-sm font-medium text-text-secondary mt-1 flex items-center gap-2">
-            {t('fin_subtitle')}
-            <span className={`inline-block w-2 h-2 rounded-full shadow-sm ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} />
-          </p>
+      <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-card shadow-card">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-primary/70" />
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-emerald-500/[0.08] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-primary/[0.06] blur-3xl" />
+
+        <div className="relative p-5 md:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+                <Landmark className="h-6 w-6" />
+                <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-card bg-success" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-2xl font-black tracking-tight text-transparent md:text-[28px]">
+                    {t('financial')}
+                  </h1>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+                    <span className={`h-1.5 w-1.5 rounded-full bg-emerald-500 ${refreshing ? 'animate-pulse' : ''}`} />
+                    {t('dbd_live')}
+                  </span>
+                </div>
+                <p className="mt-1.5 max-w-2xl text-sm font-medium text-text-secondary">
+                  {t('fin_subtitle')}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setReportsOpen(true)}
+              className="group inline-flex h-11 w-full shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-primary to-orange-500 px-4 text-sm font-bold text-white shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30 active:translate-y-0 sm:w-auto"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15">
+                <FileSpreadsheet className="h-4 w-4" />
+              </span>
+              {t('rp_export_label')}
+              <ArrowUpRight className="h-4 w-4 text-white/75 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </button>
+          </div>
+
+          <div className="mt-5 border-t border-border/60 pt-4">
+            <AnalyticsToolbar
+              variant="embedded"
+              rangeType={rangeType} onRangeType={setRangeType}
+              customFrom={customFrom} customTo={customTo}
+              onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
+              granularity={granularity} onGranularity={setGranularity}
+              onRefresh={() => load(true)} refreshing={refreshing}
+            />
+          </div>
         </div>
-        <div className="flex flex-wrap items-end justify-end gap-2">
-          <button onClick={() => setReportsOpen(true)} className="btn-primary !px-3 !py-2 text-xs shrink-0">
-            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> {t('rp_export_label')}
-          </button>
-          <AnalyticsToolbar
-            rangeType={rangeType} onRangeType={setRangeType}
-            customFrom={customFrom} customTo={customTo}
-            onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
-            granularity={granularity} onGranularity={setGranularity}
-            onRefresh={() => load(true)} refreshing={refreshing}
-          />
-        </div>
-      </div>
+      </section>
 
       <ReportsPanel open={reportsOpen} onClose={() => setReportsOpen(false)} />
 

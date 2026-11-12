@@ -48,20 +48,31 @@ interface AnalyticsToolbarProps {
   onGranularity?: (v: Granularity) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  /** 'embedded' drops the outer card so the toolbar can sit inside a page header. */
+  variant?: 'card' | 'embedded';
 }
 
 export default function AnalyticsToolbar({
   rangeType, onRangeType, customFrom, customTo, onCustomFrom, onCustomTo,
-  granularity, onGranularity, onRefresh, refreshing,
+  granularity, onGranularity, onRefresh, refreshing, variant = 'card',
 }: AnalyticsToolbarProps) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language || 'en').slice(0, 2);
   return (
-    <div className="flex flex-wrap items-center gap-3 bg-surface/60 backdrop-blur p-2 rounded-2xl border border-border/60 shadow-sm">
+    <div className={variant === 'embedded'
+      ? 'flex flex-1 flex-wrap items-center gap-3'
+      : 'flex flex-wrap items-center gap-3 bg-surface/60 backdrop-blur p-2 rounded-2xl border border-border/60 shadow-sm'}>
+      {variant === 'embedded' && (
+        <div className="hidden items-center gap-2 pr-1 md:flex">
+          <CalendarRange className="h-4 w-4 text-emerald-500" />
+          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-text-secondary">{t('an_period')}</span>
+        </div>
+      )}
       <CustomSelect
         value={rangeType}
         onChange={onRangeType}
         className="w-48 text-sm font-semibold shadow-sm"
+        icon={<CalendarRange className="h-4 w-4 text-emerald-500" />}
         options={RANGE_PRESETS.map(p => ({ value: p.value, label: t(p.key) }))}
       />
       {rangeType === 'custom' && (
@@ -89,12 +100,13 @@ export default function AnalyticsToolbar({
       {onGranularity && (
         <>
           <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
-          <div className="flex bg-surface rounded-xl p-0.5 border border-border/60">
+          <div className="flex rounded-xl border border-border/60 bg-card p-1 shadow-sm">
             {(['day', 'week', 'month'] as Granularity[]).map(g => (
               <button
                 key={g}
+                type="button"
                 onClick={() => onGranularity(g)}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${granularity === g ? 'bg-white text-primary shadow-sm border border-primary/20' : 'text-text-secondary hover:text-text'}`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${granularity === g ? 'bg-primary text-white shadow-sm shadow-primary/25' : 'text-text-secondary hover:bg-surface hover:text-text'}`}
               >
                 {g === 'day' ? t('an_daily') : g === 'week' ? t('fin_weekly_lbl') : t('fin_monthly_lbl')}
               </button>
@@ -105,14 +117,15 @@ export default function AnalyticsToolbar({
       <div className="flex-1" />
       {onRefresh && (
         <button
+          type="button"
           onClick={onRefresh}
           title={t('an_refresh')}
-          className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
+          aria-label={t('an_refresh')}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-text-secondary shadow-sm transition-all hover:border-primary/40 hover:text-primary"
         >
           {refreshing ? <LoaderCircle className="w-4 h-4 animate-spin text-primary" /> : <RotateCw className="w-4 h-4" />}
         </button>
       )}
-      <CalendarRange className="w-4 h-4 text-text-secondary hidden md:block" />
     </div>
   );
 }
