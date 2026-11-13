@@ -14,6 +14,7 @@ import {
   Gauge, Repeat2, Eye, EyeOff, Command, MoreHorizontal, PanelRightClose, PanelRightOpen,
   SlidersHorizontal, Lock, Unlock,
   Info,
+  CalendarClock,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -511,10 +512,11 @@ function PlanningMap({
 
 // ─── Order Pool Card ─────────────────────────────────────────────────────────
 function PoolOrderCard({
-  order, selected, onToggle, onDetail, draggingId, setDraggingId,
+  order, selected, onToggle, onDetail, draggingId, setDraggingId, onTouchDragStart,
 }: {
   order: any; selected?: boolean; onToggle?: (id: string, sel: boolean) => void;
   onDetail?: (order: any) => void; draggingId: string | null; setDraggingId: (id: string | null) => void;
+  onTouchDragStart?: (orderId: string, event: React.PointerEvent) => void;
 }) {
   const { t } = useTranslation();
   const pickup = (order.stops || []).find((s: any) => s.type === 'pickup') || order.stops?.[0];
@@ -551,6 +553,7 @@ function PoolOrderCard({
         setDraggingId(order.id);
       }}
       onDragEnd={() => setDraggingId(null)}
+      onPointerDown={(event) => onTouchDragStart?.(order.id, event)}
       onClick={() => onDetail?.(order)}
       className={`group rounded-xl p-2 cursor-pointer transition-all select-none border flex flex-col justify-between ${
         isDragging ? 'opacity-40 scale-95 border-primary shadow-lg bg-primary/5'
@@ -1024,6 +1027,7 @@ function ResourceRow({
 
   return (
     <div
+      data-resource-id={resource.id}
       className={`flex border-b-2 border-border group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}
       style={{ minWidth: `${224 + calcTimelineWidth}px`, minHeight: `${renderedRowHeight}px` }}
       data-resource-id={resource.id}
@@ -2742,6 +2746,8 @@ export default function PlanningPage() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [redateOpen, setRedateOpen] = useState(false);
+  const [touchDrag, setTouchDrag] = useState<{ orderId: string; x: number; y: number } | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsData, setSuggestionsData] = useState<any>(null);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -3241,6 +3247,50 @@ export default function PlanningPage() {
     }
   };
 
+  /**
+   * Touch drag: HTML5 drag-and-drop does not fire on touch devices, so a long
+   * press (350 ms) starts a pointer drag and the drop is resolved against the
+   * timeline row under the finger. The assignment itself still goes through
+   * the same preflight as a mouse drop.
+   */
+  const beginTouchDrag = (orderId: string, event: React.PointerEvent) => {
+    if (event.pointerType !== 'touch') return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let moved = false;
+    let armed = false;
+    const timer = window.setTimeout(() => {
+      if (moved) return;
+      armed = true;
+      setTouchDrag({ orderId, x: startX, y: startY });
+    }, 350);
+
+    const move = (moveEvent: PointerEvent) => {
+      if (!armed) {
+        if (Math.abs(moveEvent.clientX - startX) > 8 || Math.abs(moveEvent.clientY - startY) > 8) moved = true;
+        return;
+      }
+      moveEvent.preventDefault();
+      setTouchDrag({ orderId, x: moveEvent.clientX, y: moveEvent.clientY });
+    };
+
+    const finish = (endEvent: PointerEvent) => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      if (!armed) return;
+      setTouchDrag(null);
+      const row = document.elementFromPoint(endEvent.clientX, endEvent.clientY)?.closest('[data-resource-id]') as HTMLElement | null;
+      const resourceId = row?.getAttribute('data-resource-id');
+      if (resourceId) void handleDropOrder(resourceId, orderId);
+    };
+
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  };
+
   const handleDropOrder = async (resourceId: string, droppedOrderId?: string) => {
     if (resourceId === '__unassigned_trips__') {
       toast.error(t('drop_unassigned_err', 'Please drop the order onto a valid truck row.'));
@@ -3682,6 +3732,28 @@ export default function PlanningPage() {
     if (failed) toast.error(t('bulk_send_partial', 'Sent {{sent}}, failed {{failed}}.', { sent, failed }));
     else toast.success(t('bulk_send_done', 'Sent {{count}} trips to drivers.', { count: sent }));
     await loadData(true);
+  };
+
+  const bulkShiftDates = async (days: number) => {
+    const ids = Array.from(selectedPoolOrderIds);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const result = await planningApi.bulkShiftOrderDates(ids, days);
+      if (result.shifted > 0) {
+        toast.success(t('bulk_shift_done', '{{count}} orders moved by {{days}} days.', { count: result.shifted, days }));
+      }
+      if (result.skipped.length > 0) {
+        toast.error(t('bulk_shift_skipped', '{{count}} orders were not moved because their trip is already running.', { count: result.skipped.length }));
+      }
+      setSelectedPoolOrderIds(new Set());
+      setRedateOpen(false);
+      loadData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('action_failed', 'Action failed'));
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const bulkAssignRecommended = async () => {
@@ -4817,6 +4889,37 @@ export default function PlanningPage() {
                 {t('drag_hint', 'Drag orders onto truck rows to assign')}
               </span>
               <span className="min-w-2 flex-1" />
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => setRedateOpen((value) => !value)}
+                  aria-expanded={redateOpen}
+                  className="flex h-6 items-center gap-1 rounded-md border border-border bg-card px-1.5 text-[10px] font-bold text-text-secondary transition-colors hover:text-text-primary disabled:opacity-40"
+                  title={t('bulk_redate', 'Move dates')}
+                >
+                  <CalendarClock className="h-3 w-3" />
+                  {t('bulk_redate', 'Move dates')}
+                </button>
+                {redateOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setRedateOpen(false)} />
+                    <div className="absolute right-0 top-7 z-50 w-44 rounded-lg border border-border bg-card p-1 shadow-xl">
+                      {[1, 3, 7, -1].map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => void bulkShiftDates(days)}
+                          className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-bold text-text-primary transition-colors hover:bg-surface"
+                        >
+                          <span>{days > 0 ? `+${days}` : days} {t('days_short', 'days')}</span>
+                          <span className="text-[9px] text-text-muted">{t('bulk_redate_hint', 'customer dates')}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <button
                 type="button"
                 disabled={bulkBusy}
@@ -4836,6 +4939,16 @@ export default function PlanningPage() {
               </button>
             </>
           )}
+        </div>
+      )}
+
+{/* Touch drag ghost: the finger covers the card, so the target row needs a marker. */}
+      {touchDrag && (
+        <div
+          className="pointer-events-none fixed z-[999] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-primary bg-card px-2 py-1 text-[10px] font-black text-primary shadow-2xl"
+          style={{ left: touchDrag.x, top: touchDrag.y }}
+        >
+          {t('drop_on_truck', 'Drop on a truck row')}
         </div>
       )}
 
@@ -4958,6 +5071,7 @@ export default function PlanningPage() {
                       onToggle={(id, sel) => { const next = new Set(selectedPoolOrderIds); if (sel) next.add(id); else next.delete(id); setSelectedPoolOrderIds(next); }}
                       onDetail={order => setSelectedOrderId(order.id)}
                       draggingId={draggingOrderId} setDraggingId={setDraggingOrderId}
+                      onTouchDragStart={beginTouchDrag}
                     />
                   ))
                 )}

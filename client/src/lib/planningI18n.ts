@@ -2,6 +2,17 @@
 // Registered into i18next via addResourceBundle-style merge in i18n.ts (before init).
 
 const en: Record<string, string> = {
+  stop_waiting: "Waiting (min)",
+  stop_waiting_hint: "Handling time at this stop, used for the arrival projection.",
+  stop_pallets: "Pallets",
+  stop_weight: "Weight (kg)",
+  stop_ldm: "LDM",
+  bulk_redate: "Move dates",
+  bulk_redate_hint: "customer dates",
+  bulk_shift_done: "{{count}} orders moved by {{days}} days.",
+  bulk_shift_skipped: "{{count}} orders were not moved because their trip is already running.",
+  days_short: "days",
+  drop_on_truck: "Drop on a truck row",
   ins_title: 'Insertion preview',
   ins_loading: 'Evaluating every insertion position…',
   ins_none: 'No feasible insertion position.',
@@ -797,6 +808,17 @@ const en: Record<string, string> = {
 };
 
 const ro: Record<string, string> = {
+  stop_waiting: "Așteptare (min)",
+  stop_waiting_hint: "Timp de manipulare la această oprire, folosit la proiecția sosirii.",
+  stop_pallets: "Paleți",
+  stop_weight: "Greutate (kg)",
+  stop_ldm: "LDM",
+  bulk_redate: "Mută datele",
+  bulk_redate_hint: "datele clientului",
+  bulk_shift_done: "{{count}} comenzi mutate cu {{days}} zile.",
+  bulk_shift_skipped: "{{count}} comenzi nu au fost mutate: cursa e deja în execuție.",
+  days_short: "zile",
+  drop_on_truck: "Lasă pe un rând de camion",
   ins_title: 'Previzualizare inserare',
   ins_loading: 'Se evaluează fiecare poziție de inserare…',
   ins_none: 'Nicio poziție de inserare fezabilă.',
@@ -1526,6 +1548,17 @@ const ro: Record<string, string> = {
 };
 
 const nl: Record<string, string> = {
+  stop_waiting: "Wachttijd (min)",
+  stop_waiting_hint: "Behandeltijd bij deze stop, gebruikt voor de aankomstprognose.",
+  stop_pallets: "Pallets",
+  stop_weight: "Gewicht (kg)",
+  stop_ldm: "LDM",
+  bulk_redate: "Datums verplaatsen",
+  bulk_redate_hint: "klantdatums",
+  bulk_shift_done: "{{count}} orders met {{days}} dagen verplaatst.",
+  bulk_shift_skipped: "{{count}} orders zijn niet verplaatst: de rit is al onderweg.",
+  days_short: "dagen",
+  drop_on_truck: "Sleep op een vrachtwagenrij",
   ins_title: 'Invoegvoorbeeld',
   ins_loading: 'Elke invoegpositie wordt beoordeeld…',
   ins_none: 'Geen haalbare invoegpositie.',
@@ -2255,6 +2288,17 @@ const nl: Record<string, string> = {
 };
 
 const de: Record<string, string> = {
+  stop_waiting: "Wartezeit (min)",
+  stop_waiting_hint: "Bearbeitungszeit an diesem Stopp, genutzt für die Ankunftsprognose.",
+  stop_pallets: "Paletten",
+  stop_weight: "Gewicht (kg)",
+  stop_ldm: "LDM",
+  bulk_redate: "Daten verschieben",
+  bulk_redate_hint: "Kundendaten",
+  bulk_shift_done: "{{count}} Aufträge um {{days}} Tage verschoben.",
+  bulk_shift_skipped: "{{count}} Aufträge wurden nicht verschoben: Die Tour läuft bereits.",
+  days_short: "Tage",
+  drop_on_truck: "Auf eine LKW-Zeile ziehen",
   ins_title: 'Einfügevorschau',
   ins_loading: 'Jede Einfügeposition wird bewertet…',
   ins_none: 'Keine machbare Einfügeposition.',
@@ -2984,6 +3028,17 @@ const de: Record<string, string> = {
 };
 
 const fr: Record<string, string> = {
+  stop_waiting: "Attente (min)",
+  stop_waiting_hint: "Temps de manutention à cet arrêt, utilisé pour la projection d'arrivée.",
+  stop_pallets: "Palettes",
+  stop_weight: "Poids (kg)",
+  stop_ldm: "LDM",
+  bulk_redate: "Décaler les dates",
+  bulk_redate_hint: "dates client",
+  bulk_shift_done: "{{count}} commandes décalées de {{days}} jours.",
+  bulk_shift_skipped: "{{count}} commandes n'ont pas été déplacées : la tournée est déjà en cours.",
+  days_short: "jours",
+  drop_on_truck: "Déposer sur une ligne camion",
   ins_title: 'Aperçu de l’insertion',
   ins_loading: 'Évaluation de chaque position d’insertion…',
   ins_none: 'Aucune position d’insertion réalisable.',
@@ -3713,6 +3768,17 @@ const fr: Record<string, string> = {
 };
 
 const es: Record<string, string> = {
+  stop_waiting: "Espera (min)",
+  stop_waiting_hint: "Tiempo de manipulación en esta parada, usado para la proyección de llegada.",
+  stop_pallets: "Palets",
+  stop_weight: "Peso (kg)",
+  stop_ldm: "LDM",
+  bulk_redate: "Mover fechas",
+  bulk_redate_hint: "fechas del cliente",
+  bulk_shift_done: "{{count}} pedidos movidos {{days}} días.",
+  bulk_shift_skipped: "{{count}} pedidos no se movieron: el viaje ya está en curso.",
+  days_short: "días",
+  drop_on_truck: "Suelta en una fila de camión",
   ins_title: 'Vista previa de inserción',
   ins_loading: 'Evaluando cada posición de inserción…',
   ins_none: 'Ninguna posición de inserción viable.',
@@ -4526,6 +4592,17 @@ const es: Record<string, string> = {
 };
 
 const pl: Record<string, string> = {
+  stop_waiting: "Oczekiwanie (min)",
+  stop_waiting_hint: "Czas obsługi na tym przystanku, używany do prognozy przyjazdu.",
+  stop_pallets: "Palety",
+  stop_weight: "Waga (kg)",
+  stop_ldm: "LDM",
+  bulk_redate: "Przesuń daty",
+  bulk_redate_hint: "daty klienta",
+  bulk_shift_done: "{{count}} zleceń przesunięto o {{days}} dni.",
+  bulk_shift_skipped: "{{count}} zleceń nie zostało przesuniętych: trwa już trasa.",
+  days_short: "dni",
+  drop_on_truck: "Upuść na wiersz ciężarówki",
   ins_title: 'Podgląd wstawienia',
   ins_loading: 'Ocenianie każdej pozycji wstawienia…',
   ins_none: 'Brak wykonalnej pozycji wstawienia.',

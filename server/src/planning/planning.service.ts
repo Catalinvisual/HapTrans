@@ -157,6 +157,7 @@ export interface RouteValidationResult {
 }
 
 import { reschedulePlan } from './reschedule';
+import { BulkShiftDaysError, BulkShiftStopResult, MAX_BULK_SHIFT_DAYS, canShiftOrder, shiftOrderStops, validateShiftDays } from './bulk-shift';
 import { validateAdrMatrix } from './validate-adr-matrix';
 export { validateAdrMatrix };
 
@@ -3295,6 +3296,77 @@ export class PlanningService {
       stops: plan.stops,
       windowViolations: plan.windowViolations,
       undoAvailable: true,
+    };
+  }
+
+  /**
+   * Move a selection of unplanned orders to a new date.
+   *
+   * Only the customer's requested dates move; the trips they may later be
+   * planned on are untouched. Orders already on a running trip are skipped and
+   * reported instead of being silently moved out from under a driver.
+   */
+  async bulkShiftOrderDates(user: any, orderIds: string[], days: unknown) {
+    let shiftDays: number;
+    try {
+      shiftDays = validateShiftDays(days);
+    } catch (err: any) {
+      throw new BadRequestException(
+        err instanceof BulkShiftDaysError && err.reason === 'max'
+          ? `At most ${MAX_BULK_SHIFT_DAYS} days can be shifted at once.`
+          : 'days must be a non-zero whole number.',
+      );
+    }
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      throw new BadRequestException('orderIds is required.');
+    }
+
+    const ids = [...new Set(orderIds.filter((id) => typeof id === 'string' && id))].slice(0, 200);
+    const manager = this.tripRepo.manager;
+    const orders = await manager.find(Order, {
+      where: { id: In(ids) },
+      relations: ['stops', 'trip', 'company'],
+    });
+
+    const skipped: { orderId: string; reason: string }[] = [];
+    const shifted: { orderId: string; orderNumber: string; stops: BulkShiftStopResult[] }[] = [];
+
+    for (const order of orders) {
+      const orderCompanyId = (order as any).company?.id;
+      if (user?.companyId && orderCompanyId && String(orderCompanyId) !== String(user.companyId)) {
+        skipped.push({ orderId: order.id, reason: 'company' });
+        continue;
+      }
+      if (!canShiftOrder(order)) {
+        skipped.push({ orderId: order.id, reason: 'in_execution' });
+        continue;
+      }
+      const stops = shiftOrderStops((order as any).stops || [], shiftDays);
+      if (stops.length === 0) {
+        skipped.push({ orderId: order.id, reason: 'no_dates' });
+        continue;
+      }
+      for (const stop of stops) {
+        // Date-only columns are typed as strings; a cleared date is stored as null.
+        await manager.update(OrderStop, stop.id, { dateFrom: stop.dateFrom, dateTo: stop.dateTo } as any);
+      }
+      await this.actionLogs?.logAction('Order', order.id, 'ORDER_DATES_SHIFTED', user, {
+        days: shiftDays,
+        stops: stops.map((stop) => ({ id: stop.id, dateFrom: stop.dateFrom, dateTo: stop.dateTo })),
+      });
+      shifted.push({
+        orderId: order.id,
+        orderNumber: (order as any).orderNumber || order.id,
+        stops,
+      });
+    }
+
+    return {
+      days: shiftDays,
+      shifted: shifted.length,
+      skipped,
+      orders: shifted,
+      missing: Math.max(0, ids.length - orders.length),
     };
   }
 

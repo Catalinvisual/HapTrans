@@ -9,6 +9,10 @@ export const STOP_CHANGE_FIELDS = [
   'notes',
   'timeWindowMin',
   'timeWindowMax',
+  'waitingMinutes',
+  'pallets',
+  'weightKg',
+  'ldm',
 ] as const;
 
 export type StopChangeField = (typeof STOP_CHANGE_FIELDS)[number];
@@ -36,13 +40,13 @@ export function diffStopChanges(before: any, patch: any): StopChange[] {
 }
 
 const LABELS: Record<NotificationLanguage, Record<StopChangeField, string>> = {
-  ro: { address: 'adresă', city: 'oraș', contactPerson: 'persoană de contact', phone: 'telefon', reference: 'referință', notes: 'instrucțiuni', timeWindowMin: 'început fereastră', timeWindowMax: 'sfârșit fereastră' },
-  en: { address: 'address', city: 'city', contactPerson: 'contact person', phone: 'phone', reference: 'reference', notes: 'instructions', timeWindowMin: 'window start', timeWindowMax: 'window end' },
-  nl: { address: 'adres', city: 'stad', contactPerson: 'contactpersoon', phone: 'telefoon', reference: 'referentie', notes: 'instructies', timeWindowMin: 'start tijdvenster', timeWindowMax: 'einde tijdvenster' },
-  de: { address: 'Adresse', city: 'Ort', contactPerson: 'Ansprechpartner', phone: 'Telefon', reference: 'Referenz', notes: 'Anweisungen', timeWindowMin: 'Zeitfenster Beginn', timeWindowMax: 'Zeitfenster Ende' },
-  fr: { address: 'adresse', city: 'ville', contactPerson: 'personne de contact', phone: 'téléphone', reference: 'référence', notes: 'instructions', timeWindowMin: 'début de créneau', timeWindowMax: 'fin de créneau' },
-  es: { address: 'dirección', city: 'ciudad', contactPerson: 'persona de contacto', phone: 'teléfono', reference: 'referencia', notes: 'instrucciones', timeWindowMin: 'inicio de ventana', timeWindowMax: 'fin de ventana' },
-  pl: { address: 'adres', city: 'miasto', contactPerson: 'osoba kontaktowa', phone: 'telefon', reference: 'referencja', notes: 'instrukcje', timeWindowMin: 'początek okna', timeWindowMax: 'koniec okna' },
+  ro: { address: 'adresă', city: 'oraș', contactPerson: 'persoană de contact', phone: 'telefon', reference: 'referință', notes: 'instrucțiuni', timeWindowMin: 'început fereastră', timeWindowMax: 'sfârșit fereastră', waitingMinutes: 'timp de așteptare', pallets: 'paleți', weightKg: 'greutate (kg)', ldm: 'LDM' },
+  en: { address: 'address', city: 'city', contactPerson: 'contact person', phone: 'phone', reference: 'reference', notes: 'instructions', timeWindowMin: 'window start', timeWindowMax: 'window end', waitingMinutes: 'waiting time', pallets: 'pallets', weightKg: 'weight (kg)', ldm: 'LDM' },
+  nl: { address: 'adres', city: 'stad', contactPerson: 'contactpersoon', phone: 'telefoon', reference: 'referentie', notes: 'instructies', timeWindowMin: 'start tijdvenster', timeWindowMax: 'einde tijdvenster', waitingMinutes: 'wachttijd', pallets: 'pallets', weightKg: 'gewicht (kg)', ldm: 'LDM' },
+  de: { address: 'Adresse', city: 'Ort', contactPerson: 'Ansprechpartner', phone: 'Telefon', reference: 'Referenz', notes: 'Anweisungen', timeWindowMin: 'Zeitfenster Beginn', timeWindowMax: 'Zeitfenster Ende', waitingMinutes: 'Wartezeit', pallets: 'Paletten', weightKg: 'Gewicht (kg)', ldm: 'LDM' },
+  fr: { address: 'adresse', city: 'ville', contactPerson: 'personne de contact', phone: 'téléphone', reference: 'référence', notes: 'instructions', timeWindowMin: 'début de créneau', timeWindowMax: 'fin de créneau', waitingMinutes: "temps d'attente", pallets: 'palettes', weightKg: 'poids (kg)', ldm: 'LDM' },
+  es: { address: 'dirección', city: 'ciudad', contactPerson: 'persona de contacto', phone: 'teléfono', reference: 'referencia', notes: 'instrucciones', timeWindowMin: 'inicio de ventana', timeWindowMax: 'fin de ventana', waitingMinutes: 'tiempo de espera', pallets: 'palets', weightKg: 'peso (kg)', ldm: 'LDM' },
+  pl: { address: 'adres', city: 'miasto', contactPerson: 'osoba kontaktowa', phone: 'telefon', reference: 'referencja', notes: 'instrukcje', timeWindowMin: 'początek okna', timeWindowMax: 'koniec okna', waitingMinutes: 'czas oczekiwania', pallets: 'palety', weightKg: 'waga (kg)', ldm: 'LDM' },
 };
 
 const TITLES: Record<NotificationLanguage, string> = {

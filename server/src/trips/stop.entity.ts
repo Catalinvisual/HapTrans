@@ -86,6 +86,20 @@ export class Stop {
   @Column({ nullable: true })
   distanceToStopKm: number;
 
+  // What happens at this stop, independent of the order totals: a multi-stop
+  // trip can load part of the cargo here and wait for a specific time.
+  @Column({ type: 'int', nullable: true })
+  waitingMinutes: number;
+
+  @Column({ type: 'int', nullable: true })
+  pallets: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  weightKg: number;
+
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  ldm: number;
+
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
 

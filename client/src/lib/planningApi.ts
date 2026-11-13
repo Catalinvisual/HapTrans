@@ -305,6 +305,11 @@ export const planningApi = {
     const { data } = await api.post(`/planning/trips/${tripId}/reschedule`, { plannedDeparture });
     return data;
   },
+  /** Move the customer dates of the selected unplanned orders by whole days. */
+  bulkShiftOrderDates: async (orderIds: string[], days: number) => {
+    const { data } = await api.post('/planning/orders/bulk-shift', { orderIds, days });
+    return data as { days: number; shifted: number; skipped: { orderId: string; reason: string }[]; missing: number };
+  },
   moveOrder: async (payload: { orderId?: string; orderIds?: string[]; targetTripId?: string; tripId?: string }) => {
     const { data } = await api.post('/planning/move', payload);
     return data;

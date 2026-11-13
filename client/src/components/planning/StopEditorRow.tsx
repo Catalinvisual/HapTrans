@@ -11,7 +11,18 @@ export interface StopPatch {
   phone?: string;
   reference?: string;
   notes?: string;
+  waitingMinutes?: number | null;
+  pallets?: number | null;
+  weightKg?: number | null;
+  ldm?: number | null;
 }
+
+const toNumberOrNull = (value: string): number | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 /**
  * Editable stop row.
@@ -49,8 +60,12 @@ export default function StopEditorRow({
       phone: String(stop?.phone || ''),
       reference: String(stop?.reference || ''),
       notes: String(stop?.notes || ''),
+      waitingMinutes: stop?.waitingMinutes == null ? '' : String(stop.waitingMinutes),
+      pallets: stop?.pallets == null ? '' : String(stop.pallets),
+      weightKg: stop?.weightKg == null ? '' : String(Number(stop.weightKg)),
+      ldm: stop?.ldm == null ? '' : String(Number(stop.ldm)),
     }),
-    [stop?.id, stop?.timeWindowMin, stop?.timeWindowMax, stop?.contactPerson, stop?.phone, stop?.reference, stop?.notes],
+    [stop?.id, stop?.timeWindowMin, stop?.timeWindowMax, stop?.contactPerson, stop?.phone, stop?.reference, stop?.notes, stop?.waitingMinutes, stop?.pallets, stop?.weightKg, stop?.ldm],
   );
 
   const [form, setForm] = useState(initial);
@@ -62,7 +77,11 @@ export default function StopEditorRow({
     form.contactPerson !== initial.contactPerson ||
     form.phone !== initial.phone ||
     form.reference !== initial.reference ||
-    form.notes !== initial.notes;
+    form.notes !== initial.notes ||
+    form.waitingMinutes !== initial.waitingMinutes ||
+    form.pallets !== initial.pallets ||
+    form.weightKg !== initial.weightKg ||
+    form.ldm !== initial.ldm;
 
   const invalidWindow =
     Boolean(form.windowStart) &&
@@ -78,6 +97,10 @@ export default function StopEditorRow({
       phone: form.phone.trim(),
       reference: form.reference.trim(),
       notes: form.notes.trim(),
+      waitingMinutes: toNumberOrNull(form.waitingMinutes),
+      pallets: toNumberOrNull(form.pallets),
+      weightKg: toNumberOrNull(form.weightKg),
+      ldm: toNumberOrNull(form.ldm),
     });
   };
 
@@ -114,6 +137,65 @@ export default function StopEditorRow({
             disabled={!canEdit}
             min={form.windowStart || undefined}
             onChange={(event) => setForm((prev) => ({ ...prev, windowEnd: event.target.value }))}
+            className={field}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[8px] font-black uppercase tracking-wide text-text-muted">
+            {t('stop_waiting', 'Waiting (min)')}
+          </span>
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={form.waitingMinutes}
+            disabled={!canEdit}
+            onChange={(event) => setForm((prev) => ({ ...prev, waitingMinutes: event.target.value }))}
+            className={field}
+            title={t('stop_waiting_hint', 'Handling time at this stop, used for the arrival projection.')}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[8px] font-black uppercase tracking-wide text-text-muted">
+            {t('stop_pallets', 'Pallets')}
+          </span>
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={form.pallets}
+            disabled={!canEdit}
+            onChange={(event) => setForm((prev) => ({ ...prev, pallets: event.target.value }))}
+            className={field}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[8px] font-black uppercase tracking-wide text-text-muted">
+            {t('stop_weight', 'Weight (kg)')}
+          </span>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            inputMode="decimal"
+            value={form.weightKg}
+            disabled={!canEdit}
+            onChange={(event) => setForm((prev) => ({ ...prev, weightKg: event.target.value }))}
+            className={field}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[8px] font-black uppercase tracking-wide text-text-muted">
+            {t('stop_ldm', 'LDM')}
+          </span>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            inputMode="decimal"
+            value={form.ldm}
+            disabled={!canEdit}
+            onChange={(event) => setForm((prev) => ({ ...prev, ldm: event.target.value }))}
             className={field}
           />
         </label>

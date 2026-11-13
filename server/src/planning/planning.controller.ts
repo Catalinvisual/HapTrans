@@ -74,6 +74,12 @@ export class PlanningController {
     return this.planningService.unplanOrders(req.user, body);
   }
 
+  /** Bulk re-date: moves the customer dates of the selected orders. */
+  @Post('orders/bulk-shift')
+  bulkShiftOrderDates(@Request() req: any, @Body() body: any) {
+    return this.planningService.bulkShiftOrderDates(req.user, body?.orderIds || [], body?.days);
+  }
+
   @Post('move')
   moveOrder(@Request() req: any, @Body() body: any) {
     return this.planningService.moveOrder(req.user, body);
