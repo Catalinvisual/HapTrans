@@ -107,8 +107,16 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
   it('records who changed which stop, with the source derived from the account', async () => {
     await service.updateStopStatus('stop-1', 'arrived', driverUser);
 
-    expect(actionLogs.logAction).toHaveBeenCalledTimes(1);
-    const [entityType, entityId, action, , details, , source] = actionLogs.logAction.mock.calls[0];
+    // The stop action writes the trip audit entry and mirrors the customer
+    // stage onto the order. Both are expected; only the trip entry carries the
+    // stop scope, so the assertion is scoped to it instead of counting every
+    // log call.
+    const tripLogs = actionLogs.logAction.mock.calls.filter((call: any[]) => call[0] === 'Trip');
+    const orderLogs = actionLogs.logAction.mock.calls.filter((call: any[]) => call[0] === 'Order');
+    expect(tripLogs).toHaveLength(1);
+    expect(orderLogs).toHaveLength(1);
+    expect(orderLogs[0][1]).toBe('order-1');
+    const [entityType, entityId, action, , details, , source] = tripLogs[0];
     expect(entityType).toBe('Trip');
     expect(entityId).toBe('trip-1');
     expect(action).toBe('STATUS_CHANGED');
