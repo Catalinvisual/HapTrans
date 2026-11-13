@@ -10,7 +10,7 @@
  * trip, and each entry keeps its trip id for the click handler.
  */
 
-export const TIMELINE_CARD_HEIGHT = 60;
+export const TIMELINE_CARD_HEIGHT = 64;
 export const TIMELINE_LANE_HEIGHT = 68;
 export const TIMELINE_LANE_GAP = 8;
 export const TIMELINE_MIN_CARD_MINUTES = 30;

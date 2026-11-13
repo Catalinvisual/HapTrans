@@ -62,6 +62,11 @@ export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
+  // "New transport" from the planning board lands here with ?new=1; the wizard
+  // opens on arrival instead of a dead /orders/new route that 404s.
+  useEffect(() => {
+    if (searchParams.get('new') === '1') setIsModalOpen(true);
+  }, [searchParams]);
   // Integrated module tabs: Orders (+ transport orders) and Quote Requests.
   // Tab switching is handled in the topbar (Layout.tsx).
   const showQuotesTab = canSection(user, 'websiteQuotes', 'orders');

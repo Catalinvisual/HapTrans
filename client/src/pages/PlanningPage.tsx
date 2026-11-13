@@ -322,6 +322,9 @@ function PlanningMap({
   const mapInstance = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  // Clicking a truck shows the truck itself (driver, position, active trip)
+  // instead of jumping straight into a trip the dispatcher did not ask for.
+  const [vehicleCard, setVehicleCard] = useState<any>(null);
   const [layersOpen, setLayersOpen] = useState(false);
   const [showRoutes, setShowRoutes] = useState(true);
   const [showVehicles, setShowVehicles] = useState(true);
@@ -409,7 +412,7 @@ function PlanningMap({
         el.className = 'flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-bold border-2 border-white shadow-md cursor-pointer';
         el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>${v.plateNumber || '?'}`;
         const marker = new maplibregl.Marker({ element: el }).setLngLat([v.lng, v.lat]).addTo(map);
-        if (v.tripId) el.addEventListener('click', () => onSelectTrip(v.tripId));
+        el.addEventListener('click', () => setVehicleCard(v));
         markersRef.current.push(marker);
       }
     }
@@ -468,6 +471,55 @@ function PlanningMap({
   return (
     <div className="relative h-full w-full">
       <div ref={mapRef} className="h-full w-full" />
+      {vehicleCard && (
+        <div className="absolute left-2 top-2 z-30 w-60 overflow-hidden rounded-xl border border-border bg-card shadow-xl">
+          <div className="flex items-center justify-between gap-2 border-b border-border bg-surface/60 px-2.5 py-1.5">
+            <span className="flex items-center gap-1.5 text-[11px] font-black text-text-primary">
+              <TruckIcon className="h-3.5 w-3.5 text-primary" />
+              {vehicleCard.plateNumber || t('map_truck_title', 'Truck')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setVehicleCard(null)}
+              className="rounded p-0.5 text-text-muted transition-colors hover:text-text-primary"
+              title={t('map_truck_close', 'Close')}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="space-y-1.5 p-2.5">
+            <div className="flex items-center justify-between gap-2 text-[10px]">
+              <span className="text-text-muted">{t('map_truck_driver', 'Driver')}</span>
+              <span className="truncate font-bold text-text-primary">{vehicleCard.driver || t('map_truck_no_driver', 'Unassigned')}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-[10px]">
+              <span className="text-text-muted">{t('map_truck_status', 'Status')}</span>
+              <span className="rounded-full border border-border bg-surface px-1.5 py-0.5 text-[9px] font-black uppercase text-text-secondary">
+                {String(vehicleCard.status || '—').replace(/_/g, ' ')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-[10px]">
+              <span className="text-text-muted">{t('map_truck_position', 'Position')}</span>
+              <span className="font-mono text-[9px] font-bold tabular-nums text-text-secondary">
+                {Number(vehicleCard.lat).toFixed(3)}, {Number(vehicleCard.lng).toFixed(3)}
+              </span>
+            </div>
+            {vehicleCard.tripId ? (
+              <button
+                type="button"
+                onClick={() => { onSelectTrip(String(vehicleCard.tripId)); setVehicleCard(null); }}
+                className="mt-1 flex h-7 w-full items-center justify-center gap-1.5 rounded-lg bg-orange-500 text-[10px] font-black text-white transition-colors hover:bg-orange-600"
+              >
+                {t('map_truck_open_trip', 'Open current trip')}
+              </button>
+            ) : (
+              <p className="rounded-lg bg-surface px-2 py-1.5 text-[10px] font-semibold text-text-muted">
+                {t('map_truck_no_trip', 'No active trip')}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
       {/* Layers start collapsed so the map itself is the first thing you see. */}
       <button
         type="button"
@@ -749,16 +801,6 @@ function TripBlock({
                 {trip.truck?.plateNumber || trip.truckPlate}
               </span>
             )}
-            {ordinalTotal > 1 && !isVeryNarrow && (
-              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm bg-card/70 border border-border/70 text-text-secondary" title={t('timeline_trip_sequence', 'Trip {{current}} of {{total}} on this resource', { current: ordinal, total: ordinalTotal })}>
-                {ordinal}/{ordinalTotal}
-              </span>
-            )}
-            {ordersCount > 1 && !isVeryNarrow && (
-              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm bg-primary/15 text-primary border border-primary/30" title={t('timeline_multi_order', 'Grouped trip containing multiple orders')}>
-                {ordersCount} {t('timeline_orders_short', 'ORD')}
-              </span>
-            )}
             {!isVeryNarrow && (
               <span
                 className="shrink-0 inline-flex items-center gap-1 px-1 py-[1px] rounded text-[7px] font-black uppercase tracking-wide border"
@@ -789,16 +831,6 @@ function TripBlock({
               <span className="shrink-0 inline-flex items-center gap-0.5 text-red-600" title={t('timeline_overlap', 'This trip conflicts with another trip on the same resource')}>
                 <AlertTriangle className="w-2.5 h-2.5" />
                 {!isVeryNarrow && <span className="text-[7px] font-black uppercase">{t('timeline_conflict_short', 'Conflict')}</span>}
-              </span>
-            )}
-            {trip.fleetType === 'subcontractor' && (
-              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30" title={`Subcontractor: ${trip.carrierName || 'External'}`}>
-                SUB
-              </span>
-            )}
-            {trip.fleetType === 'charter' && (
-              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-pink-500/20 text-pink-700 dark:text-pink-300 border border-pink-500/30" title="Spot Charter Carrier">
-                CHARTER
               </span>
             )}
             {tripIsAdr(trip) && (
@@ -834,8 +866,11 @@ function TripBlock({
               {!isNarrow && ordersCount > 0 && (
                 <span className="truncate text-text-muted">· {orderRefs.length > 1 ? `${ordersCount} ${t('timeline_orders_short', 'ORD')}` : orderRefs[0]}</span>
               )}
-              {!isNarrow && driverName && (
-                <span className="truncate text-text-muted">· {driverName}</span>
+              {!isNarrow && ordersCount > 1 && (
+                <span className="truncate text-text-muted">· {ordersCount} {t('timeline_orders_short', 'ORD')}</span>
+              )}
+              {!isNarrow && ordinalTotal > 1 && (
+                <span className="truncate text-text-muted">· {ordinal}/{ordinalTotal}</span>
               )}
             </div>
           )}
@@ -1060,10 +1095,10 @@ function ResourceRow({
               )}
             </div>
             <div className="min-w-0">
-              <p className="font-black text-text-primary text-[12px] leading-tight truncate tracking-tight" title={resource.brand ? `${resource.brand} ${resource.model || ''}` : ''}>
+              <p className="font-black text-text-primary text-[13px] leading-tight truncate tracking-tight" title={resource.brand ? `${resource.brand} ${resource.model || ''}` : ''}>
                 {resource.plateNumber || resource.name || resource.user?.name || '—'}
               </p>
-              <p className="text-[8px] font-bold uppercase tracking-wider text-text-muted truncate leading-tight">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-text-muted truncate leading-tight">
                 {[resource.brand, resource.model].filter(Boolean).join(' ') || (grouping === 'trailer' ? t('trailer', 'Trailer') : t('timeline_vehicle', 'Vehicle'))}
               </p>
             </div>
@@ -1077,7 +1112,7 @@ function ResourceRow({
           </span>
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-text-secondary pl-6">
+        <div className="flex items-center justify-between text-[11px] text-text-secondary pl-6">
           <div className="flex items-center gap-1 min-w-0 truncate">
             {grouping === 'truck' && driverLabel && (
               <>
@@ -1094,7 +1129,7 @@ function ResourceRow({
           </div>
         </div>
 
-        <div className="flex items-center justify-between pl-7 pr-1 text-[9px]">
+        <div className="flex items-center justify-between pl-7 pr-1 text-[10px]">
           <span className={`inline-flex items-center gap-1 font-bold ${laneCount > 1 ? 'text-red-500' : hasTrips ? 'text-text-primary' : 'text-text-muted'}`}>
             <span className={`w-1 h-1 rounded-full ${hasTrips ? 'bg-primary' : 'bg-border'}`} />
             {trips.length} {t('timeline_trips_short', 'trips')}
@@ -4349,7 +4384,7 @@ export default function PlanningPage() {
     { id: 'optimize', label: t('jsx_optimize', 'AI Auto-plan'), run: () => setShowOptimizeModal(true) },
     { id: 'export', label: t('export_planning', 'Export'), run: () => setShowExportModal(true) },
     { id: 'refresh', label: t('jsx_recalc', 'Refresh'), run: () => void loadData() },
-    { id: 'new', label: t('jsx_newTransport', 'New transport'), run: () => navigate('/orders/new') },
+    { id: 'new', label: t('jsx_newTransport', 'New transport'), run: () => navigate('/orders?new=1') },
   ];
   for (const trip of trips.slice(0, 80)) {
     const route = tripOriginDestination(trip);
@@ -4437,11 +4472,11 @@ export default function PlanningPage() {
 
           <button
             type="button"
-            onClick={() => navigate('/orders/new')}
+            onClick={() => navigate('/orders?new=1')}
             className="flex h-8 shrink-0 items-center gap-1.5 rounded-xl bg-orange-500 px-3 text-[11px] font-black text-white shadow-sm transition-colors hover:bg-orange-600"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden lg:inline">{t('jsx_newTransport', 'New transport')}</span>
+            <span className="hidden lg:inline">{t('jsx_newTransport', 'New transport').replace(/^\+\s*/, '')}</span>
           </button>
         </div>
 
@@ -4750,7 +4785,7 @@ export default function PlanningPage() {
 
 {/* ── CONTEXTUAL BAR · appears only when something is selected ── */}
       {(selectedTrip || selectedPoolOrderIds.size > 0) && (
-        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-primary/20 bg-primary/[0.05] px-3 py-1.5 print:hidden">
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-card px-3 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] print:hidden">
           <span className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-primary">
             {t('pv_context', 'Selection')}
           </span>
