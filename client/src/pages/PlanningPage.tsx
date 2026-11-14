@@ -373,7 +373,7 @@ function PlanningMap({
         .filter((r: any) => r.points?.length >= 2 && !hiddenTripIds?.has(String(r.tripId)))
         .map((r: any) => {
         const isDelayed = showTraffic && (r.trafficDelayMinutes > 0 || r.isDelayed);
-        const color = isDelayed ? '#ef4444' : planningTone(r.status).accent;
+        const color = planningTone(isDelayed ? 'delayed' : r.status).accent;
         return {
           type: 'Feature',
           properties: { tripId: r.tripId, color, selected: r.tripId === selectedTripId },
