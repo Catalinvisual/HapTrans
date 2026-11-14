@@ -25,6 +25,7 @@ import DateField from '../components/dashboard/DateField';
 import { useShortcuts } from '../hooks/useShortcuts';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import '../planning-theme.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
 import { useSettingsStore } from '../store/settingsStore';
@@ -4409,7 +4410,7 @@ export default function PlanningPage() {
   }
 
   return (
-    <div className={`flex w-full min-w-0 flex-col gap-0 overflow-hidden bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
+    <div className={`planning-page flex w-full min-w-0 flex-col gap-0 overflow-hidden bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
 
                         {/* ── PLANNING HEADER ─────────────────────────────────────────────── */}
       <header className="shrink-0 border-b border-border bg-gradient-to-b from-surface to-surface/40 print:hidden">

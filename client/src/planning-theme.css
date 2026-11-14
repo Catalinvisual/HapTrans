@@ -1,0 +1,162 @@
+/*
+ * Planning — design layer
+ * ------------------------------------------------------------------
+ * Scoped skin for the planning page. It only overrides design tokens
+ * and presentation, so every feature, data binding, button and i18n
+ * key of PlanningPage stays untouched.
+ */
+
+.planning-page {
+  /* Surfaces */
+  --color-surface: 246 247 249;
+  --color-card: 255 255 255;
+
+  /* Ink */
+  --color-text: 17 20 25;
+  --color-text-secondary: 79 87 98;
+  --color-text-light: 141 149 160;
+  --color-text-muted: 141 149 160;
+
+  /* Hairlines: slightly cooler and quieter than the global gray */
+  --color-border: 228 231 236;
+
+  /* Brand stays the project orange */
+  --color-primary: 255 90 0;
+  --color-primary-dark: 224 77 0;
+  --color-primary-light: 255 241 232;
+
+  font-feature-settings: 'cv05' 1, 'cv08' 1;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark .planning-page {
+  --color-surface: 14 17 22;
+  --color-card: 22 26 33;
+  --color-text: 232 237 243;
+  --color-text-secondary: 156 166 179;
+  --color-text-light: 120 130 143;
+  --color-text-muted: 120 130 143;
+  --color-border: 44 51 62;
+  --color-primary-light: 58 26 8;
+}
+
+/* The page header reads as a single surface, not a faded gradient. */
+@media screen {
+  .planning-page > header {
+    background-image: none !important;
+    background-color: rgb(var(--color-card));
+    border-bottom: 1px solid rgb(var(--color-border));
+  }
+  .planning-page > header .bg-surface\/40,
+  .planning-page > header .bg-surface\/50 {
+    background-color: rgb(var(--color-surface));
+  }
+}
+
+/* Headings and numbers read better with a tighter, tabular rhythm. */
+.planning-page h1,
+.planning-page h2,
+.planning-page h3 {
+  letter-spacing: -0.02em;
+}
+
+.planning-page table td,
+.planning-page table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quieter, crisper cards: one hairline instead of a double border + shadow. */
+.planning-page .shadow-xs {
+  box-shadow: 0 1px 2px rgb(16 20 28 / 0.04);
+}
+
+.planning-page .custom-scrollbar::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.planning-page .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.planning-page .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--color-text-light));
+  background-clip: padding-box;
+}
+
+/* Focus states use the brand colour instead of the browser default. */
+.planning-page :focus-visible {
+  outline: 2px solid rgb(var(--color-primary) / 0.55);
+  outline-offset: 1px;
+}
+
+/* ── Component pass ───────────────────────────────────────────────────
+   Targets the markup that already exists (trip cards, resource rows,
+   result tables). Nothing is renamed and no behaviour is touched.     */
+
+/* Trip cards in the timeline: calmer chrome, clearer elevation on hover. */
+.planning-page [data-trip-id] > div {
+  border-radius: 10px;
+  transition: box-shadow .14s ease, border-color .14s ease, transform .14s ease;
+}
+
+.planning-page [data-trip-id]:hover > div {
+  box-shadow: 0 8px 20px -12px rgb(16 20 28 / 0.45), 0 2px 6px -2px rgb(16 20 28 / 0.12);
+}
+
+.planning-page [data-trip-id].ring-2 > div {
+  transform: translateY(-1px);
+}
+
+/* Resource (truck/driver) column: hairline separation, quieter hover. */
+.planning-page [data-resource-id] {
+  border-bottom-width: 1px;
+}
+
+.planning-page [data-resource-id]:hover {
+  background-color: rgb(var(--color-surface) / 0.65);
+}
+
+/* Result tables: uppercase micro-headers and aligned numbers. */
+.planning-page thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgb(var(--color-text-muted));
+}
+
+.planning-page tbody tr {
+  transition: background-color .12s ease;
+}
+
+/* Section cards: one consistent radius across the page. */
+.planning-page .rounded-xl {
+  border-radius: 12px;
+}
+
+/* Status pills keep their semantic colour in both themes. */
+.dark .planning-page .bg-emerald-50,
+.dark .planning-page .bg-emerald-100 {
+  background-color: rgb(16 185 129 / 0.14);
+}
+
+.dark .planning-page .bg-blue-50,
+.dark .planning-page .bg-blue-100 {
+  background-color: rgb(59 130 246 / 0.14);
+}
+
+.dark .planning-page .bg-orange-50,
+.dark .planning-page .bg-orange-100 {
+  background-color: rgb(255 90 0 / 0.14);
+}
+
+.dark .planning-page .bg-red-50,
+.dark .planning-page .bg-red-100 {
+  background-color: rgb(239 68 68 / 0.14);
+}
