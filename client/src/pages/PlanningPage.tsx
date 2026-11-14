@@ -5249,20 +5249,9 @@ export default function PlanningPage() {
                   <div className="w-full" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
                         {/* Time scale header: two-level resource / time ruler. */}
                         <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-12" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
-                          <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex flex-col justify-center gap-0.5 px-2 py-1 sticky left-0 z-30">
+                          <div className="w-56 shrink-0 border-r border-border/60 bg-card flex flex-col justify-center gap-0.5 px-2 py-1 sticky left-0 z-30">
                             <div className="flex items-center justify-between">
-                              {viewMode === 'week' ? (
-                                <span className="text-[9px] font-black uppercase tracking-wide text-text-muted tabular-nums" title={t('jsx_dateThisWeek', 'This week')}>
-                                  {(() => {
-                                    const d = new Date(selectedDate);
-                                    const tmp = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                                    tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
-                                    const week1 = new Date(tmp.getFullYear(), 0, 4);
-                                    const wk = 1 + Math.round(((tmp.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
-                                    return `W${wk}`;
-                                  })()}
-                                </span>
-                              ) : (
+                              {viewMode !== 'week' && (
                                 <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[9px] font-bold text-primary hover:text-primary/80 px-1 rounded hover:bg-primary/10">
                                   {viewMode === 'month'
                                     ? t('jsx_dateThisMonth', 'This month')
