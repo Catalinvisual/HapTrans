@@ -44,7 +44,7 @@ import { fmtMoney, fmtNumber } from '../lib/format';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
 import ConsolidationWizard from '../components/ConsolidationWizard';
 import { providerStatusMessage } from '../lib/providerStatus';
-import { statusTone } from '../lib/statusColors';
+import { statusTone, statusInlineStyle } from '../lib/statusColors';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import {
   layoutTimelineTrips,
@@ -805,7 +805,7 @@ function TripBlock({
             {!isVeryNarrow && (
               <span
                 className="shrink-0 inline-flex items-center gap-1 px-1 py-[1px] rounded text-[7px] font-black uppercase tracking-wide border"
-                style={{ color: col.text, backgroundColor: col.bg, borderColor: col.border }}
+                style={statusInlineStyle(trip.status || st)}
               >
                 <span className="w-1 h-1 rounded-full" style={{ backgroundColor: hex }} />
                 {opLabel}
@@ -1716,7 +1716,7 @@ function TripDetailDrawer({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
-              <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase ${col.border} ${col.text}`}>{opLabel}</span>
+              <span className="px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase" style={statusInlineStyle(trip.status || st)}>{opLabel}</span>
               {trip.fleetType && trip.fleetType !== 'own_fleet' && (
                 <span className="px-2 py-0.5 text-[10px] font-black rounded-full border uppercase bg-violet-500/10 border-violet-500/30 text-violet-600">
                   {trip.fleetType === 'subcontractor' ? `Sub: ${trip.carrierName || 'Carrier'}` : 'Charter'}

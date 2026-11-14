@@ -267,6 +267,36 @@ export function statusTone(status?: string | null): StatusTone {
   return TONES[statusToneName(status)];
 }
 
+/**
+ * Exact colours of the driver app (mobile/lib/utils/status_colors.dart).
+ * The accents above are already validated against the mobile palette by
+ * scripts/check-status-parity.mjs; these four values per tone let the TMS
+ * render the very same badge, not a Tailwind approximation of it.
+ */
+export const TONE_HEX: Record<StatusToneName, { bg: string; fg: string; border: string; accent: string }> = {
+  neutral: { bg: '#F1F5F9', fg: '#334155', border: '#E2E8F0', accent: '#64748B' },
+  assigned: { bg: '#DBEAFE', fg: '#1D4ED8', border: '#BFDBFE', accent: '#3B82F6' },
+  accepted: { bg: '#CFFAFE', fg: '#0E7490', border: '#A5F3FC', accent: '#06B6D4' },
+  progress: { bg: '#E0F2FE', fg: '#0369A1', border: '#BAE6FD', accent: '#0EA5E9' },
+  arrived: { bg: '#E0E7FF', fg: '#4338CA', border: '#C7D2FE', accent: '#6366F1' },
+  loading: { bg: '#FFEDD5', fg: '#C2410C', border: '#FED7AA', accent: '#F97316' },
+  loaded: { bg: '#FEF3C7', fg: '#B45309', border: '#FDE68A', accent: '#F59E0B' },
+  unloading: { bg: '#F3E8FF', fg: '#7E22CE', border: '#E9D5FF', accent: '#A855F7' },
+  unloaded: { bg: '#EDE9FE', fg: '#6D28D9', border: '#DDD6FE', accent: '#8B5CF6' },
+  documents: { bg: '#FEF9C3', fg: '#854D0E', border: '#FEF08A', accent: '#EAB308' },
+  completed: { bg: '#DCFCE7', fg: '#15803D', border: '#BBF7D0', accent: '#22C55E' },
+  delayed: { bg: '#FEE2E2', fg: '#B91C1C', border: '#FECACA', accent: '#EF4444' },
+  exception: { bg: '#FECACA', fg: '#7F1D1D', border: '#FCA5A5', accent: '#DC2626' },
+  cancelled: { bg: '#E2E8F0', fg: '#475569', border: '#CBD5E1', accent: '#94A3B8' },
+  rejected: { bg: '#FFE4E6', fg: '#BE123C', border: '#FECDD3', accent: '#F43F5E' },
+};
+
+/** Inline style for a status pill, using the driver-app colours verbatim. */
+export function statusInlineStyle(status?: string | null) {
+  const hex = TONE_HEX[statusToneName(status)];
+  return { color: hex.fg, backgroundColor: hex.bg, borderColor: hex.border };
+}
+
 export function statusBadgeClass(status?: string | null): string {
   return statusTone(status).badge;
 }
