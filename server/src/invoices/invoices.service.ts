@@ -467,6 +467,26 @@ export class InvoicesService implements OnModuleInit {
     });
   }
 
+  /**
+   * Next free invoice number for the year. Derived from the highest number
+   * already stored, not from the row count: deleted or imported invoices leave
+   * gaps, and reusing a gap violates the unique index on invoiceNumber.
+   */
+  private async nextInvoiceNumber(year: number, offset = 0): Promise<string> {
+    const rows = await this.repo.find({
+      where: { invoiceNumber: Like(`INV-${year}-%`) },
+      select: ['invoiceNumber'],
+    });
+    let max = 0;
+    for (const row of rows) {
+      const match = /^INV-\d{4}-(\d+)$/.exec(String(row.invoiceNumber || '').trim());
+      if (match) {
+        max = Math.max(max, Number(match[1]));
+      }
+    }
+    return `INV-${year}-${String(max + 1 + offset).padStart(5, '0')}`;
+  }
+
   async create(dto: any, user?: any) {
     const payload: any = { 
       ...dto, 
@@ -481,6 +501,24 @@ export class InvoicesService implements OnModuleInit {
     }
     if (!payload.updatedAt) {
       payload.updatedAt = new Date();
+    }
+
+    // One invoice per order is a database invariant (unique orderId). Returning
+    // the invoice that already exists keeps "create invoice" idempotent instead
+    // of failing with a duplicate-key error when a draft was already raised for
+    // the order (delivery completion, a previous click or a retried request).
+    const requestedOrderId =
+      (typeof dto.orderId === 'string' && dto.orderId.trim()) ||
+      (typeof dto.order?.id === 'string' && dto.order.id.trim()) ||
+      '';
+    if (requestedOrderId) {
+      const existing = await this.repo.findOne({ where: { orderId: requestedOrderId } });
+      if (existing) {
+        console.warn(
+          `Invoice already exists for order ${requestedOrderId}; returning ${existing.invoiceNumber} instead of creating a duplicate.`,
+        );
+        return this.findOne(existing.id);
+      }
     }
 
     // Safely associate client relation
@@ -515,11 +553,11 @@ export class InvoicesService implements OnModuleInit {
     if (payload.issueDate === '' || payload.issueDate === undefined) payload.issueDate = null;
     if (payload.dueDate === '' || payload.dueDate === undefined) payload.dueDate = null;
 
-    // Generate unique invoice number if not provided
-    if (!payload.invoiceNumber || String(payload.invoiceNumber).trim() === '') {
-      const year = new Date().getFullYear();
-      const count = await this.repo.count();
-      payload.invoiceNumber = `INV-${year}-${String(count + 1).padStart(5, '0')}`;
+    // Generate a unique invoice number unless a real one was supplied. Placeholder
+    // values sent by the editor ('DRAFT') must be numbered like empty ones.
+    const requestedNumber = String(payload.invoiceNumber ?? '').trim();
+    if (!requestedNumber || requestedNumber.toLowerCase() === 'draft') {
+      payload.invoiceNumber = await this.nextInvoiceNumber(new Date().getFullYear());
     }
 
     if (dto.status) {
@@ -572,8 +610,40 @@ export class InvoicesService implements OnModuleInit {
       payload.items = this.normalizeItems(payload.items, isVat ? vatPercent : 0);
     }
 
-    const inv = this.repo.create(payload) as any;
-    const saved = await this.repo.save(inv);
+    let saved: any;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const inv = this.repo.create(payload) as any;
+        saved = await this.repo.save(inv);
+        break;
+      } catch (err: any) {
+        const driverError = err?.driverError || {};
+        const isDuplicate = driverError.code === '23505' || err?.code === '23505';
+        const detail = String(driverError.detail || driverError.constraint || '');
+        // A concurrent request may have taken this number; move to the next one.
+        if (isDuplicate && /invoice_?number/i.test(detail) && attempt < 5) {
+          payload.invoiceNumber = await this.nextInvoiceNumber(new Date().getFullYear(), attempt + 1);
+          continue;
+        }
+        // ...or raised the invoice for this order while we were saving.
+        if (isDuplicate && /order_?id/i.test(detail) && requestedOrderId) {
+          const existing = await this.repo.findOne({ where: { orderId: requestedOrderId } });
+          if (existing) return this.findOne(existing.id);
+        }
+        // Surface database rejections instead of an opaque 500: the user gets a
+        // readable reason and the constraint/code reaches the logs.
+        if (driverError.code) {
+          const reason = String(driverError.detail || driverError.message || '').trim();
+          console.error('Invoice insert failed:', driverError.code, reason);
+          throw new BadRequestException(
+            reason
+              ? `Factura nu a putut fi salvată: ${reason}`
+              : 'Factura nu a putut fi salvată din cauza unei erori de bază de date.',
+          );
+        }
+        throw err;
+      }
+    }
     if (user && saved?.id) {
       try {
         await this.actionLogs.logAction('Invoice', saved.id, 'CREATED', user, { invoiceNumber: saved.invoiceNumber });

@@ -196,6 +196,82 @@ describe('InvoicesService automatic draft invoice', () => {
 
     expect(result.created).toBe(false);
     expect(result.reason).toBe('concurrent_completion');
-    expect(result.invoice?.id).toBe('inv-raced');
+        expect(result.invoice?.id).toBe('inv-raced');
+  });
+});
+
+describe('InvoicesService invoice creation', () => {
+  let repo: any;
+  let service: InvoicesService;
+  const year = new Date().getFullYear();
+
+  beforeEach(() => {
+    repo = {
+      findOne: jest.fn(),
+      find: jest.fn(async () => []),
+      create: jest.fn((value: any) => value),
+      save: jest.fn(async (value: any) => ({ ...value })),
+      update: jest.fn(async () => ({})),
+      count: jest.fn(async () => 0),
+      manager: { getRepository: jest.fn() },
+    };
+    service = new InvoicesService(repo as any, { logAction: jest.fn(async () => ({})) } as any);
+    jest.spyOn(service, 'findOne').mockImplementation(async (id: string) => ({ id } as any));
+    jest.spyOn(service as any, 'resolveTransportDetails').mockResolvedValue(null);
+  });
+
+  it('returns the invoice already raised for the order instead of a duplicate key error', async () => {
+    repo.findOne.mockResolvedValue({ id: 'inv-existing', orderId: 'ord-1', invoiceNumber: `INV-${year}-00007` });
+
+    const result = await service.create({ orderId: 'ord-1', clientId: 'client-1', amount: 100 });
+
+    expect(result).toEqual({ id: 'inv-existing' });
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('numbers the next invoice after the highest number already used', async () => {
+    repo.findOne.mockResolvedValue(null);
+    repo.find.mockResolvedValue([
+      { invoiceNumber: `INV-${year}-00002` },
+      { invoiceNumber: `INV-${year}-00009` },
+      { invoiceNumber: 'DRAFT' },
+    ]);
+
+    await service.create({ clientId: 'client-1', amount: 100, vatPercent: 19 });
+
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ invoiceNumber: `INV-${year}-00010` }));
+  });
+
+  it('never stores the DRAFT placeholder as an invoice number', async () => {
+    repo.findOne.mockResolvedValue(null);
+    repo.find.mockResolvedValue([{ invoiceNumber: `INV-${year}-00004` }]);
+
+    await service.create({ clientId: 'client-1', amount: 10, invoiceNumber: 'DRAFT' });
+
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ invoiceNumber: `INV-${year}-00005` }));
+  });
+
+  it('retries with the next number when the unique index rejects the number', async () => {
+    repo.findOne.mockResolvedValue(null);
+    repo.find.mockResolvedValue([{ invoiceNumber: `INV-${year}-00010` }]);
+    repo.save
+      .mockRejectedValueOnce(Object.assign(new Error('duplicate key'), {
+        driverError: { code: '23505', detail: `Key (invoice_number)=(INV-${year}-00011) already exists.` },
+      }))
+      .mockResolvedValueOnce({ id: 'inv-new' });
+
+    await service.create({ clientId: 'client-1', amount: 10 });
+
+    expect(repo.save).toHaveBeenCalledTimes(2);
+    expect(repo.save.mock.calls[1][0].invoiceNumber).toBe(`INV-${year}-00012`);
+  });
+
+  it('explains a database rejection instead of returning a bare 500', async () => {
+    repo.findOne.mockResolvedValue(null);
+    repo.save.mockRejectedValueOnce(Object.assign(new Error('null value'), {
+      driverError: { code: '23502', detail: 'null value in column "total" violates not-null constraint' },
+    }));
+
+    await expect(service.create({ clientId: 'client-1', amount: 10 })).rejects.toThrow(/total/);
   });
 });
