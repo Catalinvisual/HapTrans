@@ -44,7 +44,8 @@ import { fmtMoney, fmtNumber } from '../lib/format';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
 import ConsolidationWizard from '../components/ConsolidationWizard';
 import { providerStatusMessage } from '../lib/providerStatus';
-import { statusTone, statusInlineStyle } from '../lib/statusColors';
+import { statusTone, statusInlineStyle, statusToneName, TONE_HEX } from '../lib/statusColors';
+import { TRIP_STATUS_ORDER, tripStatusLabel } from '../lib/tripStatusLabels';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import {
   layoutTimelineTrips,
@@ -5196,13 +5197,13 @@ export default function PlanningPage() {
                     {legendOpen && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setLegendOpen(false)} />
-                        <div className="absolute right-0 top-9 z-40 w-56 space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-2xl">
+                        <div className="absolute right-0 top-9 z-40 w-72 max-h-[70vh] overflow-y-auto space-y-2 rounded-xl border border-border bg-card p-2.5 shadow-2xl">
                           <p className="text-[9px] font-black uppercase tracking-wide text-text-muted">{t('timeline_legend_trip_status', 'Trip status')}</p>
                           <div className="grid grid-cols-2 gap-1 text-[10px] font-bold text-text-secondary">
-                            {([['planning', t('timeline_legend_planned', 'Planned')], ['assigned', t('timeline_legend_assigned', 'Assigned')], ['in_transit', t('timeline_legend_active', 'In execution')], ['delayed', t('timeline_legend_conflict', 'Conflict')]] as [string, string][]).map(([tone, label]) => (
-                              <span key={tone} className="inline-flex items-center gap-1.5">
-                                <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: planningTone(tone).accent }} />
-                                {label}
+                            {TRIP_STATUS_ORDER.map((code) => (
+                              <span key={code} className="inline-flex items-center gap-1.5 min-w-0">
+                                <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: TONE_HEX[statusToneName(code)].accent }} />
+                                <span className="truncate">{tripStatusLabel(code, lang)}</span>
                               </span>
                             ))}
                           </div>
