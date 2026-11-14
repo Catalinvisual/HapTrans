@@ -4433,7 +4433,7 @@ export default function PlanningPage() {
           </div>
 
           <div className="flex min-w-0 flex-1 items-stretch gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {boardV2 && kpiCards.filter((card) => card.value !== null || !card.provenance).map((card) => {
+            {boardV2 && kpiCards.filter((card) => card.value !== null || !card.provenance || card.key === 'utilisationPct').map((card) => {
               const provenance = card.provenance ? PROVENANCE[card.provenance] : null;
               const Icon = KPI_ICONS[card.key] || Activity;
               return (
@@ -4457,16 +4457,16 @@ export default function PlanningPage() {
                     <Icon className="h-3.5 w-3.5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[8px] font-black uppercase leading-tight tracking-wide text-text-muted">
-                      {card.label}
+                    <span className="flex items-center gap-1 text-[8px] font-black uppercase leading-tight tracking-wide text-text-muted">
+                      <span className="truncate">{card.label}</span>
+                      {provenance && (
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${provenance.dot}`} title={provenance.label} />
+                      )}
                     </span>
                     <span className={`block text-[14px] font-black leading-tight tabular-nums ${card.value == null ? 'text-text-muted' : card.tone}`}>
                       {card.display}
                     </span>
                   </span>
-                  {provenance && (
-                    <span className={`absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full ${provenance.dot}`} title={provenance.label} />
-                  )}
                 </button>
               );
             })}
