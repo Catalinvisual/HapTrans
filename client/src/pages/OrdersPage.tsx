@@ -91,6 +91,7 @@ export default function OrdersPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [existingInvoice, setExistingInvoice] = useState<{ invoice: any; kind: string; orderNumber: string } | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   const [showAiImport, setShowAiImport] = useState(false);
@@ -349,6 +350,21 @@ export default function OrdersPage() {
         notes: `Factura pentru comanda ${o.orderNumber || o.referenceNumber || ''}`.trim(),
       });
       const savedInvoice = res.data;
+
+      // An invoice already exists for this order (issued earlier, or refreshed by
+      // this request). Tell the user which one it is instead of overwriting its
+      // PDF and letting a success toast claim a new invoice was created.
+      const existingKind = String(res.headers?.['x-invoice-existing'] || '');
+      if (existingKind) {
+        toast.dismiss(loadId);
+        await fetchOrders();
+        setExistingInvoice({
+          invoice: savedInvoice,
+          kind: existingKind,
+          orderNumber: o.orderNumber || o.referenceNumber || '',
+        });
+        return;
+      }
 
       // Generate invoice PDF
       const lang = (i18n.language === 'ro' ? 'en' : (i18n.language as any)) || 'en';
@@ -694,6 +710,35 @@ return (
       <OrderWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} orderId={selectedOrderId || undefined} onSaved={() => { fetchOrders(); setDrawerOrderId(selectedOrderId); setActiveTab('overview'); }} />
 
       <ConfirmDeleteModal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setOrderToDelete(null); }} onConfirm={confirmDelete} />
+      <ConfirmModal
+        isOpen={!!existingInvoice}
+        type="info"
+        title={t('order_invoice_exists_title', 'Factura există deja')}
+        message={
+          existingInvoice
+            ? existingInvoice.kind === 'refreshed'
+              ? t('order_invoice_draft_refreshed_message', {
+                  number: existingInvoice.invoice?.invoiceNumber || '—',
+                  order: existingInvoice.orderNumber || '—',
+                })
+              : t('order_invoice_exists_message', {
+                  number: existingInvoice.invoice?.invoiceNumber || '—',
+                  order: existingInvoice.orderNumber || '—',
+                  date: existingInvoice.invoice?.issueDate
+                    ? new Date(existingInvoice.invoice.issueDate).toLocaleDateString(i18n.language)
+                    : '—',
+                })
+            : ''
+        }
+        confirmText={t('order_invoice_open', 'Deschide factura')}
+        cancelText={t('order_invoice_close', 'Închide')}
+        onConfirm={() => {
+          const invoiceId = existingInvoice?.invoice?.id;
+          setExistingInvoice(null);
+          navigate(invoiceId ? `/invoices?focus=${invoiceId}` : '/invoices');
+        }}
+        onClose={() => setExistingInvoice(null)}
+      />
       <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={sorted} filename="Orders_HapCargo" title="Orders" sheetName="Orders" getDateField={o => o.stops?.find((s: any) => s.type === 'pickup')?.dateFrom || o.createdAt} headers={orderExportHeaders} />
 
       {drawerOrder && <OrderDetailDrawer

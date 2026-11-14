@@ -490,7 +490,7 @@ export class InvoicesService implements OnModuleInit {
     return `INV-${year}-${String(max + 1 + offset).padStart(5, '0')}`;
   }
 
-  async create(dto: any, user?: any) {
+  async create(dto: any, user?: any, meta?: { existing?: 'issued' | 'refreshed' }) {
     const payload: any = { 
       ...dto, 
     };
@@ -610,6 +610,7 @@ export class InvoicesService implements OnModuleInit {
       const existing = await this.repo.findOne({ where: { orderId: requestedOrderId } });
       if (existing) {
         if (String(existing.status || '').toLowerCase() === InvoiceStatus.DRAFT) {
+          if (meta) meta.existing = 'refreshed';
           const refresh: any = { ...payload };
           delete refresh.id;
           delete refresh.invoiceNumber;
@@ -627,6 +628,7 @@ export class InvoicesService implements OnModuleInit {
           }
           return this.findOne(savedDraft.id);
         }
+        if (meta) meta.existing = 'issued';
         console.warn(
           `Invoice ${existing.invoiceNumber} is already issued for order ${requestedOrderId}; returning it unchanged.`,
         );

@@ -15,6 +15,7 @@ import { truckFormResources } from './truckFormI18n';
 import { langOverrides } from './langOverrides';
 import { adrResources } from './adrI18n';
 import { operationalResources } from './operationalI18n';
+import { orderInvoiceResources } from './orderInvoiceI18n';
 import { dashboardResources } from './dashboardI18n';
 import { dashboardProResources } from './dashboardProI18n';
 import { usersPageResources } from './usersI18n';
@@ -11951,6 +11952,13 @@ for (const lng of Object.keys(orderCoreResources)) {
 for (const lng of Object.keys(operationalResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, operationalResources[lng].translation);
+}
+
+// "Invoice already exists" dialog shown when the invoice button finds an
+// invoice raised earlier for the same order.
+for (const lng of Object.keys(orderInvoiceResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, orderInvoiceResources[lng]);
 }
 
 for (const lng of Object.keys(dashboardResources)) {

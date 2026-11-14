@@ -307,6 +307,8 @@ async function bootstrap() {
     origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
+    // Lets the TMS read whether an invoice already existed for the order.
+    exposedHeaders: ['X-Invoice-Existing'],
   });
   
   app.use(helmet());

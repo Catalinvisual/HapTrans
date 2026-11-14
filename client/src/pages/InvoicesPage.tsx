@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Plus, Search, Eye, Download, Share2, Trash2, Mail, BarChart3, Send, Wallet, CheckCircle2, AlertTriangle, Pencil, FileText } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useSearchParams } from 'react-router-dom';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
@@ -49,6 +50,23 @@ export default function InvoicesPage({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  // "Open invoice" in the orders dialog lands here with ?focus=<id>: narrow the
+  // register to that invoice so the user sees it immediately.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusInvoiceId = searchParams.get('focus');
+  useEffect(() => {
+    if (!focusInvoiceId || invoices.length === 0) return;
+    const target = invoices.find((inv: any) => inv.id === focusInvoiceId);
+    if (target) {
+      setStatusFilter('all');
+      setSearch(target.invoiceNumber || '');
+    }
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('focus');
+      return next;
+    }, { replace: true });
+  }, [focusInvoiceId, invoices]);
   const [showExport, setShowExport] = useState(false);
   const [showAging, setShowAging] = useState(false);
   const [aging, setAging] = useState<any>(null);
