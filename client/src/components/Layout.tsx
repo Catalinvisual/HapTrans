@@ -1008,6 +1008,9 @@ export default function Layout() {
         isOpen={isLogoutModalOpen}
         title={t('logout', 'Logout')}
         message={t('confirm_logout', 'Sunteți sigur că doriți să vă deconectați?')}
+        confirmText={t('logout', 'Logout')}
+        cancelText={t('cancel', 'Cancel')}
+        type="warning"
         onConfirm={handleLogout}
         onCancel={() => setIsLogoutModalOpen(false)}
       />

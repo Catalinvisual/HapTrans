@@ -4589,44 +4589,44 @@ export default function PlanningPage() {
                   <p className="text-[9px] font-black uppercase tracking-wide text-text-muted">{t('filters', 'Filters')}</p>
                   <label className="block">
                     <span className="mb-0.5 block text-[9px] font-bold text-text-secondary">{t('jsx_allVehicles', 'All Trucks')}</span>
-                    <select
+                    <CustomSelect
                       value={truckFilter}
-                      onChange={(event) => setTruckFilter(event.target.value)}
-                      className="h-8 w-full rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
-                    >
-                      <option value="">{t('jsx_allVehicles', 'All Trucks')}</option>
-                      {resources.map((resource: any) => (
-                        <option key={resource.id} value={resource.id}>{resource.plateNumber}</option>
-                      ))}
-                    </select>
+                      onChange={setTruckFilter}
+                      size="sm"
+                      className="w-full"
+                      options={[
+                        { value: '', label: t('jsx_allVehicles', 'All Trucks') },
+                        ...resources.map((resource: any) => ({ value: resource.id, label: resource.plateNumber })),
+                      ]}
+                    />
                   </label>
                   <label className="block">
                     <span className="mb-0.5 block text-[9px] font-bold text-text-secondary">{t('jsx_allDrivers', 'All Drivers')}</span>
-                    <select
+                    <CustomSelect
                       value={driverFilter}
-                      onChange={(event) => setDriverFilter(event.target.value)}
-                      className="h-8 w-full rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
-                    >
-                      <option value="">{t('jsx_allDrivers', 'All Drivers')}</option>
-                      {(boardData?.drivers || resources.map((resource: any) => resource.driver).filter(Boolean))
-                        .filter((driver: any, index: number, list: any[]) => driver && list.findIndex((candidate: any) => candidate.id === driver.id) === index)
-                        .map((driver: any) => (
-                          <option key={driver.id} value={driver.id}>{driverDisplayName(driver) || driver.name || '—'}</option>
-                        ))}
-                    </select>
+                      onChange={setDriverFilter}
+                      size="sm"
+                      className="w-full"
+                      options={[
+                        { value: '', label: t('jsx_allDrivers', 'All Drivers') },
+                        ...(boardData?.drivers || resources.map((resource: any) => resource.driver).filter(Boolean))
+                          .filter((driver: any, index: number, list: any[]) => driver && list.findIndex((candidate: any) => candidate.id === driver.id) === index)
+                          .map((driver: any) => ({ value: driver.id, label: driverDisplayName(driver) || driver.name || '—' })),
+                      ]}
+                    />
                   </label>
                   <label className="block">
                     <span className="mb-0.5 block text-[9px] font-bold text-text-secondary">{t('tb_priority', 'Priority')}</span>
-                    <select
+                    <CustomSelect
                       value={priorityFilter}
-                      onChange={(event) => setPriorityFilter(event.target.value)}
-                      className="h-8 w-full rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
-                    >
-                      <option value="">{t('tb_allPriorities', 'All priorities')}</option>
-                      {['critical', 'high', 'normal', 'low'].map((priority) => (
-                        <option key={priority} value={priority}>{t(`priority_${priority}`, priority)}</option>
-                      ))}
-                    </select>
+                      onChange={setPriorityFilter}
+                      size="sm"
+                      className="w-full"
+                      options={[
+                        { value: '', label: t('tb_allPriorities', 'All priorities') },
+                        ...['critical', 'high', 'normal', 'low'].map((priority) => ({ value: priority, label: t(`priority_${priority}`, priority) })),
+                      ]}
+                    />
                   </label>
                   <label className="flex items-center gap-2 rounded-lg border border-border bg-surface/60 px-2 py-1.5">
                     <input
@@ -4990,7 +4990,7 @@ export default function PlanningPage() {
 
 {/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden bg-surface/50">
-        <div className="flex flex-1 min-h-0 p-1.5 gap-1.5">
+        <div className="flex flex-1 min-h-0 p-0.5 gap-0.5">
 
         {/* ORDER POOL (left panel) */}
         <div 
@@ -5235,14 +5235,24 @@ export default function PlanningPage() {
                         <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-12" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
                           <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex flex-col justify-center gap-0.5 px-2 py-1 sticky left-0 z-30">
                             <div className="flex items-center justify-between">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-text-muted">{t('timeline_fleet_time', 'Fleet / time')}</span>
-                              <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[9px] font-bold text-primary hover:text-primary/80 px-1 rounded hover:bg-primary/10">
-                                {viewMode === 'week'
-                                  ? t('jsx_dateThisWeek','This week')
-                                  : viewMode === 'month'
-                                    ? t('jsx_dateThisMonth','This month')
-                                    : t('jsx_today','Today')}
-                              </button>
+                              {viewMode === 'week' ? (
+                                <span className="text-[9px] font-black uppercase tracking-wide text-text-muted tabular-nums" title={t('jsx_dateThisWeek', 'This week')}>
+                                  {(() => {
+                                    const d = new Date(selectedDate);
+                                    const tmp = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                                    tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
+                                    const week1 = new Date(tmp.getFullYear(), 0, 4);
+                                    const wk = 1 + Math.round(((tmp.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+                                    return `W${wk}`;
+                                  })()}
+                                </span>
+                              ) : (
+                                <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[9px] font-bold text-primary hover:text-primary/80 px-1 rounded hover:bg-primary/10">
+                                  {viewMode === 'month'
+                                    ? t('jsx_dateThisMonth', 'This month')
+                                    : t('jsx_today', 'Today')}
+                                </button>
+                              )}
                             </div>
                             <div className="flex items-center gap-1">
                               <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, -1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_previous', 'Previous period')}>
