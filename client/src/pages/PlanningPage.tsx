@@ -4554,16 +4554,18 @@ export default function PlanningPage() {
             </kbd>
           </div>
 
-          <select
+          <CustomSelect
             value={grouping}
-            onChange={(event) => setGrouping(event.target.value as any)}
+            onChange={(val) => setGrouping(val as any)}
+            size="sm"
+            className="shrink-0"
             title={t('tb_group', 'Group')}
-            className="h-8 shrink-0 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-text-secondary focus:border-primary focus:outline-none"
-          >
-            <option value="truck">{t('jsx_groupVehicle', 'Truck')}</option>
-            <option value="driver">{t('jsx_groupDriver', 'Driver')}</option>
-            <option value="trailer">{t('jsx_groupTrailer', 'Trailer')}</option>
-          </select>
+            options={[
+              { value: 'truck', label: t('jsx_groupVehicle', 'Truck') },
+              { value: 'driver', label: t('jsx_groupDriver', 'Driver') },
+              { value: 'trailer', label: t('jsx_groupTrailer', 'Trailer') },
+            ]}
+          />
 
           <div className="relative shrink-0">
             <button
@@ -4704,19 +4706,19 @@ export default function PlanningPage() {
                   <div className="border-b border-border p-2">
                     <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-text-muted">{t('saved_views', 'Saved views')}</p>
                     <div className="flex items-center gap-1">
-                      <select
+                      <CustomSelect
                         value={currentViewId || ''}
-                        onChange={(event) => {
-                          const view = savedViews.find((candidate) => candidate.id === event.target.value);
+                        onChange={(val) => {
+                          const view = savedViews.find((candidate) => candidate.id === val);
                           handleApplySavedView(view || null);
                         }}
-                        className="h-8 min-w-0 flex-1 rounded-lg border border-border bg-card px-2 text-[11px] font-semibold text-text-primary focus:border-primary focus:outline-none"
-                      >
-                        <option value="">{t('default_view', 'Default view')}</option>
-                        {savedViews.map((view) => (
-                          <option key={view.id} value={view.id}>{view.name}</option>
-                        ))}
-                      </select>
+                        size="sm"
+                        className="min-w-0 flex-1"
+                        options={[
+                          { value: '', label: t('default_view', 'Default view') },
+                          ...savedViews.map((view) => ({ value: view.id, label: view.name })),
+                        ]}
+                      />
                       <button
                         type="button"
                         onClick={() => { setHeaderMenuOpen(false); setShowSaveViewModal(true); }}
@@ -4771,7 +4773,21 @@ export default function PlanningPage() {
                         onClick={() => { setHeaderMenuOpen(false); item.run(); }}
                         className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] font-bold text-text-primary transition-colors hover:bg-surface disabled:opacity-50"
                       >
-                        <item.icon className="h-3.5 w-3.5 text-text-muted" />
+                        <item.icon
+                          className={`h-3.5 w-3.5 ${({
+                            combine: 'text-indigo-500',
+                            palette: 'text-sky-500',
+                            flag: 'text-slate-400',
+                            repeat: 'text-cyan-500',
+                            optimize: 'text-fuchsia-500',
+                            export: 'text-emerald-600',
+                            documents: 'text-amber-500',
+                            'bulk-send': 'text-violet-500',
+                            print: 'text-slate-500',
+                            fullscreen: 'text-blue-500',
+                            refresh: 'text-emerald-500',
+                          } as Record<string, string>)[item.key] || 'text-text-muted'}`}
+                        />
                         <span className="truncate">{item.label}</span>
                       </button>
                     ))}
@@ -5129,7 +5145,7 @@ export default function PlanningPage() {
         {!poolCollapsed && (
           <div
             onMouseDown={startPoolResizing}
-            className={`group relative flex items-center justify-center w-3 cursor-col-resize shrink-0 select-none z-10 mx-0.5 transition-colors ${
+            className={`group relative flex items-center justify-center w-1 cursor-col-resize shrink-0 select-none z-10 transition-colors ${
               isPoolResizing ? 'bg-primary/20' : 'hover:bg-primary/10'
             } rounded-lg`}
             title={t('drag_to_resize', 'Drag to resize')}

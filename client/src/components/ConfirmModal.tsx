@@ -83,7 +83,7 @@ export default function ConfirmModal({
           {message || (type === 'danger' ? t('confirmDelete', 'Ești sigur că vrei să ștergi acest element? Această acțiune este ireversibilă.') : t('confirm', 'Ești sigur că vrei să continui?'))}
         </p>
         <div className="flex gap-3 w-full">
-          <button onClick={handleClose} className="btn-secondary flex-1 py-2.5 font-bold">
+          <button onClick={handleClose} className="btn-secondary flex-1 flex items-center justify-center text-center py-2.5 font-bold">
             {cancelText || t('cancel', 'Cancel')}
           </button>
           <button 
