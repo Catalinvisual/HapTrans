@@ -563,6 +563,7 @@ export default function Layout() {
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      auth: { token: localStorage.getItem('hapcargo_token') || '' },
     });
     
     socket.on('newNotification', () => {

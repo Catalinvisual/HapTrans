@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Navigation, Truck, Map as MapIcon, Search, Activity } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
+import { escapeHtml } from '../lib/escapeHtml';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { matchesSearch } from '../lib/search';
@@ -275,7 +276,7 @@ export default function LiveMapPage() {
     if (!row) {
       return `<div style="font-size:11px;color:#94a3b8;margin-top:2px">${t('tachograph', 'Tachograph')}: ${t('tacho_unavailable', 'Unavailable')}</div>`;
     }
-    const activity = row.currentActivity || t('tacho_unavailable', 'Unavailable');
+    const activity = escapeHtml(row.currentActivity || t('tacho_unavailable', 'Unavailable'));
     const sim = row.simulated ? ' - SIM' : '';
     return `<div style="font-size:11px;color:#475569;margin-top:2px">${t('tachograph', 'Tachograph')}: <b>${activity}</b>${sim}</div>`;
   };
@@ -524,11 +525,11 @@ export default function LiveMapPage() {
         const lang = i18n.language || 'ro';
         const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
         const subtextHtml = label !== popupText && popupText ? `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
-             <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
+             <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${escapeHtml(popupText)}
            </div>` : '';
         popup.setHTML(`
           <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
-            <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
+            <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${escapeHtml(label)}</div>
             ${subtextHtml}
             ${tachoHtml(label, popupText)}
           </div>
@@ -544,7 +545,7 @@ export default function LiveMapPage() {
     el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer`;
     el.innerHTML = `
       <div class="marker-label" style="background:#0F172A;color:#FFFFFF;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:bold;white-space:nowrap;box-shadow:0 4px 10px rgba(0,0,0,0.3);margin-bottom:6px;border:1.5px solid #FF7A1A;display:flex;align-items:center;gap:6px">
-        ${isTruck ? '<span style="color:#FF7A1A">🚚</span>' : '👤'} ${label}
+        ${isTruck ? '<span style="color:#FF7A1A">🚚</span>' : '👤'} ${escapeHtml(label)}
       </div>
       <div style="width:38px;height:38px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 0 15px rgba(255,122,26,0.6)">
         ${svgIcon}
@@ -569,7 +570,7 @@ export default function LiveMapPage() {
     }, true);
     const isPlaceholder = popupText === '?ofer' || popupText === 'Șofer';
     const subtextHtml = label !== popupText && popupText && !isPlaceholder ? `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
-         <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
+         <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${escapeHtml(popupText)}
        </div>` : '';
     const marker = new maplibregl.Marker({
       element: el
@@ -577,7 +578,7 @@ export default function LiveMapPage() {
       offset: 30
     }).setHTML(`
         <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
-          <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
+          <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${escapeHtml(label)}</div>
           ${subtextHtml}
           ${tachoHtml(label, popupText)}
         </div>
@@ -760,8 +761,8 @@ export default function LiveMapPage() {
           offset: 15
         }).setLngLat(dest).setHTML(`
             <div style="font-family:sans-serif;padding:6px;min-width:160px;text-align:center">
-              <div style="font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;margin-bottom:2px">${destLabel}</div>
-              <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:6px;white-space:normal;line-height:1.2">${destAddress}</div>
+              <div style="font-size:11px;color:#64748B;font-weight:600;text-transform:uppercase;margin-bottom:2px">${escapeHtml(destLabel)}</div>
+              <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:6px;white-space:normal;line-height:1.2">${escapeHtml(destAddress)}</div>
               <div style="background:#ECFDF5;border:1px solid #10B981;border-radius:6px;padding:6px;color:#047857;box-shadow:0 2px 6px rgba(16,185,129,0.2)">
                 <div style="font-size:10px;font-weight:bold;margin-bottom:2px">⏰ ${etaLabels.arrivesAt}</div>
                 <div style="font-size:15px;font-weight:900">${exactETA}</div>
@@ -859,7 +860,9 @@ export default function LiveMapPage() {
       }
       return 'http://localhost:3001';
     };
-    const socket = io(getWsUrl());
+    const socket = io(getWsUrl(), {
+      auth: { token: localStorage.getItem('hapcargo_token') || '' },
+    });
     socket.on('locationUpdate', (data: any) => {
       let driverName = 'Șofer';
       let plateNumber = 'SV 19 HAP';
@@ -957,11 +960,11 @@ export default function LiveMapPage() {
           const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
           const isPlaceholder = driverName === '?ofer' || driverName === 'Șofer';
           const subHtml = !isPlaceholder && driverName ? `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
-               <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${driverName}
+               <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${escapeHtml(driverName)}
              </div>` : '';
           popup.setHTML(`
             <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
-              <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
+              <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${escapeHtml(label)}</div>
               ${subHtml}
               ${tachoHtml(label, driverName)}
             </div>

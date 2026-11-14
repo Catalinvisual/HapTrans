@@ -10,6 +10,8 @@ import { ChatController } from './chat.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TripsModule } from '../trips/trips.module';
 import { DriversModule } from '../drivers/drivers.module';
+// Exports JwtModule, so the gateway can verify the handshake token.
+import { AuthModule } from '../auth/auth.module';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
@@ -50,6 +52,7 @@ const storage = new CloudinaryStorage({
     NotificationsModule,
     forwardRef(() => TripsModule),
     DriversModule,
+    AuthModule,
   ],
   providers: [ChatGateway, ChatService],
   controllers: [ChatController],

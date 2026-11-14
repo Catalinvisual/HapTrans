@@ -4,6 +4,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { PaymentsService } from "./payments.service";
 
 @Controller("invoices")
+@UseGuards(JwtAuthGuard)
 export class PaymentsController {
   constructor(private paymentsService: PaymentsService) {}
 

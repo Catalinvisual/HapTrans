@@ -5,32 +5,13 @@ import { PdfService } from './pdf.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResendService } from '../email/resend.service';
 import { generateInvoiceHtml } from './pdf-template';
+import { fetchLogoAsDataUri } from './logo-inline';
 
 @Controller('invoices')
 @UseGuards(JwtAuthGuard)
 export class InvoicesController {
   constructor(private service: InvoicesService, private resendService: ResendService, private pdfService: PdfService) {}
-    @Get('test-pdf')
-  async testPdf() {
-    try {
-      const { execSync } = require('child_process');
-      const which = execSync('which chromium || which chromium-browser || echo not_found').toString().trim();
-      const ls = execSync('ls -l /usr/bin/chromium || echo no_usr_bin').toString().trim();
-      
-      let puppeteerError = 'none';
-      try {
-        const browser = await require('puppeteer').launch({ headless: true, executablePath: 'chromium', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-        await browser.close();
-      } catch (e) {
-        puppeteerError = e.message;
-      }
-      
-      return { which, ls, puppeteerError };
-    } catch (e) {
-      return { error: e.message };
-    }
-  }
-  @Get() findAll() { return this.service.findAll(); }
+      @Get() findAll() { return this.service.findAll(); }
   @Get('aging') getAgingSummary() { return this.service.getAgingSummary(); }
   @Get('overdue') getOverdue() { return this.service.getOverdue(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOneForPdf(id); }
@@ -72,18 +53,8 @@ export class InvoicesController {
       body.company.logo = latestLogo;
     }
 
-    if (body.company?.logo && body.company.logo.startsWith('http')) {
-      try {
-        const response = await fetch(body.company.logo);
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const contentType = response.headers.get('content-type') || 'image/png';
-          body.company.logo = `data:${contentType};base64,${buffer.toString('base64')}`;
-        }
-      } catch (err) {
-        console.error('Failed to convert remote logo to base64 in backend', err);
-      }
+    if (body.company?.logo && typeof body.company.logo === "string") {
+      body.company.logo = (await fetchLogoAsDataUri(body.company.logo)) || body.company.logo;
     }
 
     const html = generateInvoiceHtml(body.invoice, body.company, body.lang);

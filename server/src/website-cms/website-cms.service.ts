@@ -20,6 +20,24 @@ export class WebsiteCmsService {
     return result;
   }
 
+  /**
+   * Keys that belong to the application, not to the marketing site. They were
+   * published by the unauthenticated GET and are excluded from it now.
+   */
+  private static readonly INTERNAL_KEYS = new Set([
+    'report_logo',
+    'company_settings',
+    'tariff_settings',
+  ]);
+
+  async findPublic() {
+    const all = await this.findAll();
+    for (const key of WebsiteCmsService.INTERNAL_KEYS) {
+      delete all[key];
+    }
+    return all;
+  }
+
   async save(data: Record<string, string>) {
     const keys = Object.keys(data);
     for (const key of keys) {

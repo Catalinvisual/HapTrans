@@ -221,7 +221,29 @@ export class DocumentsService implements OnModuleInit {
     throw new ForbiddenException('Documentul nu aparține acestei curse');
   }
 
-  findByOrder(orderId: string) {
+  /**
+   * Documents of one order. The route accepts an office token or a portal
+   * token, so the caller is scoped here: a portal client only sees its own
+   * orders, a driver only the orders on a trip he runs.
+   */
+  async findByOrder(orderId: string, user?: any) {
+    if (!user) throw new ForbiddenException('Authentication required');
+
+    const isPortalUser = user.clientId && !user.role;
+    if (isPortalUser) {
+      const order = await this.orderRepo.findOne({
+        where: { id: orderId },
+        relations: ['client'],
+      });
+      if (!order) throw new NotFoundException('Order not found');
+      const orderClientId = (order as any).client?.id || (order as any).clientId;
+      if (String(orderClientId || '') !== String(user.clientId)) {
+        throw new ForbiddenException('Comanda nu aparține acestui client');
+      }
+    } else if (isDriverActor(user)) {
+      await this.assertOrderAccess(orderId, user);
+    }
+
     return this.repo.find({ where: { order: { id: orderId } }, relations: ['uploadedBy', 'trip'], order: { uploadedAt: 'DESC' } });
   }
 

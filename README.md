@@ -8,7 +8,7 @@ cd "Saas HapCargo\server"
 npm run start:dev
 ```
 - Rulează pe: http://localhost:3001/api
-- Admin: admin@hapcargo.ro / Admin2024!
+- Admin: contul se creează din variabilele de mediu `ADMIN_EMAIL` / `ADMIN_PASSWORD` — nu se mai folosește o parolă implicită.
 
 ### 2. CLIENT (Frontend React)
 ```powershell
@@ -34,7 +34,7 @@ flutter build apk --release
 ## 🗄️ Baza de date
 - PostgreSQL pe localhost:5432
 - Database: hapcargo
-- User: postgres / Laptophp20242019.
+- User: `postgres` / parola din `DATABASE_URL` (nu se păstrează în repo)
 - Tabelele se creează automat la pornirea serverului (TypeORM synchronize: true)
 
 ## 🌍 Limbi suportate

@@ -1,4 +1,38 @@
-export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): string {
+/**
+ * The template interpolates values straight into markup, and the PDF renderer
+ * runs Chromium without a sandbox. Client names, addresses, references and the
+ * company block therefore have to be neutralised before they reach the HTML:
+ * a value like `"><script>` used to execute inside the renderer.
+ */
+function escapeMarkup(value: any): any {
+  if (typeof value === 'string') {
+    return value.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  if (Array.isArray(value)) {
+    return value.map(escapeMarkup);
+  }
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    const result: Record<string, any> = {};
+    for (const key of Object.keys(value)) result[key] = escapeMarkup(value[key]);
+    return result;
+  }
+  return value;
+}
+
+/** Only a base64 image data URI or a plain https URL may be used as `src`. */
+function safeImageSource(value: any): string {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (/^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/i.test(raw)) return raw;
+  if (/^https:\/\/[^\s"'<>]+$/i.test(raw)) return raw;
+  return '';
+}
+
+export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en' | 'nl'): string {
+  const co: any = {
+    ...escapeMarkup(rawCompany || {}),
+    logo: safeImageSource(rawCompany?.logo),
+  };
+  const invoice: any = escapeMarkup(rawInvoice || {});
   const trip = invoice.trip || {};
 
   function fmtDate(dateStr: string | null | undefined): string {

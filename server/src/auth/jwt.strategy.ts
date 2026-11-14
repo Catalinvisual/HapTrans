@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -14,6 +14,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // The office and the client portal sign with related secrets; a portal
+    // token must never be accepted as an office identity.
+    if (payload?.type === 'portal') {
+      throw new UnauthorizedException('Invalid token type');
+    }
     return this.authService.validateUser(payload.sub);
   }
 }

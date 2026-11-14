@@ -259,26 +259,44 @@ export class AuthService {
   }
 
   async seedAdmin() {
-    const adminPass = process.env.ADMIN_PASSWORD || 'admin';
-    const hashed = await bcrypt.hash(adminPass, 10);
-    // Ensure BOTH the classic admin address and admin@hapcargo.com exist, so
-    // login works regardless of which one the operator knows. When
-    // ADMIN_PASSWORD is explicitly set, the password is force-reset on every
-    // boot so the operator always has a known, guaranteed credential.
+    // The previous implementation fell back to the literal password "admin"
+    // and re-applied it on every boot, so a deployment without ADMIN_PASSWORD
+    // had a publicly known administrator credential.
+    const configuredPassword = process.env.ADMIN_PASSWORD;
     const configuredEmail = (process.env.ADMIN_EMAIL || 'admin@hapcargo.ro').trim().toLowerCase();
-    const emails = Array.from(new Set([configuredEmail, 'admin@hapcargo.com']));
-    for (const email of emails) {
-      let user = await this.usersRepo.findOne({ where: { email } });
+
+    let user = await this.usersRepo.findOne({ where: { email: configuredEmail } });
+
+    if (!configuredPassword) {
       if (!user) {
-        user = this.usersRepo.create({ email, password: hashed, name: 'Administrator', role: UserRole.ADMIN });
-        await this.usersRepo.save(user);
-        console.log(`✅ Admin user seeded: ${email}`);
-      } else if (process.env.ADMIN_PASSWORD) {
-        user.password = hashed;
-        user.role = UserRole.ADMIN;
-        await this.usersRepo.save(user);
-        console.log(`✅ Admin password reset (ADMIN_PASSWORD set): ${email}`);
+        this.logger.warn(
+          `No administrator account found for ${configuredEmail} and ADMIN_PASSWORD is not set; refusing to seed a default credential.`,
+        );
       }
+      return;
     }
+
+    const hashed = await bcrypt.hash(configuredPassword, 10);
+    if (!user) {
+      user = this.usersRepo.create({
+        id: crypto.randomUUID(),
+        email: configuredEmail,
+        password: hashed,
+        name: 'Administrator',
+        role: UserRole.ADMIN,
+        isActive: true,
+      });
+      await this.usersRepo.save(user);
+      this.logger.log(`Admin user seeded: ${configuredEmail}`);
+      return;
+    }
+
+    // An explicitly configured ADMIN_PASSWORD is the operator's recovery path,
+    // so it still resets the password — but never from an implicit default.
+    user.password = hashed;
+    if (user.role !== UserRole.ADMIN) user.role = UserRole.ADMIN;
+    if (!user.isActive) user.isActive = true;
+    await this.usersRepo.save(user);
+    this.logger.log(`Admin password reset (ADMIN_PASSWORD set): ${configuredEmail}`);
   }
 }

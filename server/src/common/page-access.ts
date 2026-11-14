@@ -29,6 +29,38 @@ const SELF_SCOPED_RULES: RegExp[] = [
 
 const SELF_USER_PATTERN = /^\/api\/users\/([^/]+)$/;
 
+/**
+ * The driver app is a separate, narrow surface. It shares the JWT with the
+ * TMS, so without this list a driver account (including one created through
+ * the public sign-up endpoint) could read clients, rates, orders, planning
+ * and the whole fleet. Everything not listed here is office-only.
+ */
+const DRIVER_ALLOWED_RULES: RegExp[] = [
+  /^\/api\/auth(?:\/|$)/,
+  /^\/api\/driver(?:\/|$)/,
+  /^\/api\/trips(?:\/|$)/,
+  /^\/api\/planning\/trips\/[^/]+\/driver-(?:received|accepted)$/,
+  /^\/api\/documents(?:\/|$)/,
+  /^\/api\/chat(?:\/|$)/,
+  /^\/api\/location(?:\/|$)/,
+  /^\/api\/notifications(?:\/|$)/,
+  /^\/api\/telematics\/mobile(?:\/|$)/,
+  /^\/api\/users\/[^/]+$/,
+  /^\/api\/public(?:\/|$)/,
+  /^\/api\/track(?:\/|$)/,
+  /^\/api\/?$/,
+];
+
+export function isDriverRole(user: any): boolean {
+  return String(user?.role || '').toLowerCase() === 'driver';
+}
+
+/** True when the driver role may call this path (ownership is enforced in the service). */
+export function isDriverAllowedPath(path: string): boolean {
+  const clean = String(path || '').split('?')[0];
+  return DRIVER_ALLOWED_RULES.some(pattern => pattern.test(clean));
+}
+
 const PAGE_RULES: Array<[RegExp, string]> = [
   [/^\/api\/invoices(?:\/|$)/, 'invoices'],
   [/^\/api\/payments(?:\/|$)/, 'invoices'],

@@ -8,7 +8,14 @@ export class WebsiteCmsController {
 
   @Get()
   async getCmsData() {
-    // This is public so the website can fetch it
+    // Public: site copy only. Internal blobs (report logo, company settings,
+    // tariff parameters) are not marketing content and stay behind the guard.
+    return this.cmsService.findPublic();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('admin')
+  async getAdminCmsData() {
     return this.cmsService.findAll();
   }
 

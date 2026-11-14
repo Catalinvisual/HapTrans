@@ -59,7 +59,15 @@ export default function ChatPage() {
     // Connect WebSocket for real-time chat (replaces 3s polling)
     const apiUrl = import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api';
     const baseUrl = apiUrl.replace('/api', '');
-    const socket = io(baseUrl, { transports: ['websocket','polling'], reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 1000 });
+    const socket = io(baseUrl, {
+      transports: ['websocket','polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      // The gateway rejects anonymous sockets, so the token travels with the
+      // handshake (the driver app already does this).
+      auth: { token: localStorage.getItem('hapcargo_token') || '' },
+    });
     socketRef.current = socket;
     socket.on('newMessage', (msg) => setMessages((prev) => [...prev, msg]));
     return () => { socket.off('newMessage'); socket.disconnect(); };

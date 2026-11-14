@@ -25,6 +25,13 @@ dist-ssr
 *.sln
 *.sw?
 
+# Credentials — never commit a service-account key or a private key
+firebase-service-account.json
+**/firebase-service-account.json
+*service-account*.json
+*.pem
+*.key
+
 # Environments
 .env
 .env.local

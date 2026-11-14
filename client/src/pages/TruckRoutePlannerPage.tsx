@@ -10,6 +10,7 @@ import {
   FileText, ChevronDown, Calendar, ExternalLink,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
+import { escapeHtml } from '../lib/escapeHtml';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { statusBadgeClass as statusBadgeFromLib } from '../lib/statusColors';
@@ -628,13 +629,13 @@ export default function TruckRoutePlannerPage() {
             ${isPickup ? 'PICKUP' : 'DELIVERY'} #${s.sequence}
           </div>
           <div style="font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 2px;">
-            ${s.companyName || s.city || 'Stop'}
+            ${escapeHtml(s.companyName || s.city || 'Stop')}
           </div>
           <div style="font-size: 11px; color: #64748b;">
-            ${s.address ? s.address + ', ' : ''}${s.city || ''}
+            ${escapeHtml(s.address ? s.address + ', ' : '')}${escapeHtml(s.city || '')}
           </div>
           ${s.pallets ? `<div style="font-size: 10px; color: #475569; margin-top: 4px;">📦 ${s.pallets} pal · ${s.weightKg || 0} kg</div>` : ''}
-          ${s.timeFrom || s.timeUntil ? `<div style="font-size: 10px; color: #d97706; margin-top: 2px;">⏰ ${s.timeFrom || ''} - ${s.timeUntil || ''}</div>` : ''}
+          ${s.timeFrom || s.timeUntil ? `<div style="font-size: 10px; color: #d97706; margin-top: 2px;">⏰ ${escapeHtml(s.timeFrom || '')} - ${escapeHtml(s.timeUntil || '')}</div>` : ''}
         </div>
       `;
 

@@ -94,15 +94,6 @@ export class AppController {
     return { success: true };
   }
 
-  @Get('test/logo')
-  async testLogo() {
-    try {
-      const users = await this.usersService.findAll();
-      const admin = users.find(u => u.role === 'admin');
-      return { adminLogo: admin ? admin.companyLogoUrl : null };
-    } catch(e) { return { error: e.toString() }; }
-  }
-
   @Get('public/stats')
   async getPublicStats() {
     try {
@@ -123,8 +114,10 @@ export class AppController {
         clients: parseInt(clients[0].count, 10),
         countries: countriesCount,
       };
-    } catch (e) {
-      return { error: e.toString() };
+    } catch {
+      // Never return raw error text (it can contain SQL/schema details) on a
+      // public endpoint.
+      return {};
     }
   }
 
@@ -152,7 +145,7 @@ export class AppController {
       return { success: true };
     } catch (e) {
       console.error('Failed to save company settings', e);
-      return { success: false, error: e.toString() };
+      return { success: false };
     }
   }
 
@@ -165,8 +158,10 @@ export class AppController {
         return typeof raw === 'string' ? JSON.parse(raw) : raw;
       }
       return {};
-    } catch (e) {
-      return { error: e.toString() };
+    } catch {
+      // Never return raw error text (it can contain SQL/schema details) on a
+      // public endpoint.
+      return {};
     }
   }
 
@@ -216,8 +211,10 @@ export class AppController {
         weekendSurchargeFee: 150,
         holidaySurchargeFee: 200
       };
-    } catch (e) {
-      return { error: e.toString() };
+    } catch {
+      // Never return raw error text (it can contain SQL/schema details) on a
+      // public endpoint.
+      return {};
     }
   }
 
@@ -364,8 +361,8 @@ export class AppController {
           holiday: holidayCost
         }
       };
-    } catch (e: any) {
-      return { success: false, error: e?.toString() };
+    } catch {
+      return { success: false };
     }
   }
 }

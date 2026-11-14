@@ -10,6 +10,13 @@ import rateLimit from 'express-rate-limit';
 import { join } from 'path';
 import * as fs from 'fs';
 import { DataSource } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+
+/** Only a real loopback socket may skip the development-only limits. */
+function isLoopbackAddress(address?: string | null): boolean {
+  const value = String(address || '');
+  return value === '127.0.0.1' || value === '::1' || value === '::ffff:127.0.0.1';
+}
 
 function bootDbDiagnostic(): void {
   const url = process.env.DATABASE_URL || '';
@@ -283,7 +290,6 @@ async function bootstrap() {
     'https://www.hapcargo.ro',
     'https://haptrans-production.up.railway.app',
     'https://joyful-exploration-production.up.railway.app',
-    /\.railway\.app$/,
   ];
 
   const configuredCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
@@ -310,11 +316,41 @@ async function bootstrap() {
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
       max: 30, // max 30 login attempts per IP per 15 min
-      skip: (req) => {
-        const origin = (req.headers.origin || '').toString();
-        return origin.includes('localhost') || origin.includes('127.0.0.1');
-      },
+      // The Origin header is caller-controlled: sending "Origin: http://localhost"
+      // used to disable this brute-force budget entirely. Only a genuine
+      // loopback socket is exempt, and never in production.
+      skip: (req) =>
+        process.env.NODE_ENV !== 'production' && isLoopbackAddress(req.socket?.remoteAddress),
       message: 'Prea multe încercări de autentificare. Vă rugăm să așteptați 15 minute.',
+    }),
+  );
+
+  // Public sign-up must not be usable to mass-create accounts.
+  app.use(
+    '/api/auth/register',
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      message: 'Prea multe conturi create de pe această adresă. Încercați mai târziu.',
+    }),
+  );
+
+  // Client portal: a weak invite token must not be brute-forced, and the
+  // portal login shares the same protection as the office login.
+  app.use(
+    '/api/portal-auth/login',
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      message: 'Prea multe încercări de autentificare. Vă rugăm să așteptați 15 minute.',
+    }),
+  );
+  app.use(
+    '/api/portal-auth/set-password',
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+      message: 'Prea multe încercări. Vă rugăm să așteptați 15 minute.',
     }),
   );
 
@@ -383,13 +419,29 @@ async function bootstrap() {
     }
   });
 
-  // Serve uploaded files statically at /uploads prefix with basic protection
-  app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Serve uploaded files statically at /uploads prefix.
+  //
+  // Previously any request carrying a non-empty Authorization header was
+  // accepted, so "Bearer x" downloaded every uploaded document. The signature
+  // is now verified; only the public company logo and the update APKs stay
+  // anonymous.
+  const uploadsJwt = app.get(JwtService);
+  app.use('/uploads', async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     // Allow public access to the company logo for emails and the APK for auto-updates
     if (req.path === '/company-logo.png' || req.path.endsWith('.apk')) {
       return next();
     }
-    if (!req.headers.authorization && !req.query.token) {
+    const headerToken = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const queryToken = typeof req.query.token === 'string' ? req.query.token : '';
+    const token = headerToken || queryToken;
+    if (!token) {
+      return res.status(401).send('Unauthorized');
+    }
+    try {
+      const payload: any = await uploadsJwt.verifyAsync(token);
+      if (!payload?.sub) return res.status(401).send('Unauthorized');
+      (req as any).user = { id: payload.sub, role: payload.role };
+    } catch {
       return res.status(401).send('Unauthorized');
     }
     next();

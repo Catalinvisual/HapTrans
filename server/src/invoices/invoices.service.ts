@@ -431,6 +431,42 @@ export class InvoicesService implements OnModuleInit {
     return invoice;
   }
 
+  /**
+   * Invoice lines are stored with NOT NULL quantity, unitPrice and total.
+   * Callers (the TMS form, older invoices, imports) often send `amount` — or
+   * nothing — instead of `total`, which made the INSERT fail with a 500.
+   * Every line is completed here so a total always exists and always agrees
+   * with quantity × unit price unless an explicit total is supplied.
+   */
+  private normalizeItems(items: any[], fallbackVatRate = 19): any[] {
+    return (Array.isArray(items) ? items : []).map((item: any, index: number) => {
+      const source: any = item && typeof item === 'object' ? { ...item } : {};
+      const rawQuantity = Number(source.quantity ?? source.qty ?? 1);
+      const quantity = Number.isFinite(rawQuantity) ? rawQuantity : 1;
+      const rawUnitPrice = Number(source.unitPrice ?? source.price ?? 0);
+      const unitPrice = Number.isFinite(rawUnitPrice) ? rawUnitPrice : 0;
+      const explicitTotal = source.total ?? source.amount;
+      const explicitNumber = Number(explicitTotal);
+      const total =
+        explicitTotal !== undefined &&
+        explicitTotal !== null &&
+        explicitTotal !== '' &&
+        Number.isFinite(explicitNumber)
+          ? explicitNumber
+          : Number((quantity * unitPrice).toFixed(2));
+      const rawVatRate = Number(source.vatRate ?? source.vat ?? fallbackVatRate);
+      const description = String(source.description ?? source.name ?? '').trim();
+      return {
+        ...source,
+        description: description || `Item ${index + 1}`,
+        quantity,
+        unitPrice,
+        vatRate: Number.isFinite(rawVatRate) ? rawVatRate : 0,
+        total,
+      };
+    });
+  }
+
   async create(dto: any, user?: any) {
     const payload: any = { 
       ...dto, 
@@ -529,6 +565,11 @@ export class InvoicesService implements OnModuleInit {
           }
         ];
       }
+    }
+
+    // Always persist complete lines, including the automatic single line above.
+    if (Array.isArray(payload.items) && payload.items.length > 0) {
+      payload.items = this.normalizeItems(payload.items, isVat ? vatPercent : 0);
     }
 
     const inv = this.repo.create(payload) as any;
@@ -645,7 +686,11 @@ export class InvoicesService implements OnModuleInit {
       relations: { clientId: 'client', tripId: 'trip' },
       ignore: ['items', 'client', 'trip'],
     });
-    Object.assign(inv, dto);
+    // Editing lines must not hit the NOT NULL total column either.
+    const next = Array.isArray((dto as any).items)
+      ? { ...dto, items: this.normalizeItems((dto as any).items, Number((dto as any).vatPercent ?? inv.vatPercent ?? 19)) }
+      : dto;
+    Object.assign(inv, next);
     const saved = await this.repo.save(inv);
     if (user && updatedFields.length > 0) {
       try {

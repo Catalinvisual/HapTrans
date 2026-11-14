@@ -13,7 +13,7 @@ const WebsiteHubPage = () => {
   const [cmsData, setCmsData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    api.get('/website-cms').then(res => {
+    api.get('/website-cms/admin').then(res => {
       setCmsData(res.data);
     });
   }, []);

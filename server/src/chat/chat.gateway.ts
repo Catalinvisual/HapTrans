@@ -1,6 +1,11 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket, OnGatewayConnection, OnGatewayDisconnect, WsException } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Inject, forwardRef } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { actorOwnsTrip } from '../trips/trip-progress';
+
+/** Room every authenticated socket joins; global broadcasts are scoped to it. */
+const AUTHENTICATED_ROOM = 'authenticated';
 import { ChatService } from './chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -17,10 +22,42 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private firebaseService: FirebaseService,
     @Inject(forwardRef(() => TripsService)) private tripsService: TripsService,
     private driversService: DriversService,
+    private readonly jwtService: JwtService,
   ) {}
 
+  /** Accepts the token the apps already send, in any of the usual places. */
+  private extractToken(client: Socket): string | null {
+    const auth = client.handshake?.auth as { token?: string } | undefined;
+    const header = String(client.handshake?.headers?.authorization || '');
+    const bearer = header.replace(/^Bearer\s+/i, '');
+    const query = client.handshake?.query?.token;
+    const candidate = auth?.token || bearer || (typeof query === 'string' ? query : '');
+    return candidate ? String(candidate) : null;
+  }
+
+  private requireUser(client: Socket): { id: string; role?: string } {
+    const user = client.data?.user as { id: string; role?: string } | undefined;
+    if (!user?.id) {
+      throw new WsException('Authentication required');
+    }
+    return user;
+  }
+
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    const token = this.extractToken(client);
+    if (!token) {
+      // Anonymous sockets may stay connected but receive nothing and cannot
+      // act; every handler below refuses them.
+      return;
+    }
+    try {
+      const payload: any = this.jwtService.verify(token);
+      if (!payload?.sub) return;
+      client.data.user = { id: String(payload.sub), role: payload.role };
+      client.join(AUTHENTICATED_ROOM);
+    } catch {
+      // Invalid or expired token: treat the socket as anonymous.
+    }
   }
 
   handleDisconnect(client: Socket) {
@@ -28,19 +65,39 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('joinTrip')
-  handleJoinTrip(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string }) {
+  async handleJoinTrip(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string }) {
+    const user = this.requireUser(client);
+    const tripId = String(data?.tripId || '');
+    if (!tripId) throw new WsException('tripId required');
+
+    // A driver may only join a conversation he is part of. Office users keep
+    // their existing access to every trip.
+    if (String(user.role || '').toLowerCase() === 'driver') {
+      if (tripId.startsWith('driver_')) {
+        if (tripId.slice('driver_'.length) !== user.id) {
+          throw new WsException('Not your conversation');
+        }
+      } else if (tripId !== 'general') {
+        const trip = await this.tripsService.findOne(tripId).catch(() => null);
+        if (!trip || !actorOwnsTrip(trip as any, user)) {
+          throw new WsException('Trip not assigned to this driver');
+        }
+      }
+    }
+
     // Leave all previously joined trip rooms so only the active room receives real-time events
     client.rooms.forEach((room) => {
-      if (room !== client.id) client.leave(room);
+      if (room !== client.id && room !== AUTHENTICATED_ROOM) client.leave(room);
     });
-    client.join(`trip_${data.tripId}`);
-    client.emit('joinedTrip', { tripId: data.tripId });
+    client.join(`trip_${tripId}`);
+    client.emit('joinedTrip', { tripId });
   }
 
   async broadcastMessage(data: { tripId: string; senderId: string; content: string; fileUrl?: string }) {
     const msg = await this.chatService.saveMessage(data.tripId, data.senderId, data.content, data.fileUrl);
     this.server.to(`trip_${data.tripId}`).emit('newMessage', msg);
-    this.server.emit('newMessageGlobal', msg); // Emit globally for app local push
+    // Only authenticated sockets receive the global feed.
+    this.server.to(AUTHENTICATED_ROOM).emit('newMessageGlobal', msg);
     
     // Create dashboard notification for admin
     try {
@@ -105,20 +162,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('sendMessage')
-  async handleMessage(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string; senderId: string; content: string; fileUrl?: string }) {
-    return this.broadcastMessage(data);
+  async handleMessage(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string; senderId?: string; content: string; fileUrl?: string }) {
+    const user = this.requireUser(client);
+    // The sender is the authenticated socket, never a client-supplied id.
+    return this.broadcastMessage({ ...data, senderId: user.id });
   }
 
   @SubscribeMessage('updateLocation')
   handleLocation(@ConnectedSocket() client: Socket, @MessageBody() data: { driverId: string; truckId: string; lat: number; lng: number }) {
-    this.server.emit('locationUpdate', data);
+    this.requireUser(client);
+    this.server.to(AUTHENTICATED_ROOM).emit('locationUpdate', data);
   }
 
   @SubscribeMessage('updateTripStatus')
   async handleTripStatus(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string; status: string; driverId: string }) {
-    this.server.emit('tripStatusUpdate', data);
+    this.requireUser(client);
+    this.server.to(AUTHENTICATED_ROOM).emit('tripStatusUpdate', data);
     // Also broadcast tripUpdated so mobile apps in background catch it
-    this.server.emit('tripUpdated', { tripId: data.tripId, status: data.status, isDriver: true });
+    this.server.to(AUTHENTICATED_ROOM).emit('tripUpdated', { tripId: data.tripId, status: data.status, isDriver: true });
     
     try {
       const trip = await this.tripsService.findOne(data.tripId);
@@ -154,7 +215,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Called by TripsService when a trip is updated via REST API (not socket)
   broadcastTripUpdate(tripId: string, status: string, driverUserId?: string, isDriver: boolean = false) {
-    this.server.emit('tripUpdated', { tripId, status, driverUserId, isDriver });
+    this.server.to(AUTHENTICATED_ROOM).emit('tripUpdated', { tripId, status, driverUserId, isDriver });
   }
 
   /**
@@ -183,10 +244,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       isDriver: source === 'mobile',
       at: new Date().toISOString(),
     };
-    this.server.emit('tripStatusUpdate', payload);
-    this.server.emit('tripUpdated', payload);
+    this.server.to(AUTHENTICATED_ROOM).emit('tripStatusUpdate', payload);
+    this.server.to(AUTHENTICATED_ROOM).emit('tripUpdated', payload);
     if (data.incidentId || data.event.includes('INCIDENT')) {
-      this.server.emit('deliveryIncident', payload);
+      this.server.to(AUTHENTICATED_ROOM).emit('deliveryIncident', payload);
     }
   }
 }

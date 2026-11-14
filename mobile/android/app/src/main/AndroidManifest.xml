@@ -19,7 +19,7 @@
     <application
         android:label="HapCargo Driver"
         android:name="${applicationName}"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:fullBackupContent="false"

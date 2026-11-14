@@ -15,7 +15,9 @@ import { PortalUser } from '../portal-users/portal-user.entity';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+        // A dedicated secret is used when it is configured; otherwise the
+        // portal keeps signing with the shared secret so no session is lost.
+        secret: configService.get<string>('PORTAL_JWT_SECRET') || configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: '7d' },
       }),
       inject: [ConfigService],

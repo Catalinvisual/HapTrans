@@ -63,7 +63,7 @@ const WebsiteCmsPage = () => {
 
   const loadData = async () => {
     try {
-      const res = await api.get('/website-cms');
+      const res = await api.get('/website-cms/admin');
       setData(res.data || {});
     } catch (err) {
       toast.error(t('cmsLoadError', 'Eroare la încărcarea datelor CMS'));

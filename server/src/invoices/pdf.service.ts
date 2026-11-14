@@ -76,7 +76,21 @@ export class PdfService implements OnModuleDestroy {
       
       // Create a new page
       page = await browser.newPage();
-      
+
+      // Invoices are static markup: no script may run inside the renderer,
+      // which is launched with --no-sandbox. Scripts, XHR, fetch and sockets
+      // are also blocked at the network layer so injected markup cannot reach
+      // internal addresses.
+      await page.setJavaScriptEnabled(false);
+      await page.setRequestInterception(true);
+      page.on('request', (request: any) => {
+        const type = request.resourceType();
+        if (type === 'script' || type === 'xhr' || type === 'fetch' || type === 'websocket' || type === 'other') {
+          return request.abort();
+        }
+        return request.continue();
+      });
+
       // Set the content with the provided HTML, waiting for images to load
       await page.setContent(html, { waitUntil: 'load' });
       
