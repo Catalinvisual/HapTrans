@@ -4989,7 +4989,8 @@ export default function PlanningPage() {
       )}
 
 {/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden bg-surface/50 p-2 gap-2.5">
+      <div className="flex-1 flex flex-col overflow-hidden bg-surface/50">
+        <div className="flex flex-1 min-h-0 p-1.5 gap-1.5">
 
         {/* ORDER POOL (left panel) */}
         <div 
@@ -5356,35 +5357,6 @@ export default function PlanningPage() {
                 )}
 </div>
 
-        {/* The results panel owns its height (48px collapsed, resizable when
-            open). A min-height wrapper left a blank region under it. */}
-        {boardData ? (
-      <div className="shrink-0 border-t border-border">
-      <PlanningResultsPanel
-        boardData={boardData}
-        selectedTripId={selectedTripId}
-        grouping={grouping}
-        truckFilter={truckFilter}
-        driverFilter={driverFilter}
-        priorityFilter={priorityFilter}
-        searchFilter={searchFilter}
-        from={from}
-        to={to}
-        onSelectTrip={setSelectedTripId}
-        onRefresh={loadData}
-        focusSignal={resultsSignal}
-        hiddenTripIds={hiddenTripIds}
-        onToggleTripVisibility={(tripId) => setHiddenTripIds((prev) => toggleHiddenTrip(prev, tripId))}
-      />
-      </div>
-    ) : null}
-
-    {/* Status bar footer */}
-              <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-surface/30 text-[10px] text-text-secondary shrink-0 print:hidden">
-                <span>{t('jsx_resources','Resources')}: <span className="font-bold text-text-primary">{displayResources.length}/{resources.length}</span></span>
-                <span>{t('drag_hint','Drag orders onto truck rows to assign')}</span>
-                <span>{t('jsx_tripsInRange','Trips in range')}: <span className="font-bold text-text-primary">{trips.length}</span></span>
-              </div>
             </>
           )}
         </div>
@@ -5439,6 +5411,37 @@ export default function PlanningPage() {
         </div>
       </div>
 
+</div>
+
+        {/* The results panel owns its height (48px collapsed, resizable when
+            open). A min-height wrapper left a blank region under it. */}
+        {boardData ? (
+      <div className="shrink-0 border-t border-border">
+      <PlanningResultsPanel
+        boardData={boardData}
+        selectedTripId={selectedTripId}
+        grouping={grouping}
+        truckFilter={truckFilter}
+        driverFilter={driverFilter}
+        priorityFilter={priorityFilter}
+        searchFilter={searchFilter}
+        from={from}
+        to={to}
+        onSelectTrip={setSelectedTripId}
+        onRefresh={loadData}
+        focusSignal={resultsSignal}
+        hiddenTripIds={hiddenTripIds}
+        onToggleTripVisibility={(tripId) => setHiddenTripIds((prev) => toggleHiddenTrip(prev, tripId))}
+      />
+      </div>
+    ) : null}
+
+    {/* Status bar footer */}
+              <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-surface/30 text-[10px] text-text-secondary shrink-0 print:hidden">
+                <span>{t('jsx_resources','Resources')}: <span className="font-bold text-text-primary">{displayResources.length}/{resources.length}</span></span>
+                <span>{t('drag_hint','Drag orders onto truck rows to assign')}</span>
+                <span>{t('jsx_tripsInRange','Trips in range')}: <span className="font-bold text-text-primary">{trips.length}</span></span>
+              </div>
       {/* ── DRAWERS & MODALS ────────────────────────────────────────────── */}
       {selectedTrip && !drawerDismissed && (
         <TripDetailDrawer

@@ -140,6 +140,46 @@
   border-radius: 12px;
 }
 
+/* Filter dropdowns: a single modern control instead of the OS default. */
+.planning-page select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: rgb(var(--color-card));
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a94a3' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  padding: 6px 30px 6px 11px;
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgb(var(--color-text));
+  color-scheme: light;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+.dark .planning-page select {
+  color-scheme: dark;
+}
+
+.planning-page select:hover {
+  border-color: rgb(var(--color-text-light) / 0.65);
+}
+
+.planning-page select:focus-visible,
+.planning-page select:focus {
+  outline: none;
+  border-color: rgb(var(--color-primary));
+  box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.16);
+}
+
+.planning-page select option {
+  background-color: rgb(var(--color-card));
+  color: rgb(var(--color-text));
+  padding: 8px;
+}
+
 /* Status pills keep their semantic colour in both themes. */
 .dark .planning-page .bg-emerald-50,
 .dark .planning-page .bg-emerald-100 {
