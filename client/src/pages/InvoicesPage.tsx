@@ -592,7 +592,7 @@ export default function InvoicesPage({
       }
     }
     return matchesSearch(search, i.invoiceNumber, i.client?.name, i.status, i.notes, i.amount);
-  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }).sort((a, b) => new Date(b.issueDate || b.createdAt || 0).getTime() - new Date(a.issueDate || a.createdAt || 0).getTime());
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useShortcuts({
     'shift+n': () => {

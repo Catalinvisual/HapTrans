@@ -210,6 +210,7 @@ describe('InvoicesService invoice creation', () => {
       findOne: jest.fn(),
       find: jest.fn(async () => []),
       create: jest.fn((value: any) => value),
+      merge: jest.fn((target: any, source: any) => Object.assign(target, source)),
       save: jest.fn(async (value: any) => ({ ...value })),
       update: jest.fn(async () => ({})),
       count: jest.fn(async () => 0),
@@ -220,6 +221,37 @@ describe('InvoicesService invoice creation', () => {
     jest.spyOn(service as any, 'resolveTransportDetails').mockResolvedValue(null);
   });
 
+  it('refreshes the draft raised at delivery with what the user submitted', async () => {
+    repo.findOne.mockResolvedValue({
+      id: 'inv-draft', orderId: 'ord-1', status: 'draft',
+      invoiceNumber: `INV-${year}-00007`, issueDate: '2026-01-05',
+    });
+
+    await service.create({
+      orderId: 'ord-1', clientId: 'client-1', amount: 1500, vatPercent: 19,
+      issueDate: '2026-11-14', dueDate: '2026-12-14', status: 'approved',
+    });
+
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    const saved = repo.save.mock.calls[0][0];
+    expect(saved.id).toBe('inv-draft');
+    expect(saved.invoiceNumber).toBe(`INV-${year}-00007`);
+    expect(saved.issueDate).toBe('2026-11-14');
+    expect(saved.status).toBe('approved');
+    expect(saved.total).toBeGreaterThan(0);
+  });
+
+  it('never rewrites an invoice that is already issued for the order', async () => {
+    repo.findOne.mockResolvedValue({
+      id: 'inv-issued', orderId: 'ord-1', status: 'sent', invoiceNumber: `INV-${year}-00008`,
+    });
+
+    const result = await service.create({ orderId: 'ord-1', clientId: 'client-1', amount: 100 });
+
+    expect(result).toEqual({ id: 'inv-issued' });
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
   it('returns the invoice already raised for the order instead of a duplicate key error', async () => {
     repo.findOne.mockResolvedValue({ id: 'inv-existing', orderId: 'ord-1', invoiceNumber: `INV-${year}-00007` });
 
@@ -228,6 +260,7 @@ describe('InvoicesService invoice creation', () => {
     expect(result).toEqual({ id: 'inv-existing' });
     expect(repo.save).not.toHaveBeenCalled();
   });
+
 
   it('numbers the next invoice after the highest number already used', async () => {
     repo.findOne.mockResolvedValue(null);

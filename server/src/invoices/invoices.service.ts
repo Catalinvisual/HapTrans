@@ -379,7 +379,10 @@ export class InvoicesService implements OnModuleInit {
         .leftJoinAndSelect('invoice.trip', 'trip')
         .leftJoinAndSelect('invoice.items', 'items')
         .leftJoinAndSelect('invoice.payments', 'payments')
-        .orderBy('invoice.createdAt', 'DESC')
+        // The register reads by invoice date: an invoice issued today belongs on
+        // top even when the draft it came from was raised days ago.
+        .orderBy('invoice.issueDate', 'DESC', 'NULLS LAST')
+        .addOrderBy('invoice.createdAt', 'DESC')
         .getMany();
     } catch (err: any) {
       console.error('QueryBuilder failed in InvoicesService.findAll, trying repo.find fallback:', err?.message);
@@ -503,23 +506,11 @@ export class InvoicesService implements OnModuleInit {
       payload.updatedAt = new Date();
     }
 
-    // One invoice per order is a database invariant (unique orderId). Returning
-    // the invoice that already exists keeps "create invoice" idempotent instead
-    // of failing with a duplicate-key error when a draft was already raised for
-    // the order (delivery completion, a previous click or a retried request).
+    // One invoice per order is a database invariant (unique orderId).
     const requestedOrderId =
       (typeof dto.orderId === 'string' && dto.orderId.trim()) ||
       (typeof dto.order?.id === 'string' && dto.order.id.trim()) ||
       '';
-    if (requestedOrderId) {
-      const existing = await this.repo.findOne({ where: { orderId: requestedOrderId } });
-      if (existing) {
-        console.warn(
-          `Invoice already exists for order ${requestedOrderId}; returning ${existing.invoiceNumber} instead of creating a duplicate.`,
-        );
-        return this.findOne(existing.id);
-      }
-    }
 
     // Safely associate client relation
     if (dto.clientId && typeof dto.clientId === 'string' && dto.clientId.trim() !== '') {
@@ -608,6 +599,39 @@ export class InvoicesService implements OnModuleInit {
     // Always persist complete lines, including the automatic single line above.
     if (Array.isArray(payload.items) && payload.items.length > 0) {
       payload.items = this.normalizeItems(payload.items, isVat ? vatPercent : 0);
+    }
+
+    // Reuse the invoice already raised for this order instead of failing with a
+    // duplicate key. A draft created at delivery completion is refreshed with
+    // what the user just submitted (invoice date today, current amounts and
+    // lines) so the click actually produces the invoice they asked for; anything
+    // already approved, sent or paid is returned untouched.
+    if (requestedOrderId) {
+      const existing = await this.repo.findOne({ where: { orderId: requestedOrderId } });
+      if (existing) {
+        if (String(existing.status || '').toLowerCase() === InvoiceStatus.DRAFT) {
+          const refresh: any = { ...payload };
+          delete refresh.id;
+          delete refresh.invoiceNumber;
+          delete refresh.createdAt;
+          const merged = this.repo.merge(existing, refresh);
+          const savedDraft = await this.repo.save(merged);
+          if (user && savedDraft?.id) {
+            try {
+              await this.actionLogs.logAction('Invoice', savedDraft.id, 'UPDATED', user, {
+                refreshedFromOrder: requestedOrderId,
+              });
+            } catch (err: any) {
+              console.warn('Action log failed for refreshed invoice:', err?.message);
+            }
+          }
+          return this.findOne(savedDraft.id);
+        }
+        console.warn(
+          `Invoice ${existing.invoiceNumber} is already issued for order ${requestedOrderId}; returning it unchanged.`,
+        );
+        return this.findOne(existing.id);
+      }
     }
 
     let saved: any;
