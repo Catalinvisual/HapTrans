@@ -38,6 +38,7 @@ const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
 const TachographPage   = lazy(() => import('./pages/TachographPage'));
 const TelematicsPage   = lazy(() => import('./pages/TelematicsPage'));
 const TelematicsSimulatorPage = lazy(() => import('./pages/TelematicsSimulatorPage'));
+const HelpPage          = lazy(() => import('./pages/HelpPage'));
 
 // ─── Portal Pages (Lazy) ──────────────────────────────────────────────────
 const PortalLayout           = lazy(() => import('./layouts/PortalLayout'));
@@ -135,6 +136,7 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             {/* Dashboard is eager — it's the first thing seen */}
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="help" element={<Suspense fallback={<PageLoader />}><HelpPage /></Suspense>} />
 
             {/* All other pages are lazy-loaded chunks */}
             <Route path="trips" element={<Suspense fallback={<PageLoader />}><TripsPage /></Suspense>} />

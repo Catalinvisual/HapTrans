@@ -21,6 +21,7 @@ import { dashboardResources } from './dashboardI18n';
 import { dashboardProResources } from './dashboardProI18n';
 import { usersPageResources } from './usersI18n';
 import { usersRolesResources } from './usersRolesI18n';
+import { helpResources } from './help';
 
 const resources = {
   ro: { translation: {
@@ -12134,6 +12135,12 @@ for (const lng of Object.keys(historyStatusResources)) {
 for (const lng of Object.keys(shortcutsResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, shortcutsResources[lng]);
+}
+
+// In-app guide labels and header entry point, in all seven locales.
+for (const lng of Object.keys(helpResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, helpResources[lng]);
 }
 
 const getInitialLanguage = (): string => {

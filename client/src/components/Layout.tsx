@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing, Box, Globe, Container, Banknote, Wallet } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing, Box, Globe, Container, Banknote, Wallet, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -829,6 +829,14 @@ export default function Layout() {
               className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
             >
               <Search className="w-4 h-4" />
+            </button>
+            {/* Help & guide */}
+            <button
+              onClick={() => navigate('/help')}
+              title={t('guide_title', 'Help & guide')}
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
+            >
+              <BookOpen className="w-4 h-4" />
             </button>
             {/* Shortcuts Help Icon */}
             <button 
