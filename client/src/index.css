@@ -50,6 +50,10 @@
   * { @apply border-border; }
   select, option, input, textarea {
     @apply bg-card text-text;
+    /* The caret must follow the text colour. Without this Chrome can keep the
+       light colour-scheme caret for a moment after focus, which is invisible on
+       the white inputs used across the TMS. */
+    caret-color: currentColor;
   }
   .dark select, .dark option, .dark input, .dark textarea {
     color-scheme: dark;
@@ -89,6 +93,7 @@
     @apply w-full px-3 py-2 bg-card border border-border rounded-lg text-sm
     hover:border-gray-400 dark:hover:border-gray-500
     focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-text;
+    caret-color: currentColor;
   }
   input[type="hidden"],
   input.flatpickr-input[type="hidden"] {

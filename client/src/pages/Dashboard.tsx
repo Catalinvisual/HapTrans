@@ -556,9 +556,10 @@ export default function Dashboard() {
                       onClick={() => setShowHandover(true)}
                       title={t('dbd_handover')}
                       aria-label={t('dbd_handover')}
-                      className={iconButton}
+                      className="flex h-8 items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-2.5 text-[11px] font-bold text-white transition-all hover:bg-white/20"
                     >
                       <ClipboardList className="h-4 w-4" />
+                      <span className="hidden sm:inline">{t('dbd_handover')}</span>
                     </button>
                     <button
                       type="button"

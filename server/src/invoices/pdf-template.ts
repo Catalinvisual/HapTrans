@@ -790,8 +790,7 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
 
         <div class="vat-info">
           <strong>${t.vatInfo}</strong><br />
-          The VAT rate applied is ${invoice.vatPercent || 19}%.<br />
-          ${t.vatInfoText}
+          The VAT rate applied is ${invoice.vatPercent || 19}%.
         </div>
       </div>
     </div>
