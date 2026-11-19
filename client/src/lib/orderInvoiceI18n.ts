@@ -3,6 +3,8 @@
 // issued earlier and cannot find it in the register.
 export const orderInvoiceResources: Record<string, Record<string, string>> = {
   ro: {
+    noOrder: 'Fără comandă',
+    invoice_for_order: 'Factura pentru comanda',
     order_invoice_exists_title: 'Factura există deja',
     order_invoice_exists_message:
       'Factura nr. {{number}} a fost creată deja pentru comanda {{order}} (emisă la {{date}}). Nu s-a generat o factură nouă.',
@@ -12,6 +14,8 @@ export const orderInvoiceResources: Record<string, Record<string, string>> = {
     order_invoice_close: 'Închide',
   },
   en: {
+    noOrder: 'No order',
+    invoice_for_order: 'Invoice for order',
     order_invoice_exists_title: 'Invoice already exists',
     order_invoice_exists_message:
       'Invoice {{number}} was already raised for order {{order}} (issued on {{date}}). No new invoice was created.',
@@ -21,6 +25,8 @@ export const orderInvoiceResources: Record<string, Record<string, string>> = {
     order_invoice_close: 'Close',
   },
   nl: {
+    noOrder: 'Geen order',
+    invoice_for_order: 'Factuur voor order',
     order_invoice_exists_title: 'Factuur bestaat al',
     order_invoice_exists_message:
       'Factuur {{number}} is al aangemaakt voor order {{order}} (uitgegeven op {{date}}). Er is geen nieuwe factuur gemaakt.',
@@ -30,6 +36,8 @@ export const orderInvoiceResources: Record<string, Record<string, string>> = {
     order_invoice_close: 'Sluiten',
   },
   de: {
+    noOrder: 'Kein Auftrag',
+    invoice_for_order: 'Rechnung für Auftrag',
     order_invoice_exists_title: 'Rechnung existiert bereits',
     order_invoice_exists_message:
       'Rechnung {{number}} wurde bereits für Auftrag {{order}} erstellt (ausgestellt am {{date}}). Es wurde keine neue Rechnung erzeugt.',
@@ -39,6 +47,8 @@ export const orderInvoiceResources: Record<string, Record<string, string>> = {
     order_invoice_close: 'Schließen',
   },
   fr: {
+    noOrder: 'Aucune commande',
+    invoice_for_order: 'Facture pour la commande',
     order_invoice_exists_title: 'Facture déjà existante',
     order_invoice_exists_message:
       'La facture {{number}} a déjà été créée pour la commande {{order}} (émise le {{date}}). Aucune nouvelle facture n\'a été générée.',
@@ -48,6 +58,8 @@ export const orderInvoiceResources: Record<string, Record<string, string>> = {
     order_invoice_close: 'Fermer',
   },
   es: {
+    noOrder: 'Sin pedido',
+    invoice_for_order: 'Factura del pedido',
     order_invoice_exists_title: 'La factura ya existe',
     order_invoice_exists_message:
       'La factura {{number}} ya fue creada para el pedido {{order}} (emitida el {{date}}). No se generó una factura nueva.',
@@ -57,6 +69,8 @@ export const orderInvoiceResources: Record<string, Record<string, string>> = {
     order_invoice_close: 'Cerrar',
   },
   pl: {
+    noOrder: 'Bez zamówienia',
+    invoice_for_order: 'Faktura do zamówienia',
     order_invoice_exists_title: 'Faktura już istnieje',
     order_invoice_exists_message:
       'Faktura {{number}} została już wystawiona dla zamówienia {{order}} (data wystawienia: {{date}}). Nie utworzono nowej faktury.',

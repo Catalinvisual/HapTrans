@@ -5,6 +5,7 @@ import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, Clock, Expand, LogOut, MapPin, Package, RefreshCw, ShieldCheck, Truck,
 } from 'lucide-react';
 import { fmtNumber } from '../../lib/format';
+import { formatDelay } from '../../lib/formatDuration';
 import type { OverviewData, OverviewTrip } from './types';
 import { formatLongDate, formatShortDate, formatTime, humanizeStatus, routeText } from './types';
 
@@ -192,7 +193,7 @@ export default function KioskMode({
                       <div className="shrink-0 text-right">
                         <p className="text-[10px] font-black uppercase tracking-wide text-white/60">{t(`status_${trip.status}`, humanizeStatus(trip.status))}</p>
                         {trip.delayMinutes > 0 && (
-                          <p className="mt-1 text-sm font-black text-red-400">+{trip.delayMinutes} {t('dbd_min')}</p>
+                          <p className="mt-1 text-sm font-black text-red-400">{formatDelay(trip.delayMinutes)}</p>
                         )}
                       </div>
                     </div>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fmtNumber, fmtPercent } from '../../lib/format';
+import { formatDelay } from '../../lib/formatDuration';
 import PanelCard from './PanelCard';
 import { TripRow } from './TodayBoard';
 import type { OverviewData, OverviewAlert, OverviewOrder } from './types';
@@ -105,7 +106,7 @@ export function AlertsPanel({
                   <span className="shrink-0 rounded-md bg-surface px-1.5 py-0.5 text-[10px] font-black text-text-secondary">
                     {alert.type === 'document'
                       ? t('dbd_days_left', { count: Math.max(0, alert.value) })
-                      : t('dbd_late_min', { min: alert.value })}
+                      : formatDelay(alert.value)}
                   </span>
                 )}
                 {onResolve && (

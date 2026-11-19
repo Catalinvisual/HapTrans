@@ -38,7 +38,7 @@ export default function LoginPage() {
         email: cleanEmail,
         password,
       });
-      setAuth(data.user, data.access_token);
+      setAuth(data.user, data.access_token, data.refresh_token);
       toast.success(`${t('welcomeUser')}${data.user.name}!`);
       navigate('/dashboard');
     } catch (err: any) {

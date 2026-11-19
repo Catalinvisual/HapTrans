@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../ui/StatusBadge';
 import { statusAccent } from '../../lib/statusColors';
+import { formatDelay } from '../../lib/formatDuration';
 import type { OverviewData, OverviewTrip } from './types';
 import { formatDayShort, formatTime, humanizeStatus, routeText } from './types';
 
@@ -69,7 +70,7 @@ export function TripRow({ trip, kind, lang }: { trip: OverviewTrip; kind: BoardT
         </div>
         {late && (
           <span className="mt-1 shrink-0 rounded-full border border-error/25 bg-error/10 px-2 py-0.5 text-[10px] font-black text-error">
-            {t('dbd_late_min', { min: trip.delayMinutes })}
+            {formatDelay(trip.delayMinutes, lang)}
           </span>
         )}
         <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-text-light opacity-0 transition-opacity group-hover:opacity-100" />

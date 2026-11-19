@@ -61,25 +61,23 @@ export class AuthController {
     const ip = req.ip || req.connection.remoteAddress;
 
     const result = await this.authService.login(dto.email, dto.password, userAgent, ip);
-    const mobile = this.isMobileClient(req);
     
-    // Set HttpOnly Cookie for Refresh Token
+    // Set HttpOnly Cookie for Refresh Token. The TMS runs on its own Railway
+    // host, so the cookie is cross-site and must be SameSite=None to be stored
+    // by the browser at all; the body token below covers browsers that block
+    // third-party cookies entirely.
     res.cookie('refresh_token', result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // true if https
-      sameSite: 'lax', // Protect against CSRF but allow normal navigation
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       expires: result.expiresAt,
     });
 
     return res.json({
       access_token: result.accessToken,
       user: result.user,
-      ...(mobile
-        ? {
-            refresh_token: result.refreshToken,
-            refresh_token_expires_at: result.expiresAt.toISOString(),
-          }
-        : {}),
+      refresh_token: result.refreshToken,
+      refresh_token_expires_at: result.expiresAt.toISOString(),
     });
   }
 
@@ -108,7 +106,7 @@ export class AuthController {
       res.cookie('refresh_token', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         expires: result.expiresAt,
       });
 

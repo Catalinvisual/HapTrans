@@ -44,7 +44,10 @@ describe('AuthController mobile refresh contract', () => {
     expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'session-id.secret', expect.any(Object));
   });
 
-  it('keeps the refresh token out of the response body for web clients', async () => {
+  it('returns the refresh token to web clients so the SPA can renew it itself', async () => {
+    // The API and the TMS are served from different hosts, so the refresh cookie
+    // is cross-site and can be blocked as a third-party cookie. The SPA keeps the
+    // rotated token and sends it back, which keeps the session alive for a shift.
     const authService: any = { login: jest.fn().mockResolvedValue(result) };
     const controller = new AuthController(authService);
     const res = fakeResponse();
@@ -56,7 +59,8 @@ describe('AuthController mobile refresh contract', () => {
     );
 
     const body = res.json.mock.calls[0][0];
-    expect(body.refresh_token).toBeUndefined();
+    expect(body.refresh_token).toBe('session-id.secret');
+    expect(body.refresh_token_expires_at).toBeDefined();
     expect(res.cookie).toHaveBeenCalled();
   });
 

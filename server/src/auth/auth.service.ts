@@ -9,7 +9,10 @@ import { Driver } from '../drivers/driver.entity';
 import { Session } from './entities/session.entity';
 
 /** Short-lived access token: renewed silently by the client through /auth/refresh. */
-export const ACCESS_TOKEN_TTL = '15m';
+// A dispatch shift is a working day: an expired access token every 15 minutes
+// forced the office to log in again mid-task. The refresh session (90 days,
+// rotated on every use) still bounds the real session.
+export const ACCESS_TOKEN_TTL = '11h';
 /** Driver devices stay signed in for 90 days without asking for credentials again. */
 export const REFRESH_TOKEN_TTL_DAYS = 90;
 /**

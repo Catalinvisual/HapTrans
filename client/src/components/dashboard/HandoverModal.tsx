@@ -5,6 +5,7 @@ import {
   AlertTriangle, ArrowUpRight, CheckCircle2, ClipboardList, Clock, Copy, Download, FileText, Package, Truck, WifiOff, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatDelay } from '../../lib/formatDuration';
 import type { OverviewData } from './types';
 import { formatTime, routeText } from './types';
 import { exportHandoverPdf } from '../../lib/dashboardExport';
@@ -46,7 +47,7 @@ export default function HandoverModal({
       `${t('dbd_handover_docs')}: ${documents.length}`,
       '',
       `${t('dbd_handover_delayed')}:`,
-      ...data.today.delayed.map((trip) => `- ${trip.tripNumber || trip.id.slice(0, 8)} · ${routeText(trip.originCity, trip.originCountry, trip.destCity, trip.destCountry, lang)} · +${trip.delayMinutes} min`),
+      ...data.today.delayed.map((trip) => `- ${trip.tripNumber || trip.id.slice(0, 8)} · ${routeText(trip.originCity, trip.originCountry, trip.destCity, trip.destCountry, lang)} · ${formatDelay(trip.delayMinutes, lang)}`),
       '',
       `${t('dbd_handover_unassigned')}:`,
       ...data.unassignedOrders.map((order) => `- ${order.orderNumber || order.id.slice(0, 8)} · ${order.clientName || '—'} · ${routeText(order.originCity, order.originCountry, order.destCity, order.destCountry, lang)}`),
@@ -134,7 +135,7 @@ export default function HandoverModal({
                       <span className="block truncate text-[11px] font-black text-text">{trip.tripNumber || trip.id.slice(0, 8)}</span>
                       <span className="block truncate text-[9px] text-text-secondary">{routeText(trip.originCity, trip.originCountry, trip.destCity, trip.destCountry, lang)}</span>
                     </span>
-                    <span className="shrink-0 rounded-md bg-error/10 px-2 py-0.5 text-[9px] font-black text-error">+{trip.delayMinutes} min</span>
+                    <span className="shrink-0 rounded-md bg-error/10 px-2 py-0.5 text-[9px] font-black text-error">{formatDelay(trip.delayMinutes, lang)}</span>
                   </button>
                 ))}
               </div>

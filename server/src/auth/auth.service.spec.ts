@@ -93,15 +93,15 @@ describe('AuthService persistent sessions', () => {
     return { service, ...repos };
   }
 
-  it('issues a 15-minute access token and a 90-day refresh session', async () => {
+  it('issues an 11-hour access token and a 90-day refresh session', async () => {
     const { service, sessions } = build();
 
     const result = await service.login('driver@example.com', 'DriverPass1');
 
     const payload: any = jwt.decode(result.accessToken);
-    expect(payload.exp - payload.iat).toBe(15 * 60);
+    expect(payload.exp - payload.iat).toBe(11 * 60 * 60);
 
-    expect(ACCESS_TOKEN_TTL).toBe('15m');
+    expect(ACCESS_TOKEN_TTL).toBe('11h');
     const lifetimeDays = (result.expiresAt.getTime() - Date.now()) / DAY_MS;
     expect(lifetimeDays).toBeGreaterThan(REFRESH_TOKEN_TTL_DAYS - 0.01);
     expect(lifetimeDays).toBeLessThanOrEqual(REFRESH_TOKEN_TTL_DAYS + 0.01);
@@ -126,7 +126,7 @@ describe('AuthService persistent sessions', () => {
     expect(sessions[1].revokedAt).toBeFalsy();
 
     const renewed: any = jwt.decode(rotated.accessToken);
-    expect(renewed.exp - renewed.iat).toBe(15 * 60);
+    expect(renewed.exp - renewed.iat).toBe(11 * 60 * 60);
 
     // The main app and the background location isolate can send the same
     // refresh token at the same moment. The loser must not be logged out.

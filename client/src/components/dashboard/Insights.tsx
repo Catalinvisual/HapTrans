@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import PanelCard from './PanelCard';
 import { fmtNumber, fmtPercent } from '../../lib/format';
+import { formatDelay } from '../../lib/formatDuration';
 import type { OverviewData, OverviewHeatmap, OverviewTelemetry } from './types';
 import { formatDayShort, formatTime } from './types';
 
@@ -80,7 +81,7 @@ export function ReliabilityPanel({ data, lang }: { data: OverviewData; lang: str
                   <div className="shrink-0 text-right">
                     <p className="text-xs font-black tabular-nums" style={{ color }}>{fmtPercent(rate, 0)}</p>
                     <p className="text-[9px] font-semibold text-text-secondary">
-                      {row.delay > 0 ? `+${row.delay} ${t('dbd_min')}` : t('dbd_on_time')}
+                      {row.delay > 0 ? formatDelay(row.delay) : t('dbd_on_time')}
                     </p>
                   </div>
                 </div>

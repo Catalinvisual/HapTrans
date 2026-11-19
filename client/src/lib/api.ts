@@ -54,14 +54,19 @@ api.interceptors.response.use(
 
       try {
         // Try to refresh token
+        // Send the rotated token in the body when we have it: the API and the
+        // TMS are on different hosts, so the refresh cookie can be dropped as a
+        // third-party cookie and the session would end after the access token.
+        const storedRefreshToken = localStorage.getItem('hapcargo_refresh_token');
         const { data } = await axios.post(
           `${api.defaults.baseURL}/auth/refresh`,
-          {},
+          storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
           { withCredentials: true }
         );
 
         const newAccessToken = data.access_token;
         localStorage.setItem('hapcargo_token', newAccessToken);
+        if (data.refresh_token) localStorage.setItem('hapcargo_refresh_token', data.refresh_token);
         if (data.user) {
           localStorage.setItem('hapcargo_user', JSON.stringify(data.user));
         }
@@ -75,6 +80,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         // Refresh token failed or expired
         localStorage.removeItem('hapcargo_token');
+        localStorage.removeItem('hapcargo_refresh_token');
         localStorage.removeItem('hapcargo_user');
         if (pathname !== '/login') {
           window.location.href = '/login';
@@ -88,6 +94,7 @@ api.interceptors.response.use(
     // If 401 and it's already a retry or login page, just redirect to login
     if (err.response?.status === 401 && !isLoginRequest && !isLoginPage) {
       localStorage.removeItem('hapcargo_token');
+      localStorage.removeItem('hapcargo_refresh_token');
       localStorage.removeItem('hapcargo_user');
       if (pathname !== '/login') {
         window.location.href = '/login';

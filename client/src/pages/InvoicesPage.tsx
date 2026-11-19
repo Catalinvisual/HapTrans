@@ -44,6 +44,7 @@ export default function InvoicesPage({
   const [invoices, setInvoices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(formStore.invoicesShowForm);
   const [editId, setEditId] = useState<string | null>(formStore.invoicesEditId);
@@ -116,6 +117,7 @@ export default function InvoicesPage({
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const [form, setForm] = useState(formStore.invoicesForm || {
     clientId: '',
+    orderId: '',
     tripId: '',
     amount: '',
     fuelSurcharge: '',
@@ -134,19 +136,21 @@ export default function InvoicesPage({
       form
     });
   }, [showForm, editId, form]);
-  const filteredTrips = form.clientId ? trips.filter((t: any) => t.client?.id === form.clientId) : trips;
+  const filteredOrders = form.clientId ? orders.filter((o: any) => o.client?.id === form.clientId) : orders;
   const load = async () => {
     try {
       setLoading(true);
       const timestamp = Date.now();
-      const [inv, cl, tr] = await Promise.all([
+      const [inv, cl, tr, ord] = await Promise.all([
         api.get(`/invoices?_t=${timestamp}`),
         api.get(`/clients?_t=${timestamp}`),
         api.get(`/trips?_t=${timestamp}`),
+        api.get(`/orders?_t=${timestamp}`),
       ]);
       setInvoices(Array.isArray(inv.data) ? inv.data : []);
       setClients(Array.isArray(cl.data) ? cl.data : []);
       setTrips(Array.isArray(tr.data) ? tr.data : []);
+      setOrders(Array.isArray(ord.data) ? ord.data : []);
     } catch (err: any) {
       console.error('Failed to load invoices:', err);
       toast.error(err?.response?.data?.message || t('error', 'Eroare la încărcarea facturilor'));
@@ -465,6 +469,7 @@ export default function InvoicesPage({
     }).catch(() => undefined);
     setForm({
       clientId: inv.client?.id || '',
+      orderId: inv.orderId || '',
       tripId: inv.trip?.id || '',
       amount: String(inv.amount && Number(inv.amount) > 0 ? inv.amount : inv.trip?.price ?? inv.trip?.agreedPrice ?? ''),
       fuelSurcharge: String(inv.fuelSurcharge && Number(inv.fuelSurcharge) > 0 ? inv.fuelSurcharge : inv.trip?.fuelSurchargePercent ?? inv.trip?.fuelSurcharge ?? ''),
@@ -514,6 +519,7 @@ export default function InvoicesPage({
         const pN = (v: string | number) => Number(String(v).replace(',', '.')) || 0;
         const dataToSubmit = {
           ...invoiceLangModal.data,
+          orderId: invoiceLangModal.data.orderId || null,
           tripId: invoiceLangModal.data.tripId === '' ? null : invoiceLangModal.data.tripId,
           amount: invoiceLangModal.data.amount === '' ? null : pN(invoiceLangModal.data.amount),
           fuelSurcharge: invoiceLangModal.data.fuelSurcharge === '' ? null : pN(invoiceLangModal.data.fuelSurcharge),
@@ -530,6 +536,18 @@ export default function InvoicesPage({
           savedInvoice = res.data;
         } else {
           const res = await api.post('/invoices', dataToSubmit);
+          if (res.headers?.['x-invoice-existing']) {
+            // The order already carries an invoice: report it instead of
+            // overwriting that invoice's PDF with a freshly generated one.
+            toast.error(t('order_invoice_exists_message', {
+              number: res.data?.invoiceNumber || '—',
+              order: invoiceLangModal.data.orderId || '—',
+              date: res.data?.issueDate || '—',
+            }));
+            setInvoiceLangModal({ isOpen: false, data: null, type: '', cb: null });
+            load();
+            return;
+          }
           savedInvoice = res.data;
         }
 
@@ -815,34 +833,32 @@ export default function InvoicesPage({
               }))} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('trip')}{t("jsx_Optional")}</label>
-                  <CustomSelect value={form.tripId} onChange={val => {
-                const trip = trips.find((t: any) => t.id === val);
-                if (trip) {
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('order')}{t("jsx_Optional")}</label>
+                  <CustomSelect value={form.orderId || ''} onChange={val => {
+                const order = orders.find((o: any) => o.id === val);
+                if (order) {
                   setForm({
                     ...form,
-                    tripId: val,
-                    amount: String(trip.price ?? trip.agreedPrice ?? ''),
-                    fuelSurcharge: String(trip.fuelSurchargePercent ?? trip.fuelSurcharge ?? ''),
-                    extraCosts: String(trip.extraCosts ?? ''),
-                    tollCosts: String(trip.clientRate?.tollIncluded ? '0' : trip.tollCosts ?? '')
+                    orderId: val,
+                    clientId: order.client?.id || form.clientId,
+                    tripId: order.trip?.id || '',
+                    amount: String(order.price ?? form.amount ?? ''),
+                    fuelSurcharge: order.client?.defaultFuelSurchargePercent != null
+                      ? String(order.client.defaultFuelSurchargePercent)
+                      : form.fuelSurcharge,
+                    notes: order.orderNumber
+                      ? `${t('invoice_for_order', 'Factura pentru comanda')} ${order.orderNumber}`
+                      : form.notes
                   });
                 } else {
-                  setForm({
-                    ...form,
-                    tripId: val,
-                    amount: '',
-                    fuelSurcharge: '',
-                    extraCosts: '',
-                    tollCosts: ''
-                  });
+                  setForm({ ...form, orderId: val });
                 }
-              }} placeholder={t('noTrip')} options={[{
+              }} placeholder={t('noOrder', 'Fără comandă')} options={[{
                 value: '',
-                label: t('noTrip')
-              }, ...filteredTrips.map((t: any) => ({
-                value: t.id,
-                label: t.referenceNumber || `REF-${t.id.slice(0, 8).toUpperCase()}`
+                label: t('noOrder', 'Fără comandă')
+              }, ...filteredOrders.map((o: any) => ({
+                value: o.id,
+                label: `${o.orderNumber || o.referenceNumber || `REF-${o.id.slice(0, 8).toUpperCase()}`}${o.price ? ` · €${Number(o.price).toFixed(2)}` : ''}`
               }))]} />
                 </div>
                 
