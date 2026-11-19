@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { moveFieldFocus } from '../lib/fieldNavigation';
 
 type ShortcutAction = (e: KeyboardEvent) => void;
 
@@ -48,26 +49,21 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         '[aria-expanded="true"], [role="listbox"], [role="menu"], [role="combobox"][aria-expanded="true"]',
       );
       if (isInput && !e.shiftKey && !popupOwnsArrows && (key === 'arrowdown' || key === 'arrowup')) {
-        const isSelectOrNumber = target.tagName === 'SELECT' || (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'number');
-        const isTextArea = target.tagName === 'TEXTAREA';
-        
-        if (!(isSelectOrNumber || isTextArea)) {
-          const inputs = Array.from(document.querySelectorAll('input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), button.input:not([disabled])')) as HTMLElement[];
-          const visibleInputs = inputs.filter(el => {
-             const rect = el.getBoundingClientRect();
-             return rect.width > 0 && rect.height > 0;
-          });
-          
-          const currentIndex = visibleInputs.indexOf(target);
-          if (currentIndex !== -1) {
-            if (key === 'arrowdown') {
-              const next = visibleInputs[currentIndex + 1];
-              if (next) { e.preventDefault(); next.focus(); return; }
-            } else if (key === 'arrowup') {
-              const prev = visibleInputs[currentIndex - 1];
-              if (prev) { e.preventDefault(); prev.focus(); return; }
-            }
-          }
+        // Controls that own their arrows natively (select, textarea caret, number
+        // spinners, date segments) keep them; everything else walks the form.
+        const nativeTypes = new Set([
+          'number', 'date', 'time', 'datetime-local', 'month', 'week', 'range', 'color', 'checkbox', 'radio',
+        ]);
+        const ownsArrows =
+          target.tagName === 'SELECT' ||
+          target.tagName === 'TEXTAREA' ||
+          (target.tagName === 'INPUT' && nativeTypes.has((target as HTMLInputElement).type));
+
+        // A control that already claimed the arrow (an open suggestion list, a
+        // calendar, a menu) keeps it; we only walk the form when nothing did.
+        if (!ownsArrows && !e.defaultPrevented && moveFieldFocus(key === 'arrowdown' ? 1 : -1, target)) {
+          e.preventDefault();
+          return;
         }
       }
 

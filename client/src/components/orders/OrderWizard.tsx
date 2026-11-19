@@ -15,6 +15,7 @@ import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrCargoSection from './AdrCargoSection';
 import { calculateLdm, calculateVolumeCbm, hasNoCapacityData } from '../../lib/cargoCalc';
 import { fmtMoney } from '../../lib/format';
+import { moveFieldFocus } from '../../lib/fieldNavigation';
 export interface OrderWizardPrefill {
   pickupAddress?: string;
   deliveryAddress?: string;
@@ -161,10 +162,19 @@ function ModalSelect({
   return <>
       <button id={id} type="button" ref={btnRef} onClick={toggle} aria-haspopup="listbox" aria-expanded={open} onKeyDown={(e) => {
       if (open) return;
-      if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+      // Enter/Space opens the list; arrows move to the next/previous field so a
+      // dropdown chosen with Enter does not reopen on the way to the next input.
+      if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         e.stopPropagation();
         toggle();
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (moveFieldFocus(e.key === 'ArrowDown' ? 1 : -1)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
     }} className="input w-full flex items-center justify-between cursor-pointer hover:border-primary/60 transition-colors text-left">
         <span className={selected ? 'text-text font-medium' : 'text-text-secondary'}>

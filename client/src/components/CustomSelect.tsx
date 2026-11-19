@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { moveFieldFocus } from '../lib/fieldNavigation';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Check } from 'lucide-react';
 
@@ -333,9 +334,20 @@ export default function CustomSelect({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
-      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      // Enter/Space opens the list. Arrows keep the meaning they have in every
+      // other field of the form: move to the previous/next one. Before this, the
+      // first arrow after picking an option reopened the list and the form could
+      // not be walked through from the keyboard.
+      if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         toggleDropdown();
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (moveFieldFocus(e.key === 'ArrowDown' ? 1 : -1)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
       return;
     }
