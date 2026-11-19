@@ -77,6 +77,23 @@ export default function KeyboardCursor() {
       }
 
       const rect = target.getBoundingClientRect();
+      // Scrolled out of its own panel or off the viewport: there is no position
+      // to point at any more, and a floating empty ring is worse than none.
+      if (rect.bottom < 2 || rect.top > window.innerHeight - 2 || rect.right < 2 || rect.left > window.innerWidth - 2) {
+        clear();
+        return;
+      }
+      const hit =
+        typeof document.elementFromPoint === 'function'
+          ? document.elementFromPoint(
+              Math.min(window.innerWidth - 1, Math.max(0, rect.left + rect.width / 2)),
+              Math.min(window.innerHeight - 1, Math.max(0, rect.top + rect.height / 2)),
+            )
+          : null;
+      if (hit && !(hit === target || target.contains(hit) || hit.contains(target))) {
+        clear();
+        return;
+      }
       // A container (drawer body, dialog card, page section) is not a position:
       // ringing the whole area hides the real field and looks broken.
       const isControl = target.matches(

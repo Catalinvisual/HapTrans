@@ -693,6 +693,23 @@ export default function OrderWizard({
   const handlePrev = () => {
     if (currentStep > 0) setCurrentStep(c => c - 1);
   };
+
+  // A step change replaces the visible fields: the focused input disappears with
+  // them and focus falls to the page behind, where the arrows scroll the TMS
+  // instead of the wizard. Put it back on the first field of the new step.
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = window.setTimeout(() => {
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      if (document.activeElement && dialog.contains(document.activeElement)) return;
+      const first = dialog.querySelector<HTMLElement>(
+        '[data-autofocus], input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), [aria-haspopup]',
+      );
+      (first || dialog).focus();
+    }, 40);
+    return () => window.clearTimeout(id);
+  }, [currentStep, isOpen]);
   const handleAddCargo = () => setCargoItems([...cargoItems, {
     ...emptyCargo
   }]);

@@ -992,7 +992,7 @@ export default function Layout() {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto bg-surface">
+        <main data-app-scroll className="flex-1 overflow-y-auto bg-surface">
           <div className={`${isDenseWorkspace ? 'p-0' : 'p-4 md:p-6'} w-full mx-auto`}>
             <Outlet />
           </div>

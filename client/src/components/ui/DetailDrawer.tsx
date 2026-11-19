@@ -29,6 +29,7 @@ export default function DetailDrawer({
   // The drawer is a modal surface like any other: the page behind must not
   // scroll or receive Tab, and arrow navigation has to stay inside it.
   const panelRef = useRef<HTMLDivElement>(null);
+  const tablistRef = useRef<HTMLDivElement>(null);
   useDialogKeyboard(open, panelRef);
 
   useEffect(() => {
@@ -40,10 +41,57 @@ export default function DetailDrawer({
 
   if (!open) return null;
 
+  const tabList = tabs || [];
+  const activeTabIndex = Math.max(0, tabList.findIndex((tab) => tab.key === activeTab));
+
+  // Sections are a tablist: arrows move between them instead of forcing the
+  // operator to Tab through the whole panel to reach the wanted section.
+  const switchTab = (nextIndex: number) => {
+    if (!onTabChange || tabList.length === 0) return;
+    const resolved = (nextIndex + tabList.length) % tabList.length;
+    onTabChange(tabList[resolved].key);
+    requestAnimationFrame(() => {
+      tablistRef.current?.querySelectorAll<HTMLElement>('[role="tab"]')[resolved]?.focus();
+    });
+  };
+
+  const onTabKeyDown = (event: React.KeyboardEvent) => {
+    if (tabList.length === 0) return;
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      event.stopPropagation();
+      switchTab(activeTabIndex + 1);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      event.stopPropagation();
+      switchTab(activeTabIndex - 1);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      switchTab(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      switchTab(tabList.length - 1);
+    }
+  };
+
+  // Alt+←/→ switches section from anywhere in the drawer, like the wizard steps.
+  const onPanelKeyDown = (event: React.KeyboardEvent) => {
+    if (!event.altKey || tabList.length === 0) return;
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      event.stopPropagation();
+      switchTab(activeTabIndex + 1);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      event.stopPropagation();
+      switchTab(activeTabIndex - 1);
+    }
+  };
+
   const drawerContent = (
     <div className="fixed inset-0 z-[25000] flex items-center justify-center p-3 md:p-5">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
-      <div ref={panelRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-fade-in-up">
+      <div ref={panelRef} role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={onPanelKeyDown} className="relative w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-fade-in-up">
         <div className="flex items-start justify-between gap-3 px-4 py-2 border-b border-border bg-surface/30">
           <div className="min-w-0">
             <h3 className="font-bold text-base text-text-primary truncate">{title}</h3>
@@ -58,10 +106,13 @@ export default function DetailDrawer({
         </div>
 
         {tabs && tabs.length > 0 && (
-          <div className="flex items-center gap-1 px-3 pt-2 border-b border-border overflow-x-auto custom-scrollbar">
+          <div ref={tablistRef} role="tablist" onKeyDown={onTabKeyDown} className="flex items-center gap-1 px-3 pt-2 border-b border-border overflow-x-auto custom-scrollbar">
             {tabs.map(tab => (
               <button
                 key={tab.key}
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                tabIndex={activeTab === tab.key ? 0 : -1}
                 onClick={() => onTabChange?.(tab.key)}
                 className={`px-3.5 py-2 text-[13px] font-semibold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
               >

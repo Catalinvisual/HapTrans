@@ -52,6 +52,8 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
         { key: 'Enter', desc: t('sc_dd_pick', 'Alege opțiunea și revine la câmp') },
         { key: 'Esc', desc: t('sc_dd_esc', 'Închide lista, apoi modalul') },
         { key: 'Ctrl + Enter', desc: t('sc_dd_save', 'Salvează comanda din wizard') },
+        { key: 'Alt + ← / →', desc: t('sc_section_switch', 'Secțiunea anterioară/următoare (wizard, fișă comandă)') },
+        { key: '← / →', desc: t('sc_tab_switch', 'Schimbă tab-ul când focusul e pe un tab') },
       ],
     },
     {
