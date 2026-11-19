@@ -82,6 +82,11 @@ export default function DataTable<T>({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (data.length === 0) return;
+    if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      focusRow(e.key === 'Home' ? 0 : data.length - 1);
+      return;
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       const next = e.key === 'ArrowDown'
@@ -141,6 +146,7 @@ export default function DataTable<T>({
                 <tr
                   key={id}
                   data-row-index={ri}
+                  data-kb-active={ri === activeIndex ? 'true' : undefined}
                   onClick={onRowClick ? () => { setActiveIndex(ri); onRowClick(row); } : undefined}
                   className={`${onRowClick ? 'cursor-pointer' : ''} ${ri % 2 === 1 ? 'bg-surface/25' : ''} ${isSelected ? 'bg-primary/5' : ''} ${ri === activeIndex ? 'bg-primary/[0.07] ring-1 ring-inset ring-primary/30' : ''} ${highlight || ''} hover:bg-primary/[0.06] transition-colors`}
                 >

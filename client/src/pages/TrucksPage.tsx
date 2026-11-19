@@ -3,6 +3,8 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, Search, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle, User, Mail, Eye } from 'lucide-react';
 import api from '../lib/api';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { focusFirstField } from '../lib/focusFirstField';
 import { fmtNumber, fmtMoney, fmtKm } from '../lib/format';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -426,6 +428,32 @@ export default function TrucksPage() {
       toast.error(t('bulk_delete_error', 'Bulk delete failed'));
     }
   };
+
+  // N starts a new truck from anywhere on the page; Esc backs out of the editor
+  // instead of leaving the page.
+  useShortcuts({
+    'shift+n': () => {
+      if (showForm) {
+        focusFirstField();
+        return;
+      }
+      if (drawerTruckId) return;
+      setForm(initialForm);
+      setEditId(null);
+      setFormErrors({});
+      setShowForm(true);
+      focusFirstField();
+    },
+    'escape': () => {
+      if (showForm) {
+        setShowForm(false);
+        setEditId(null);
+        setForm(initialForm);
+        return;
+      }
+      if (drawerTruckId) setDrawerTruckId(null);
+    },
+  });
 
   const openEdit = (truck: any) => {
     setForm({

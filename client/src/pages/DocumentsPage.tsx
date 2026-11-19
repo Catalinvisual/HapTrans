@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Trash2, Download, Share2, Search, File as FileIcon, Image as ImageIcon } from 'lucide-react';
 import api from '../lib/api';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useDialogKeyboard } from '../hooks/useDialogKeyboard';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
@@ -29,6 +31,23 @@ export default function DocumentsPage({
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [refFilter, setRefFilter] = useState('ALL');
+  const uploadDialogRef = useRef<HTMLDivElement>(null);
+
+  // N opens the upload dialog, Esc closes it, and Tab stays inside it.
+  useShortcuts({
+    'shift+n': () => {
+      if (showForm || embeddedClientId) return;
+      setShowForm(true);
+    },
+    'escape': () => {
+      if (!showForm) return;
+      setShowForm(false);
+      setFile(null);
+      setTripId('');
+      setNotes('');
+    },
+  });
+  useDialogKeyboard(showForm && !embeddedClientId, uploadDialogRef);
   const executeDelete = async () => {
     if (!deleteId) return;
     try {
@@ -221,7 +240,7 @@ export default function DocumentsPage({
   return <div className="space-y-4 animate-fade-in">
 
       {showForm && !embeddedClientId && <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" onClick={() => setShowForm(false)}>
-          <div className="card w-full max-w-3xl bg-card border border-border rounded-2xl p-6 shadow-xl animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div ref={uploadDialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="card w-full max-w-3xl bg-card border border-border rounded-2xl p-6 shadow-xl animate-fade-in" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-lg text-text text-primary">{t('uploadDocument')}</h3>
               <button onClick={() => { setShowForm(false); setFile(null); setTripId(''); setNotes(''); }} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors text-sm" title={t('cancel') || 'Cancel'}>✕</button>

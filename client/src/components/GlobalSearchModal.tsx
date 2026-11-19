@@ -112,12 +112,17 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
   }, [query, isOpen]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex(prev => (prev + 1) % results.length);
-    } else if (e.key === 'ArrowUp') {
+      if (results.length === 0) return;
+      setSelectedIndex(prev => {
+        const next = e.key === 'ArrowDown' ? prev + 1 : prev - 1;
+        return (next + results.length) % results.length;
+      });
+    } else if (e.key === 'Home' || e.key === 'End') {
       e.preventDefault();
-      setSelectedIndex(prev => (prev - 1 + results.length) % results.length);
+      if (results.length === 0) return;
+      setSelectedIndex(e.key === 'Home' ? 0 : results.length - 1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (results[selectedIndex]) {
@@ -171,6 +176,9 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
               {results.map((res, index) => (
                 <div
                   key={res.id}
+                  role="option"
+                  aria-selected={selectedIndex === index}
+                  data-kb-active={selectedIndex === index ? 'true' : undefined}
                   onMouseEnter={() => setSelectedIndex(index)}
                   onClick={() => {
                     navigate(res.url);

@@ -3,6 +3,8 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Pencil, Trash2, Search, Truck as TrailerIcon, Container, Snowflake, Box, Package, Boxes, CheckCircle2, Wrench } from "lucide-react";
 import api from "../lib/api";
+import { useShortcuts } from "../hooks/useShortcuts";
+import { focusFirstField } from "../lib/focusFirstField";
 import ConfirmModal from "../components/ConfirmModal";
 import toast from "react-hot-toast";
 import { useFormStore } from "../store/formStore";
@@ -164,6 +166,30 @@ export default function TrailersPage() {
   }, [filtered, currentPage, itemsPerPage]);
 
   useEffect(() => { setCurrentPage(1); }, [search, filters]);
+
+  // Same "N for new" contract as every other master-data page.
+  useShortcuts({
+    'shift+n': () => {
+      if (showForm) {
+        focusFirstField();
+        return;
+      }
+      if (drawerId) return;
+      setForm(initialForm);
+      setEditId(null);
+      setShowForm(true);
+      focusFirstField();
+    },
+    'escape': () => {
+      if (showForm) {
+        setShowForm(false);
+        setEditId(null);
+        setForm(initialForm);
+        return;
+      }
+      if (drawerId) setDrawerId(null);
+    },
+  });
 
   const openEdit = (tr: any) => {
     setForm({

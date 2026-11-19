@@ -3104,6 +3104,10 @@ export default function PlanningPage() {
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // A dialog or an open dropdown owns the keyboard: the board must not pull
+      // arrows back to its timeline while a list is open inside a modal.
+      if (document.querySelector('[role="dialog"], [aria-modal="true"], [role="listbox"]')) return;
+
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName);
       if (isInput) return;
 
@@ -3210,6 +3214,12 @@ export default function PlanningPage() {
     'o': () => setShowOptimizeModal(true),
     'f': () => setIsFullscreen(p => !p),
     'r': () => loadData(),
+    // N opens a new order from the board itself — the same key as every other
+    // screen, instead of sending the dispatcher to /orders first.
+    'shift+n': () => {
+      if (wizardConfig || selectedOrderId) return;
+      setWizardConfig({ orderId: '', initialStep: 0, highlight: null });
+    },
   });
 
   // ── Actions ──

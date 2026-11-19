@@ -41,8 +41,13 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         key
       ].join('');
 
-      // Handle input navigation with simple Arrows (no shift)
-      if (isInput && !e.shiftKey && (key === 'arrowdown' || key === 'arrowup' || key === 'arrowleft' || key === 'arrowright')) {
+      // Arrow keys first belong to whatever the user just opened: an open
+      // dropdown owns ↑↓ until it closes, and left/right must stay a caret move
+      // inside a text field. Only ↑/↓ jump between fields, as the help modal says.
+      const popupOwnsArrows = !!target?.closest?.(
+        '[aria-expanded="true"], [role="listbox"], [role="menu"], [role="combobox"][aria-expanded="true"]',
+      );
+      if (isInput && !e.shiftKey && !popupOwnsArrows && (key === 'arrowdown' || key === 'arrowup')) {
         const isSelectOrNumber = target.tagName === 'SELECT' || (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'number');
         const isTextArea = target.tagName === 'TEXTAREA';
         
@@ -55,10 +60,10 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
           
           const currentIndex = visibleInputs.indexOf(target);
           if (currentIndex !== -1) {
-            if (key === 'arrowdown' || key === 'arrowright') {
+            if (key === 'arrowdown') {
               const next = visibleInputs[currentIndex + 1];
               if (next) { e.preventDefault(); next.focus(); return; }
-            } else if (key === 'arrowup' || key === 'arrowleft') {
+            } else if (key === 'arrowup') {
               const prev = visibleInputs[currentIndex - 1];
               if (prev) { e.preventDefault(); prev.focus(); return; }
             }

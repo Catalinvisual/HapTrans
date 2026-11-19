@@ -110,6 +110,18 @@ function hasVisibleDot(color?: string): boolean {
   return Boolean(color && color !== 'transparent');
 }
 
+/** Flatten a ReactNode label into the plain text type-ahead compares against. */
+function optionText(option: SelectOption): string {
+  const flat = (node: React.ReactNode): string => {
+    if (node === null || node === undefined || typeof node === 'boolean') return '';
+    if (typeof node === 'string' || typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(flat).join(' ');
+    if (typeof node === 'object' && 'props' in (node as any)) return flat((node as any).props?.children);
+    return '';
+  };
+  return `${flat(option.label)} ${option.subLabel || ''}`.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 function resolveDotColor(color?: string): string {
   if (!color) return '#94A3B8';
   if (color.startsWith('#') || color.startsWith('rgb')) return color;
@@ -147,6 +159,8 @@ export default function CustomSelect({
     ready: false,
   });
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  // Multi-character type-ahead, like a native <select> ("pl" jumps to Plătită).
+  const typeAhead = useRef({ buffer: '', at: 0 });
 
   // Measure the trigger in viewport coordinates on every open/reflow. The menu
   // is portalled to <body>, so it cannot inherit a transformed/overflow-hidden
@@ -240,6 +254,29 @@ export default function CustomSelect({
       }
     };
 
+    // Arrows step over disabled rows instead of parking on a row Enter refuses.
+    const moveFocus = (direction: 1 | -1) => {
+      if (options.length === 0) return;
+      setFocusedIndex((prev) => {
+        let index = prev < 0 ? (direction === 1 ? -1 : 0) : prev;
+        for (let step = 0; step < options.length; step += 1) {
+          index = (index + direction + options.length) % options.length;
+          if (!options[index]?.disabled) return index;
+        }
+        return prev;
+      });
+    };
+
+    const jumpToPrefix = (needle: string, from: number) => {
+      for (let step = 1; step <= options.length; step += 1) {
+        const index = (from + step + options.length) % options.length;
+        const candidate = options[index];
+        if (!candidate || candidate.disabled) continue;
+        if (optionText(candidate).startsWith(needle)) return index;
+      }
+      return -1;
+    };
+
     const trap = (e: KeyboardEvent) => {
       // First-letter jump, like a native select.
       const isTypeAhead =
@@ -249,25 +286,34 @@ export default function CustomSelect({
       e.stopPropagation();
 
       if (e.key === 'ArrowDown') {
-        setFocusedIndex((prev) => (prev + 1) % options.length);
+        moveFocus(1);
       } else if (e.key === 'ArrowUp') {
-        setFocusedIndex((prev) => (prev - 1 + options.length) % options.length);
+        moveFocus(-1);
       } else if (e.key === 'Home') {
-        setFocusedIndex(0);
+        setFocusedIndex(options.findIndex((option) => !option.disabled));
       } else if (e.key === 'End') {
-        setFocusedIndex(options.length - 1);
+        setFocusedIndex(
+          options.reduce((last, option, index) => (option.disabled ? last : index), -1),
+        );
       } else if (e.key === 'Enter' || e.key === ' ') {
         commit();
       } else if (e.key === 'Escape') {
         closeAndReturnFocus();
       } else if (isTypeAhead) {
-        const needle = e.key.toLowerCase();
-        const start = focusedIndex >= 0 ? focusedIndex : 0;
-        const ordered = [...options.slice(start + 1), ...options.slice(0, start + 1)];
-        const match = ordered.find(
-          (option) => !option.disabled && String(option.label).toLowerCase().startsWith(needle),
-        );
-        if (match) setFocusedIndex(options.indexOf(match));
+        const now = Date.now();
+        const state = typeAhead.current;
+        const typed = e.key.toLowerCase();
+        state.buffer = now - state.at > 700 ? typed : state.buffer + typed;
+        state.at = now;
+        const from = focusedIndex >= 0 ? focusedIndex : options.length - 1;
+        let match = jumpToPrefix(state.buffer, from);
+        // A second character that matches nothing restarts from that character,
+        // so "pp" still lands on the first entry beginning with "p".
+        if (match < 0 && state.buffer.length > 1) {
+          state.buffer = typed;
+          match = jumpToPrefix(typed, from);
+        }
+        if (match >= 0) setFocusedIndex(match);
       }
     };
 
@@ -393,6 +439,7 @@ export default function CustomSelect({
                   <div
                     key={option.value}
                     role="option"
+                    data-kb-active={isFocused ? 'true' : undefined}
                     aria-selected={isSelected}
                     aria-disabled={option.disabled || undefined}
                     onClick={() => {

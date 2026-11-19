@@ -13,6 +13,7 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
+import KeyboardCursor from './KeyboardCursor';
 import { navItems, filterNavItems, canSection, canModule } from '../lib/navPermissions';
 import { io } from 'socket.io-client';
 
@@ -737,6 +738,7 @@ export default function Layout() {
   return (
     <div className="flex h-screen overflow-hidden bg-surface relative">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <KeyboardCursor />
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Top Bar */}
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 md:px-6 flex-shrink-0 shadow-sm">

@@ -178,7 +178,7 @@ function ModalSelect({
       width: dropPos.width
     }}>
       <div role="listbox" className="overflow-y-auto max-h-[250px] custom-scrollbar py-1">
-          {options.map((opt, optIndex) => <div key={opt.value} role="option" aria-selected={opt.value === value} onMouseDown={e => {
+          {options.map((opt, optIndex) => <div key={opt.value} role="option" data-kb-active={optIndex === openIndex ? 'true' : undefined} aria-selected={opt.value === value} onMouseDown={e => {
         e.preventDefault();
         onChange(opt.value);
         closeMenu();

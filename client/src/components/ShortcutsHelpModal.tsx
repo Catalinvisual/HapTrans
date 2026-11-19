@@ -37,8 +37,21 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
       items: [
         { key: 'Tab', desc: t('sc_tbl_focus', 'Intră în tabel') },
         { key: '↑ / ↓', desc: t('sc_tbl_updown', 'Selectează rândul anterior/următor') },
+        { key: 'Home / End', desc: t('sc_tbl_homeend', 'Primul / ultimul rând') },
         { key: 'Enter', desc: t('sc_tbl_enter', 'Deschide rândul selectat') },
         { key: 'Space', desc: t('sc_tbl_space', 'Bifează rândul selectat') },
+      ],
+    },
+    {
+      title: t('shortcuts_dropdown_title', 'În meniuri derulante și modale'),
+      items: [
+        { key: 'Enter / Space', desc: t('sc_dd_open', 'Deschide lista din câmpul curent') },
+        { key: '↑ / ↓', desc: t('sc_dd_move', 'Mută selecția în listă (pagina nu se derulează)') },
+        { key: 'Home / End', desc: t('sc_dd_homeend', 'Prima / ultima opțiune') },
+        { key: 'Litere', desc: t('sc_dd_type', 'Sari la opțiunea care începe cu ce ai tastat') },
+        { key: 'Enter', desc: t('sc_dd_pick', 'Alege opțiunea și revine la câmp') },
+        { key: 'Esc', desc: t('sc_dd_esc', 'Închide lista, apoi modalul') },
+        { key: 'Ctrl + Enter', desc: t('sc_dd_save', 'Salvează comanda din wizard') },
       ],
     },
     {
@@ -100,7 +113,7 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
           <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
             <div className="text-blue-500 font-bold mt-0.5">ℹ</div>
             <div className="text-sm text-blue-900 leading-relaxed">
-              {t('shortcuts_info', 'Shortcut-urile nu vor funcționa dacă tastați în câmpuri text, cu excepția Ctrl+S, Esc și Shift+H.')}
+              {t('shortcuts_info', 'Cât timp folosești tastatura, un cursor portocaliu arată exact unde ești: câmpul, opțiunea din listă sau rândul din tabel. Dispare imediat ce folosești mouse-ul. Shortcut-urile nu se declanșează când tastați în câmpuri text, cu excepția Ctrl+S, Esc, Ctrl+Enter și Shift+H.')}
             </div>
           </div>
         </div>
