@@ -40,6 +40,8 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
         { key: 'Home / End', desc: t('sc_tbl_homeend', 'Primul / ultimul rând') },
         { key: 'Enter', desc: t('sc_tbl_enter', 'Deschide rândul selectat') },
         { key: 'Space', desc: t('sc_tbl_space', 'Bifează rândul selectat') },
+        { key: 'Delete', desc: t('sc_tbl_delete', 'Șterge rândul selectat (cu confirmare)') },
+        { key: 'Ctrl + C', desc: t('sc_tbl_copy', 'Copiază datele rândului selectat') },
       ],
     },
     {
@@ -66,7 +68,8 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
         { key: 'Ctrl + Enter', desc: t('sc_form_save_alt', 'Salvează comanda din wizard') },
         { key: 'Alt + →', desc: t('sc_form_next', 'Pasul următor în wizard (butonul Next)') },
         { key: 'Alt + ←', desc: t('sc_form_prev', 'Pasul anterior în wizard (butonul Back)') },
-        { key: '↑ / ↓', desc: t('sc_form_arrows', 'Câmpul anterior/următor') },
+        { key: '↑ / ↓', desc: t('sc_form_arrows', 'Câmpul anterior/următor (inclusiv în câmpuri de sumă/dată, după Enter)') },
+        { key: 'Tab în modal', desc: t('sc_form_trap', 'Rămâne în modal, ciclic') },
         { key: 'Esc', desc: t('sc_form_esc', 'Închide/anulează') },
       ],
     },
@@ -118,7 +121,10 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
           <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
             <div className="text-blue-500 font-bold mt-0.5">ℹ</div>
             <div className="text-sm text-blue-900 leading-relaxed">
-              {t('shortcuts_info', 'Cât timp folosești tastatura, un cursor portocaliu arată exact unde ești: câmpul, opțiunea din listă sau rândul din tabel. Dispare imediat ce folosești mouse-ul. Shortcut-urile nu se declanșează când tastați în câmpuri text, cu excepția Ctrl+S, Esc, Ctrl+Enter și Shift+H.')}
+              {t(
+                'shortcuts_info',
+                'Cât timp folosești tastatura, un cursor portocaliu arată exact unde ești: câmpul, opțiunea din listă sau rândul din tabel. Dispare imediat ce folosești mouse-ul și se ascunde singur când elementul iese din ecran. N funcționează imediat după ce deschizi o pagină din meniu, fără să dai click în pagină. Shortcut-urile nu se declanșează când tastezi în câmpuri text, cu excepția Ctrl+S, Ctrl+Enter, Alt+←/→ și Esc. Într-un modal, tastele rămân în modal: săgețile derulează conținutul lui, nu pagina din spate.',
+              )}
             </div>
           </div>
         </div>

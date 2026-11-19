@@ -531,6 +531,16 @@ export default function Layout() {
     stopFieldNavigation();
   }, [location.pathname]);
 
+  // Moving to another screen from the sidebar leaves the focus on that link, so
+  // the keyboard (and Tab order) starts in the menu instead of the page that was
+  // just opened. Hand the keyboard to the content as soon as the route changes.
+  useEffect(() => {
+    const main = document.querySelector<HTMLElement>('main[data-app-scroll]');
+    if (!main) return;
+    main.setAttribute('tabindex', '-1');
+    main.focus({ preventScroll: true });
+  }, [location.pathname]);
+
   // A desktop/PWA window can boot without keyboard focus: shortcuts and the
   // keyboard cursor only work once the window itself is focused, which made
   // people click the page first. Nudge it on mount and whenever it reappears.
@@ -992,7 +1002,7 @@ export default function Layout() {
         </header>
 
         {/* Main content */}
-        <main data-app-scroll className="flex-1 overflow-y-auto bg-surface">
+        <main data-app-scroll className="flex-1 overflow-y-auto bg-surface focus:outline-none">
           <div className={`${isDenseWorkspace ? 'p-0' : 'p-4 md:p-6'} w-full mx-auto`}>
             <Outlet />
           </div>
