@@ -508,12 +508,35 @@ export default function Layout() {
     navigate(filteredNavItems[nextIndex].to);
   };
 
+  /** Jump straight into the current page's search box instead of clicking it. */
+  const focusPageSearch = () => {
+    const explicit = document.querySelector('[data-page-search]') as HTMLInputElement | null;
+    const fallback = Array.from(
+      document.querySelectorAll('input[type="search"], input[type="text"]'),
+    ).find((input) => /search|caut|zoek|such|busc|szuk/i.test((input as HTMLInputElement).placeholder || '')) as
+      | HTMLInputElement
+      | undefined;
+    const target = explicit || fallback;
+    if (target) {
+      target.focus();
+      target.select();
+    }
+  };
+
   useShortcuts({
     'shift+h': () => setIsShortcutsModalOpen(true),
+    // "?" is what people press to see what the keys are. The actual e.key is
+    // "?" (Shift+/ on a US layout) or "/" with shift on other layouts.
+    'shift+?': () => setIsShortcutsModalOpen(true),
+    'shift+/': () => setIsShortcutsModalOpen(true),
     'f12': () => setIsLogoutModalOpen(true),
     'shift+arrowup': () => navigateSidebar(-1),
     'shift+arrowdown': () => navigateSidebar(1),
     'shift+k': () => setIsSearchOpen(true),
+    // Cmd/Ctrl+K is the palette shortcut every other tool uses.
+    'ctrl+k': () => setIsSearchOpen(true),
+    'meta+k': () => setIsSearchOpen(true),
+    '/': () => focusPageSearch(),
     'shift+n': () => {}, // Prevent default browser behavior if page has no handler
     'escape': () => {
       const hasOpenModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
@@ -763,7 +786,7 @@ export default function Layout() {
             {/* Global Search Icon */}
             <button 
               onClick={() => setIsSearchOpen(true)}
-              title={t('sc_search', 'Caută/deschide orice (Shift+K)')}
+              title={t('sc_search', 'Caută/deschide orice (Ctrl+K)')}
               className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
             >
               <Search className="w-4 h-4" />
@@ -771,7 +794,7 @@ export default function Layout() {
             {/* Shortcuts Help Icon */}
             <button 
               onClick={() => setIsShortcutsModalOpen(true)}
-              title={t('shortcuts_title', 'Keyboard Shortcuts (F1)')}
+              title={t('shortcuts_title', 'Scurtături tastatură (?)')}
               className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
             >
               <Keyboard className="w-4 h-4" />

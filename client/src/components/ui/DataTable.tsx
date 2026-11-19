@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
 
@@ -58,8 +59,55 @@ export default function DataTable<T>({
     onSortChange(key, dir);
   };
 
+  // Keyboard row navigation: the table is reachable with Tab, then arrows move
+  // the highlight, Enter opens the row and Space ticks its checkbox. Without it
+  // the office had to reach for the mouse on every single record.
+  const tableRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  // Reset the highlight when the visible rows change (filters, search), not on
+  // every re-render of the parent.
+  const rowIdsKey = data.map(rowKey).join('|');
+  useEffect(() => {
+    setActiveIndex(data.length > 0 ? 0 : -1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowIdsKey]);
+
+  const focusRow = (index: number) => {
+    setActiveIndex(index);
+    tableRef.current
+      ?.querySelector(`[data-row-index="${index}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (data.length === 0) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = e.key === 'ArrowDown'
+        ? Math.min(data.length - 1, activeIndex + 1)
+        : Math.max(0, activeIndex < 0 ? 0 : activeIndex - 1);
+      focusRow(next);
+      return;
+    }
+    if (e.key === 'Enter' && activeIndex >= 0 && onRowClick) {
+      e.preventDefault();
+      onRowClick(data[activeIndex]);
+      return;
+    }
+    if (e.key === ' ' && activeIndex >= 0 && selectable) {
+      e.preventDefault();
+      toggleRow(rowKey(data[activeIndex]));
+    }
+  };
+
   return (
-    <div className="overflow-x-auto custom-scrollbar">
+    <div
+      ref={tableRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="overflow-x-auto custom-scrollbar rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+    >
       <table className="w-full text-left border-separate border-spacing-0" style={{ minWidth }}>
         <thead className="sticky top-0 z-10">
           <tr className="bg-surface/80 backdrop-blur">
@@ -92,8 +140,9 @@ export default function DataTable<T>({
               return (
                 <tr
                   key={id}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  className={`${onRowClick ? 'cursor-pointer' : ''} ${ri % 2 === 1 ? 'bg-surface/25' : ''} ${isSelected ? 'bg-primary/5' : ''} ${highlight || ''} hover:bg-primary/[0.06] transition-colors`}
+                  data-row-index={ri}
+                  onClick={onRowClick ? () => { setActiveIndex(ri); onRowClick(row); } : undefined}
+                  className={`${onRowClick ? 'cursor-pointer' : ''} ${ri % 2 === 1 ? 'bg-surface/25' : ''} ${isSelected ? 'bg-primary/5' : ''} ${ri === activeIndex ? 'bg-primary/[0.07] ring-1 ring-inset ring-primary/30' : ''} ${highlight || ''} hover:bg-primary/[0.06] transition-colors`}
                 >
                   {selectable && (
                     <td className={`border-b border-border/60 ${dense ? 'px-3 py-1.5' : 'px-3 py-3'}`} onClick={e => e.stopPropagation()}>

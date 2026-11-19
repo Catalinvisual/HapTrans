@@ -35,6 +35,7 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
 
       const keyString = [
         e.ctrlKey ? 'ctrl+' : '',
+        e.metaKey ? 'meta+' : '',
         e.altKey ? 'alt+' : '',
         e.shiftKey && key !== 'tab' ? 'shift+' : '', // Include shift except for Tab if not needed
         key
@@ -67,6 +68,7 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
 
       const keyStringFallback = [
         e.ctrlKey ? 'ctrl+' : '',
+        e.metaKey ? 'meta+' : '',
         e.altKey ? 'alt+' : '',
         key
       ].join('');
@@ -78,7 +80,14 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         return; // Do not trigger shortcuts inside inputs
       }
 
-      const action = shortcutsRef.current[keyString] || shortcutsRef.current[keyStringFallback];
+      // "N" alone is the shortcut people try first for a new record; pages keep
+      // registering Shift+N, so map the bare key onto it instead of asking every
+      // page to declare both.
+      const plainNew = !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && key === 'n'
+        ? shortcutsRef.current['shift+n']
+        : undefined;
+
+      const action = shortcutsRef.current[keyString] || shortcutsRef.current[keyStringFallback] || plainNew;
       if (action) {
         e.preventDefault();
         action(e);

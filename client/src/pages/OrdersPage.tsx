@@ -5,6 +5,7 @@ import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, Fi
 const WebsiteQuotesPage = lazy(() => import('./WebsiteQuotesPage'));
 import { orderIsAdr } from '../lib/adrDetect';
 import api from '../lib/api';
+import { useShortcuts } from '../hooks/useShortcuts';
 import OrderWizard from '../components/orders/OrderWizard';
 import OrderDetailDrawer from '../components/orders/OrderDetailDrawer';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -248,6 +249,16 @@ export default function OrdersPage() {
 
   const handleEdit = (id: string) => { setSelectedOrderId(id); setIsModalOpen(true); };
   const handleCreate = () => { setSelectedOrderId(null); setIsModalOpen(true); };
+
+  // N (or Shift+N) creates an order, Esc closes the wizard/drawer first instead
+  // of leaving the page: the busiest screen in the TMS should not need the mouse.
+  useShortcuts({
+    'shift+n': () => { if (!isModalOpen) handleCreate(); },
+    'escape': () => {
+      if (isModalOpen) setIsModalOpen(false);
+      else if (drawerOrderId) setDrawerOrderId(null);
+    },
+  });
   const handleDeleteClick = (id: string) => { setOrderToDelete(id); setDeleteModalOpen(true); };
 
   const confirmDelete = async () => {
