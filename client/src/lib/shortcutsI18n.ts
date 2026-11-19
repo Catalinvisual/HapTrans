@@ -46,6 +46,8 @@ export const shortcutsResources: Record<string, Record<string, string>> = {
     sc_form_arrows: 'Câmpul anterior/următor (inclusiv în câmpurile de sumă/dată, după Enter)',
     sc_form_trap: 'Rămâne în modal, ciclic',
     sc_form_esc: 'Închide/anulează',
+    sc_key_letters: 'Litere',
+    sc_key_tab_modal: 'Tab în modal',
   },
   en: {
     shortcuts_title: 'Keyboard shortcuts',
@@ -91,6 +93,8 @@ export const shortcutsResources: Record<string, Record<string, string>> = {
     sc_form_arrows: 'Previous/next field (also in amount/date fields, after Enter)',
     sc_form_trap: 'Stays inside the dialog, cycling',
     sc_form_esc: 'Close/cancel',
+    sc_key_letters: 'Letters',
+    sc_key_tab_modal: 'Tab in dialog',
   },
   nl: {
     shortcuts_title: 'Sneltoetsen',
@@ -136,6 +140,8 @@ export const shortcutsResources: Record<string, Record<string, string>> = {
     sc_form_arrows: 'Vorig/volgend veld (ook in bedrag- en datumvelden, na Enter)',
     sc_form_trap: 'Blijft in het venster, rondgaand',
     sc_form_esc: 'Sluiten/annuleren',
+    sc_key_letters: 'Letters',
+    sc_key_tab_modal: 'Tab in venster',
   },
   de: {
     shortcuts_title: 'Tastenkürzel',
@@ -181,6 +187,8 @@ export const shortcutsResources: Record<string, Record<string, string>> = {
     sc_form_arrows: 'Vorheriges/nächstes Feld (auch in Betrags- und Datumsfeldern, nach Enter)',
     sc_form_trap: 'Bleibt im Dialog, im Kreis',
     sc_form_esc: 'Schließen/abbrechen',
+    sc_key_letters: 'Buchstaben',
+    sc_key_tab_modal: 'Tab im Dialog',
   },
   fr: {
     shortcuts_title: 'Raccourcis clavier',
@@ -226,6 +234,8 @@ export const shortcutsResources: Record<string, Record<string, string>> = {
     sc_form_arrows: 'Champ précédent/suivant (aussi dans les champs montant/date, après Entrée)',
     sc_form_trap: 'Reste dans la fenêtre, en boucle',
     sc_form_esc: 'Fermer/annuler',
+    sc_key_letters: 'Lettres',
+    sc_key_tab_modal: 'Tab dans la fenêtre',
   },
   es: {
     shortcuts_title: 'Atajos de teclado',
@@ -271,6 +281,8 @@ export const shortcutsResources: Record<string, Record<string, string>> = {
     sc_form_arrows: 'Campo anterior/siguiente (también en campos de importe/fecha, tras Enter)',
     sc_form_trap: 'Permanece en la ventana, en ciclo',
     sc_form_esc: 'Cerrar/cancelar',
+    sc_key_letters: 'Letras',
+    sc_key_tab_modal: 'Tab en la ventana',
   },
   pl: {
     shortcuts_title: 'Skróty klawiaturowe',
@@ -316,5 +328,7 @@ export const shortcutsResources: Record<string, Record<string, string>> = {
     sc_form_arrows: 'Poprzednie/następne pole (także w polach kwoty/daty, po Enter)',
     sc_form_trap: 'Pozostaje w oknie, cyklicznie',
     sc_form_esc: 'Zamknij/anuluj',
+    sc_key_letters: 'Litery',
+    sc_key_tab_modal: 'Tab w oknie',
   },
 };
