@@ -77,6 +77,19 @@ export default function KeyboardCursor() {
       }
 
       const rect = target.getBoundingClientRect();
+      // A container (drawer body, dialog card, page section) is not a position:
+      // ringing the whole area hides the real field and looks broken.
+      const isControl = target.matches(
+        'input, textarea, select, button, a[href], tr, [role="option"], [role="tab"], [role="menuitem"], [tabindex="0"]',
+      );
+      if (
+        !isControl ||
+        rect.width > window.innerWidth * 0.9 ||
+        rect.height > window.innerHeight * 0.6
+      ) {
+        clear();
+        return;
+      }
       const radius = Math.min(parseFloat(window.getComputedStyle(target).borderTopLeftRadius) || 8, 28);
 
       const next: CursorState = {

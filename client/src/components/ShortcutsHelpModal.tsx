@@ -59,8 +59,11 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
       items: [
         { key: 'Tab', desc: t('sc_form_tab', 'Câmpul următor') },
         { key: 'Shift + Tab', desc: t('sc_form_shifttab', 'Câmpul anterior') },
-        { key: 'Enter', desc: t('sc_form_enter', 'Confirmă (unde are sens)') },
-        { key: 'Ctrl + S', desc: t('sc_form_save', 'Salvează') },
+        { key: 'Enter', desc: t('sc_form_enter', 'Închide câmpul curent (după el, ↑/↓ trec mai departe)') },
+        { key: 'Ctrl + S', desc: t('sc_form_save', 'Salvează (și în wizard)') },
+        { key: 'Ctrl + Enter', desc: t('sc_form_save_alt', 'Salvează comanda din wizard') },
+        { key: 'Alt + →', desc: t('sc_form_next', 'Pasul următor în wizard (butonul Next)') },
+        { key: 'Alt + ←', desc: t('sc_form_prev', 'Pasul anterior în wizard (butonul Back)') },
         { key: '↑ / ↓', desc: t('sc_form_arrows', 'Câmpul anterior/următor') },
         { key: 'Esc', desc: t('sc_form_esc', 'Închide/anulează') },
       ],

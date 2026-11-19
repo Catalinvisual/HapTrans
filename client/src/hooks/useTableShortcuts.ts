@@ -38,6 +38,10 @@ export function useTableShortcuts({
       
       if (isInput) return;
 
+      // A field or menu that already handled the key keeps it; row selection only
+      // starts when nothing else claimed the arrow/Enter.
+      if (e.defaultPrevented) return;
+
       // Check if a modal is currently open by looking for common modal wrappers (fixed inset-0, z-50, etc)
       const hasOpenModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
       if (hasOpenModal) return;

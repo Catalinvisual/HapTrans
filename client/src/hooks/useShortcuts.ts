@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { moveFieldFocus } from '../lib/fieldNavigation';
+import {
+  isFieldNavigationActive,
+  moveFieldFocus,
+  startFieldNavigation,
+} from '../lib/fieldNavigation';
 
 type ShortcutAction = (e: KeyboardEvent) => void;
 
@@ -24,6 +28,13 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
                       target?.tagName === 'TEXTAREA' || 
                       target?.tagName === 'SELECT' || 
                       target?.isContentEditable;
+
+      // Enter means "done with this field". From then on arrows walk the form,
+      // even inside number/date inputs where they would otherwise keep stepping
+      // the value. Typing or clicking switches back to editing.
+      if (isInput && e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        startFieldNavigation();
+      }
 
       let key = e.key.toLowerCase();
       
@@ -55,9 +66,10 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
           'number', 'date', 'time', 'datetime-local', 'month', 'week', 'range', 'color', 'checkbox', 'radio',
         ]);
         const ownsArrows =
-          target.tagName === 'SELECT' ||
-          target.tagName === 'TEXTAREA' ||
-          (target.tagName === 'INPUT' && nativeTypes.has((target as HTMLInputElement).type));
+          (target.tagName === 'SELECT' ||
+            target.tagName === 'TEXTAREA' ||
+            (target.tagName === 'INPUT' && nativeTypes.has((target as HTMLInputElement).type))) &&
+          !isFieldNavigationActive();
 
         // A control that already claimed the arrow (an open suggestion list, a
         // calendar, a menu) keeps it; we only walk the form when nothing did.

@@ -1117,11 +1117,22 @@ export default function OrderWizard({
     aria-modal="true"
     tabIndex={-1}
     onKeyDown={(e) => {
-      // Ctrl/Cmd+Enter saves from anywhere in the wizard, without reaching for
-      // the mouse or the Save button at the bottom of a long form.
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      // Ctrl/Cmd+Enter and Ctrl/Cmd+S press Save from anywhere in the wizard;
+      // Alt+←/→ press the Back and Next buttons of the step footer.
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 's' || e.key === 'S')) {
         e.preventDefault();
+        e.stopPropagation();
         handleSubmit();
+        return;
+      }
+      if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleNext();
+      } else if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopPropagation();
+        handlePrev();
       }
     }}
     className="fixed inset-0 z-[20000] flex items-center justify-center p-3 md:p-5" style={{

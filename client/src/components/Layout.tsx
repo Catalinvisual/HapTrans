@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
+import { stopFieldNavigation } from '../lib/fieldNavigation';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
@@ -523,6 +524,32 @@ export default function Layout() {
       target.select();
     }
   };
+
+  // Each screen starts in editing mode; the "arrows walk the form" state is
+  // per form session, not something that follows the user across pages.
+  useEffect(() => {
+    stopFieldNavigation();
+  }, [location.pathname]);
+
+  // A desktop/PWA window can boot without keyboard focus: shortcuts and the
+  // keyboard cursor only work once the window itself is focused, which made
+  // people click the page first. Nudge it on mount and whenever it reappears.
+  useEffect(() => {
+    const wake = () => {
+      try {
+        window.focus();
+      } catch {
+        /* the browser refused; the first click still focuses the page */
+      }
+    };
+    wake();
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    return () => {
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake);
+    };
+  }, []);
 
   useShortcuts({
     'shift+h': () => setIsShortcutsModalOpen(true),

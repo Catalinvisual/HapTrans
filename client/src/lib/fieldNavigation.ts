@@ -2,8 +2,11 @@
  * Move the focus to the previous/next field of the form the user is in.
  *
  * Arrow keys used to be contested: a dropdown trigger reopened its list on the
- * first arrow after a selection, so the form could not be walked through from
- * the keyboard. Opening a list is Enter/Space; arrows always mean "move on".
+ * first arrow after a selection, a number input kept stepping its value, and the
+ * form could not be walked through from the keyboard. Opening a list is
+ * Enter/Space, and once the operator presses Enter the form enters navigation
+ * mode: arrows move between fields (even for number, date and time inputs)
+ * until they type again or use the mouse.
  *
  * The scope is the open dialog when there is one, so a key never jumps into the
  * page behind a modal.
@@ -22,6 +25,44 @@ const isVisible = (el: HTMLElement) => {
   const style = window.getComputedStyle(el);
   return style.visibility !== 'hidden' && style.display !== 'none';
 };
+
+// ── Navigation mode ────────────────────────────────────────────────────────
+let navigating = false;
+let listening = false;
+
+/**
+ * Typing means the operator is editing that field again, so the arrows go back
+ * to editing the value; a click on the form does the same.
+ */
+function ensureResetListeners() {
+  if (listening || typeof document === 'undefined') return;
+  listening = true;
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (!navigating) return;
+      if (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Delete') {
+        navigating = false;
+      }
+    },
+    true,
+  );
+  document.addEventListener('pointerdown', () => { navigating = false; }, true);
+}
+
+/** Enter on a field: from here on the arrows walk the form. */
+export function startFieldNavigation() {
+  navigating = true;
+  ensureResetListeners();
+}
+
+export function stopFieldNavigation() {
+  navigating = false;
+}
+
+export function isFieldNavigationActive(): boolean {
+  return navigating;
+}
 
 export function moveFieldFocus(direction: 1 | -1, from?: HTMLElement | null): boolean {
   if (typeof document === 'undefined') return false;

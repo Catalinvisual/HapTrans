@@ -1,6 +1,7 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 
 export interface TabDef {
   key: string;
@@ -25,6 +26,11 @@ interface DetailDrawerProps {
 export default function DetailDrawer({
   open, onClose, title, subtitle, headerRight, tabs, activeTab, onTabChange, footer, children,
 }: DetailDrawerProps) {
+  // The drawer is a modal surface like any other: the page behind must not
+  // scroll or receive Tab, and arrow navigation has to stay inside it.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogKeyboard(open, panelRef);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -37,7 +43,7 @@ export default function DetailDrawer({
   const drawerContent = (
     <div className="fixed inset-0 z-[25000] flex items-center justify-center p-3 md:p-5">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
-      <div className="relative w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-fade-in-up">
+      <div ref={panelRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-fade-in-up">
         <div className="flex items-start justify-between gap-3 px-4 py-2 border-b border-border bg-surface/30">
           <div className="min-w-0">
             <h3 className="font-bold text-base text-text-primary truncate">{title}</h3>

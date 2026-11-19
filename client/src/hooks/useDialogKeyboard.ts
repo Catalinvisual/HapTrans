@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
+import { stopFieldNavigation } from '../lib/fieldNavigation';
 
 const FOCUSABLE = [
   'a[href]',
@@ -27,6 +28,9 @@ export function useDialogKeyboard(isOpen: boolean, containerRef: RefObject<HTMLE
     const previousFocus = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // A dialog opens in editing mode: arrows step values again until the
+    // operator presses Enter inside it.
+    stopFieldNavigation();
 
     const focusable = () =>
       Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
