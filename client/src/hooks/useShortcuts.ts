@@ -60,8 +60,19 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         '[aria-expanded="true"], [role="listbox"], [role="menu"], [role="combobox"][aria-expanded="true"]',
       );
       if (isInput && !e.shiftKey && !popupOwnsArrows && (key === 'arrowdown' || key === 'arrowup')) {
-        // Controls that own their arrows natively (select, textarea caret, number
-        // spinners, date segments) keep them; everything else walks the form.
+        const direction = key === 'arrowdown' ? 1 : -1;
+
+        // A price/quantity must never change just because an arrow was pressed
+        // on the way through the form: a number field either walks to the next
+        // field (after Enter) or the key does nothing at all.
+        if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'number') {
+          e.preventDefault();
+          if (isFieldNavigationActive()) moveFieldFocus(direction, target);
+          return;
+        }
+
+        // Controls that own their arrows natively (select, textarea caret, date
+        // segments) keep them; everything else walks the form.
         const nativeTypes = new Set([
           'number', 'date', 'time', 'datetime-local', 'month', 'week', 'range', 'color', 'checkbox', 'radio',
         ]);

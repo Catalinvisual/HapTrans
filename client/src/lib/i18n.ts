@@ -13,6 +13,7 @@ import { planningDocsResources } from './planningDocsI18n';
 import { truckFuelResources } from './truckFuelI18n';
 import { truckFormResources } from './truckFormI18n';
 import { langOverrides } from './langOverrides';
+import { shortcutsResources } from './shortcutsI18n';
 import { adrResources } from './adrI18n';
 import { operationalResources } from './operationalI18n';
 import { orderInvoiceResources } from './orderInvoiceI18n';
@@ -12127,6 +12128,12 @@ const historyStatusResources: Record<string, Record<string, string>> = {
 for (const lng of Object.keys(historyStatusResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, historyStatusResources[lng]);
+}
+
+// Keyboard shortcuts panel, same wording in all seven languages.
+for (const lng of Object.keys(shortcutsResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, shortcutsResources[lng]);
 }
 
 const getInitialLanguage = (): string => {
