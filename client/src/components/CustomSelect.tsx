@@ -222,37 +222,58 @@ export default function CustomSelect({
     };
   }, [isOpen, updatePosition]);
 
-  // Global keyboard trap
+  // Global keyboard trap: while the menu is open every arrow belongs to the
+  // list, never to the page or the modal behind it.
   useEffect(() => {
     if (!isOpen) return;
 
-    const trap = (e: KeyboardEvent) => {
-      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape', ' '].includes(e.key)) {
-        e.preventDefault();
-        e.stopPropagation();
+    const navigateKeys = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape', ' '];
+    const closeAndReturnFocus = () => {
+      setIsOpen(false);
+      wrapperRef.current?.querySelector('button')?.focus();
+    };
+    const commit = () => {
+      const option = options[focusedIndex];
+      if (option && !option.disabled) {
+        onChange(option.value);
+        closeAndReturnFocus();
+      }
+    };
 
-        if (e.key === 'ArrowDown') {
-          setFocusedIndex((prev) => (prev + 1) % options.length);
-        } else if (e.key === 'ArrowUp') {
-          setFocusedIndex((prev) => (prev - 1 + options.length) % options.length);
-        } else if (e.key === 'Enter') {
-          setFocusedIndex((prev) => {
-            if (prev >= 0 && prev < options.length && !options[prev].disabled) {
-              onChange(options[prev].value);
-              setIsOpen(false);
-            }
-            return prev;
-          });
-        } else if (e.key === 'Escape') {
-          setIsOpen(false);
-          wrapperRef.current?.querySelector('button')?.focus();
-        }
+    const trap = (e: KeyboardEvent) => {
+      // First-letter jump, like a native select.
+      const isTypeAhead =
+        e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== ' ';
+      if (!navigateKeys.includes(e.key) && !isTypeAhead) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === 'ArrowDown') {
+        setFocusedIndex((prev) => (prev + 1) % options.length);
+      } else if (e.key === 'ArrowUp') {
+        setFocusedIndex((prev) => (prev - 1 + options.length) % options.length);
+      } else if (e.key === 'Home') {
+        setFocusedIndex(0);
+      } else if (e.key === 'End') {
+        setFocusedIndex(options.length - 1);
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        commit();
+      } else if (e.key === 'Escape') {
+        closeAndReturnFocus();
+      } else if (isTypeAhead) {
+        const needle = e.key.toLowerCase();
+        const start = focusedIndex >= 0 ? focusedIndex : 0;
+        const ordered = [...options.slice(start + 1), ...options.slice(0, start + 1)];
+        const match = ordered.find(
+          (option) => !option.disabled && String(option.label).toLowerCase().startsWith(needle),
+        );
+        if (match) setFocusedIndex(options.indexOf(match));
       }
     };
 
     document.addEventListener('keydown', trap, true);
     return () => document.removeEventListener('keydown', trap, true);
-  }, [isOpen, options, onChange]);
+  }, [isOpen, options, onChange, focusedIndex]);
 
   // Auto-scroll to focused item
   useEffect(() => {
@@ -354,6 +375,8 @@ export default function CustomSelect({
           >
             <div
               ref={dropdownRef}
+              role="listbox"
+              tabIndex={-1}
               className="overflow-y-auto overscroll-contain custom-scrollbar"
               style={{ maxHeight: coords.maxHeight }}
             >
@@ -369,6 +392,9 @@ export default function CustomSelect({
                 return (
                   <div
                     key={option.value}
+                    role="option"
+                    aria-selected={isSelected}
+                    aria-disabled={option.disabled || undefined}
                     onClick={() => {
                       if (!option.disabled) {
                         onChange(option.value);

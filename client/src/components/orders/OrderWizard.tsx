@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, Package, MapPin, FileText, ChevronDown, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, ShieldAlert, HelpCircle } from 'lucide-react';
@@ -81,8 +82,18 @@ function ModalSelect({
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
+  const [openIndex, setOpenIndex] = useState(-1);
+  const closeMenu = (restoreFocus = true) => {
+    setOpen(false);
+    setOpenIndex(-1);
+    if (restoreFocus) btnRef.current?.focus();
+  };
   const toggle = () => {
-    if (!open && btnRef.current) {
+    if (open) {
+      closeMenu();
+      return;
+    }
+    if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
       const dropdownHeight = Math.min(250, options.length * 40 + 8); // cap height estimate at 250px since we might have scrollbar
       const spaceBelow = window.innerHeight - r.bottom;
@@ -98,11 +109,64 @@ function ModalSelect({
         width: r.width
       });
     }
-    setOpen(p => !p);
+    setOpenIndex(Math.max(0, options.findIndex(o => o.value === value)));
+    setOpen(true);
   };
+
+  // While the menu is open every arrow belongs to it: without this the focus
+  // stays on the dialog and the browser scrolls the page behind it.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      const navKeys = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape', ' '];
+      const isTypeAhead =
+        e.key.length === 1 && /\S/.test(e.key) && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey;
+      if (!navKeys.includes(e.key) && !isTypeAhead) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === 'ArrowDown') {
+        setOpenIndex(i => (i + 1) % options.length);
+      } else if (e.key === 'ArrowUp') {
+        setOpenIndex(i => (i - 1 + options.length) % options.length);
+      } else if (e.key === 'Home') {
+        setOpenIndex(0);
+      } else if (e.key === 'End') {
+        setOpenIndex(options.length - 1);
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        const opt = options[openIndex];
+        if (opt) {
+          onChange(opt.value);
+          closeMenu();
+        }
+      } else if (e.key === 'Escape') {
+        closeMenu();
+      } else if (isTypeAhead) {
+        const start = openIndex >= 0 ? openIndex : 0;
+        const ordered = [...options.slice(start + 1), ...options.slice(0, start + 1)];
+        const match = ordered.find(o => String(o.label).toLowerCase().startsWith(e.key.toLowerCase()));
+        if (match) setOpenIndex(options.indexOf(match));
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [open, openIndex, options, onChange]);
+
+  useEffect(() => {
+    if (!open || openIndex < 0) return;
+    const el = dropRef.current?.querySelectorAll('[role="option"]')[openIndex] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [open, openIndex]);
   const selected = options.find(o => o.value === value);
   return <>
-      <button id={id} type="button" ref={btnRef} onClick={toggle} className="input w-full flex items-center justify-between cursor-pointer hover:border-primary/60 transition-colors text-left">
+      <button id={id} type="button" ref={btnRef} onClick={toggle} aria-haspopup="listbox" aria-expanded={open} onKeyDown={(e) => {
+      if (open) return;
+      if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggle();
+      }
+    }} className="input w-full flex items-center justify-between cursor-pointer hover:border-primary/60 transition-colors text-left">
         <span className={selected ? 'text-text font-medium' : 'text-text-secondary'}>
           {selected ? selected.label : placeholder}
         </span>
@@ -113,13 +177,13 @@ function ModalSelect({
       left: dropPos.left,
       width: dropPos.width
     }}>
-      <div className="overflow-y-auto max-h-[250px] custom-scrollbar py-1">
-          {options.map(opt => <div key={opt.value} onMouseDown={e => {
+      <div role="listbox" className="overflow-y-auto max-h-[250px] custom-scrollbar py-1">
+          {options.map((opt, optIndex) => <div key={opt.value} role="option" aria-selected={opt.value === value} onMouseDown={e => {
         e.preventDefault();
         onChange(opt.value);
-        setOpen(false);
+        closeMenu();
       }} className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2 border-l-2
-                ${opt.value === value ? 'bg-primary/10 border-primary text-primary font-semibold' : 'border-transparent hover:bg-primary/5 hover:border-primary/30 text-text'}`}>
+                ${opt.value === value ? 'bg-primary/10 border-primary text-primary font-semibold' : optIndex === openIndex ? 'bg-primary/5 border-primary/40 text-text' : 'border-transparent hover:bg-primary/5 hover:border-primary/30 text-text'}`}>
               {opt.label}
             </div>)}
       </div>
@@ -752,6 +816,8 @@ export default function OrderWizard({
   // manually entered values are never overwritten.
   const autoVolumeFields = useRef<Set<string>>(new Set());
   const autoLdmFields = useRef<Set<string>>(new Set());
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogKeyboard(isOpen, dialogRef);
 
   const handleCargoChange = (i: number, field: string, value: any) => {
     setIsHighlightDismissed(true);
@@ -1035,7 +1101,20 @@ export default function OrderWizard({
 
   if (!isOpen) return null;
 
-  const modalContent = <div className="fixed inset-0 z-[20000] flex items-center justify-center p-3 md:p-5" style={{
+  const modalContent = <div
+    ref={dialogRef}
+    role="dialog"
+    aria-modal="true"
+    tabIndex={-1}
+    onKeyDown={(e) => {
+      // Ctrl/Cmd+Enter saves from anywhere in the wizard, without reaching for
+      // the mouse or the Save button at the bottom of a long form.
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      }
+    }}
+    className="fixed inset-0 z-[20000] flex items-center justify-center p-3 md:p-5" style={{
     backdropFilter: 'blur(6px)',
     backgroundColor: 'rgba(0,0,0,0.65)'
   }}>

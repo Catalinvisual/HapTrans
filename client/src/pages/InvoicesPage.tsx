@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useDialogKeyboard } from '../hooks/useDialogKeyboard';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
@@ -47,6 +48,8 @@ export default function InvoicesPage({
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(formStore.invoicesShowForm);
+  const invoiceDialogRef = useRef<HTMLDivElement>(null);
+  useDialogKeyboard(showForm, invoiceDialogRef);
   const [editId, setEditId] = useState<string | null>(formStore.invoicesEditId);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -808,7 +811,7 @@ export default function InvoicesPage({
   ];
   return <div className="space-y-4 animate-fade-in">
       <KpiStrip dense items={kpis} />
-      {showForm && typeof document !== 'undefined' && createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+      {showForm && typeof document !== 'undefined' && createPortal(<div ref={invoiceDialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-[90rem] w-full h-[90vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-border flex justify-between items-center bg-surface shrink-0">
               <h3 className="font-bold text-xl text-primary">{editId ? t('editDraft', 'Editare Draft / Detalii Complete') : t('newInvoice')}</h3>
