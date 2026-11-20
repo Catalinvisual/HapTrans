@@ -7,6 +7,7 @@ import { CargoItem } from './cargo-item.entity';
 import { ValidationEngine } from '../engines/validation.engine';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoutingService } from '../routing/routing.service';
+import { completePostalCodeInAddress, completesPostalCode } from '../common/postal-code';
 import { ClientsService } from '../clients/clients.service';
 import { nanoid } from 'nanoid';
 import { randomUUID } from 'crypto';
@@ -202,6 +203,31 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
+  /**
+   * Recover the missing tail of a postal code stored as a bare number
+   * ("5611" for a Dutch "5611 AB"). The position pins the building, so HERE
+   * reverse geocoding is authoritative; the result is accepted only when it
+   * extends the stored digits, and the free-text address is rewritten too so
+   * the label does not keep showing the short code. Best effort: a stop that
+   * cannot be resolved keeps exactly what the TMS sent.
+   */
+  private async completeStopPostalCodes(stops: any[]): Promise<void> {
+    for (const stop of stops) {
+      const postal = typeof stop?.postalCode === 'string' ? stop.postalCode.trim() : '';
+      if (!/^\d+$/.test(postal)) continue;
+      const lat = Number(stop.latitude);
+      const lng = Number(stop.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      try {
+        const found = await this.routingService.reverseGeocode(lat, lng);
+        if (!completesPostalCode(postal, found?.postalCode)) continue;
+        stop.address = completePostalCodeInAddress(stop.address, postal, found!.postalCode!, stop.city || found?.city);
+        if (!stop.city && found?.city) stop.city = found.city;
+        stop.postalCode = String(found!.postalCode).trim();
+      } catch { /* postal completion is best effort */ }
+    }
+  }
+
   async create(dto: any, user?: any, manager?: EntityManager) {
     // When an EntityManager is supplied the order (and its stops/cargo) are
     // written inside the caller's transaction, so a failed conversion cannot
@@ -258,6 +284,7 @@ export class OrdersService implements OnModuleInit {
           }
           processedStops.push({ ...stopDto, latitude: lat, longitude: lng });
         }
+        await this.completeStopPostalCodes(processedStops);
       }
 
       const referenceHints = referencesFromStops(processedStops);
@@ -543,6 +570,7 @@ export class OrdersService implements OnModuleInit {
           }
           processedStops.push({ ...stopDto, latitude: lat, longitude: lng });
         }
+        await this.completeStopPostalCodes(processedStops);
       }
 
       // Keep the order record authoritative for the operational references even

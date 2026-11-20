@@ -498,6 +498,36 @@ export class RoutingService implements OnModuleInit {
     }
   }
 
+  // ─── Reverse geocoding: coordinates → full address ────────────────────────
+  /**
+   * Resolve the address at a coordinate pair. Used to recover the letters of a
+   * postal code that was stored as its numeric prefix only ("5611" → "5611 AB"),
+   * because the position pins the exact building where the text does not.
+   */
+  async reverseGeocode(lat: number, lng: number): Promise<{
+    postalCode?: string; city?: string; countryCode?: string; label?: string;
+  } | null> {
+    try {
+      if (!this.hereKey) return null;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      const res = await axios.get('https://revgeocode.search.hereapi.com/v1/revgeocode', {
+        params: { at: `${lat},${lng}`, apiKey: this.hereKey, lang: 'en', limit: 1 },
+        timeout: 5000,
+      });
+      const item = res.data?.items?.[0];
+      if (!item) return null;
+      return {
+        postalCode: item.address?.postalCode,
+        city: item.address?.city,
+        countryCode: item.address?.countryCode,
+        label: item.address?.label,
+      };
+    } catch (e: any) {
+      this.logger.error(`Reverse geocode failed for ${lat},${lng}: ${this.redactSecrets(e?.message || String(e))}`);
+      return null;
+    }
+  }
+
   // ─── Company / POI discovery (HERE Discover) ─────────────────────────────
   /**
    * Map-search for COMPANIES/venues (not plain addresses). Returns official
