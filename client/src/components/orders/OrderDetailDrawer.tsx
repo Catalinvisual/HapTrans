@@ -25,6 +25,7 @@ import AdrBadge from '../common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
 import { operationalStatusForDisplay, operationalStatusKey } from '../../lib/operationalI18n';
 import { describeWallClockAppointment } from '../../lib/stopAppointment';
+import TripEtaPanel, { useTripLiveEta } from '../eta/TripEtaPanel';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/settingsStore';
 import { generateOrderPdf } from '../../lib/pdfGenerator';
@@ -73,6 +74,11 @@ export default function OrderDetailDrawer({
   const [showDocUploadForm, setShowDocUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [docType, setDocType] = useState('cmr');
+  // ETA of the delivery stop comes from the live ETA of the trip that carries
+  // this order; an unplanned order has no trip and therefore no ETA.
+  const { eta, loading: etaLoading, failed: etaFailed, reload: reloadEta } = useTripLiveEta(
+    order?.trip?.id || order?.tripId,
+  );
   const [docNotes, setDocNotes] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -219,6 +225,14 @@ export default function OrderDetailDrawer({
               </div>
             </div>
           </div>
+          <TripEtaPanel
+            eta={eta}
+            loading={etaLoading}
+            failed={etaFailed}
+            onRefresh={reloadEta}
+            tripId={order.trip?.id || order.tripId}
+            focusStopId={dropoff?.id}
+          />
           <div>
             <Row
               icon={<MapPin className="w-3 h-3 text-blue-500" />}

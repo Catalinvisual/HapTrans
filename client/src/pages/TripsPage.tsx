@@ -29,6 +29,7 @@ import WeightKgIcon from '../components/icons/WeightKgIcon';
 import ActivityTimeline from '../components/ActivityTimeline';
 import { orderIsAdr, tripIsAdr } from '../lib/adrDetect';
 import { driverDisplayName } from '../lib/driverName';
+import TripEtaPanel, { StopEtaLine, etaStopForStop, useTripLiveEta } from '../components/eta/TripEtaPanel';
 import toast from 'react-hot-toast';
 
 const TRIP_STATUSES = [
@@ -556,6 +557,9 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  // Live ETA is derived from the truck's last GPS position, so it is fetched
+  // next to the trip instead of being stored on the trip row.
+  const { eta, loading: etaLoading, failed: etaFailed, reload: reloadEta } = useTripLiveEta(tripId);
 
   const load = useCallback(async () => {
     try {
@@ -634,6 +638,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <StatusBadge type="trip" status={operationalStatusForDisplay(trip)} label={t(operationalStatusKey(trip), operationalStatusForDisplay(trip)) as string} size="md" />
         </div>
+        <TripEtaPanel eta={eta} loading={etaLoading} failed={etaFailed} onRefresh={reloadEta} tripId={trip.id} />
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-surface/40 rounded-xl p-3 border border-border">
             <div className="text-[10px] font-bold uppercase text-text-secondary">{t('revenue', 'Revenue')}</div>
@@ -651,7 +656,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
         <div>
           <div className="text-[10px] font-bold uppercase text-text-secondary mb-1">{t('trip_details', 'Trip details')}</div>
           <Row icon={<Truck className="w-3 h-3" />} label={t('truck', 'Truck')} value={trip.truck?.plateNumber || trip.carrierTruckPlate || '—'} />
-          <Row icon={<RouteIcon className="w-3 h-3" />} label={t('trailer', 'Trailer')} value={trip.trailer?.plateNumber || trip.carrierTrailerPlate || '—'} />
+          <Row icon={<RouteIcon className="w-3 h-3" />} label={t('trailer', 'Trailer')} value={trip.trailer?.plateNumber || trip.truck?.trailer?.plateNumber || trip.carrierTrailerPlate || '—'} />
           <Row icon={<User className="w-3 h-3" />} label={t('driver', 'Driver')} value={tDriverName(trip)} />
           {trip.carrierName && <Row label={t('carrier', 'Carrier')} value={trip.carrierName} />}
           <Row icon={<User className="w-3 h-3" />} label={t('dispatcher', 'Dispatcher')} value={trip.dispatcher?.name || trip.dispatcher?.email || '—'} />
@@ -691,6 +696,10 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
                 </div>
                 <div className="text-[11px] text-text-secondary mt-1">{[s.address, s.city, s.country].filter(Boolean).join(', ')}</div>
                 <div className="text-[11px] font-semibold text-text-primary mt-1.5">{(s.dateFrom || '—')}{s.timeFrom ? ` ${s.timeFrom}` : ''}{s.dateTo ? ` → ${s.dateTo}${s.timeUntil ? ` ${s.timeUntil}` : ''}` : ''}</div>
+                {(() => {
+                  const stopEta = etaStopForStop(eta, s);
+                  return stopEta ? <StopEtaLine etaStop={stopEta} /> : null;
+                })()}
                 {s.contactPerson && <div className="text-[11px] text-text-secondary mt-0.5 flex items-center gap-1"><User className="w-2.5 h-2.5" />{s.contactPerson}{s.phone ? ` · ${s.phone}` : ''}</div>}
                 {s.reference && <div className="text-[11px] text-text-secondary mt-0.5">Ref: {s.reference}</div>}
                 {s.tasks?.length > 0 && (

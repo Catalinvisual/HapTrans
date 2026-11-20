@@ -29,6 +29,7 @@ import { planningApi } from '../../lib/planningApi';
 import { emissionUnavailableKey, fuelTypeLabel } from '../../lib/truckFuel';
 import { operationalStatusForDisplay } from '../../lib/operationalI18n';
 import { formatAppointmentInstants, OPERATIONAL_TIME_ZONE } from '../../lib/stopAppointment';
+import { formatDelay } from '../../lib/formatDuration';
 
 type ViewKey = 'results' | 'route' | 'costs' | 'driver' | 'conflicts' | 'emissions';
 type ExportFormat = 'xlsx' | 'csv' | 'pdf';
@@ -113,12 +114,12 @@ function fmtClock(value: any): string {
   return new Date(ms).toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit', timeZone: OPERATIONAL_TIME_ZONE });
 }
 
-function fmtEtaDifference(value: any, onTime: string, unit: string): string {
+function fmtEtaDifference(value: any, onTime: string, _unit: string): string {
   const minutes = toNum(value);
   if (minutes === null) return '';
   const rounded = Math.round(minutes);
   if (rounded === 0) return onTime;
-  return `${rounded > 0 ? '+' : '-'}${Math.abs(rounded)} ${unit}`;
+  return formatDelay(rounded);
 }
 
 function fmtDateShort(value: any): string {

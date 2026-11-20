@@ -99,6 +99,7 @@ const en = {
   up_eta_not_planned: 'Not planned',
   up_eta_no_estimate: 'No estimate',
   up_eta_schedule: 'vs schedule',
+  up_eta_no_trip: 'The order is not planned on a trip yet, so there is no ETA.',
 
   up_res_filter: 'Filter trips…',
   up_res_status: 'Status',
@@ -216,6 +217,7 @@ const ro = {
   up_eta_not_planned: 'Neplanificat',
   up_eta_no_estimate: 'Fără estimare',
   up_eta_schedule: 'față de program',
+  up_eta_no_trip: 'Comanda nu este planificată încă pe o cursă, deci nu există ETA.',
 
   up_res_filter: 'Filtrează cursele…',
   up_res_status: 'Status',
@@ -333,6 +335,7 @@ const nl = {
   up_eta_not_planned: 'Niet gepland',
   up_eta_no_estimate: 'Geen schatting',
   up_eta_schedule: 't.o.v. planning',
+  up_eta_no_trip: 'De order is nog niet op een rit gepland, dus er is geen ETA.',
 
   up_res_filter: 'Ritten filteren…',
   up_res_status: 'Status',
@@ -450,6 +453,7 @@ const de = {
   up_eta_not_planned: 'Nicht geplant',
   up_eta_no_estimate: 'Keine Schätzung',
   up_eta_schedule: 'gegenüber Plan',
+  up_eta_no_trip: 'Der Auftrag ist noch keinem Transport zugeordnet, daher gibt es keine ETA.',
 
   up_res_filter: 'Fahrten filtern…',
   up_res_status: 'Status',
@@ -567,6 +571,7 @@ const fr = {
   up_eta_not_planned: 'Non planifiée',
   up_eta_no_estimate: 'Aucune estimation',
   up_eta_schedule: 'par rapport au planning',
+  up_eta_no_trip: "La commande n'est pas encore planifiée sur un transport, il n'y a donc pas d'ETA.",
 
   up_res_filter: 'Filtrer les trajets…',
   up_res_status: 'Statut',
@@ -684,6 +689,7 @@ const es = {
   up_eta_not_planned: 'No planificada',
   up_eta_no_estimate: 'Sin estimación',
   up_eta_schedule: 'respecto al plan',
+  up_eta_no_trip: 'El pedido aún no está planificado en un viaje, por lo que no hay ETA.',
 
   up_res_filter: 'Filtrar viajes…',
   up_res_status: 'Estado',
@@ -801,6 +807,7 @@ const pl = {
   up_eta_not_planned: 'Niezaplanowana',
   up_eta_no_estimate: 'Brak oszacowania',
   up_eta_schedule: 'względem planu',
+  up_eta_no_trip: 'Zlecenie nie jest jeszcze zaplanowane na trasę, więc nie ma ETA.',
 
   up_res_filter: 'Filtruj kursy…',
   up_res_status: 'Status',

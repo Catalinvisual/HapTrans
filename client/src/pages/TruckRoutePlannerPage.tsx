@@ -17,6 +17,7 @@ import { statusBadgeClass as statusBadgeFromLib } from '../lib/statusColors';
 import { planningApi } from '../lib/planningApi';
 import { OPERATIONAL_TIME_ZONE } from '../lib/stopAppointment';
 import { dedupePlanStops } from '../lib/planStops';
+import { formatDelay } from '../lib/formatDuration';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import OrderWizard from '../components/orders/OrderWizard';
@@ -1653,7 +1654,7 @@ export default function TruckRoutePlannerPage() {
                       </p>
                       {etaDeviationMin !== null && Math.abs(etaDeviationMin) >= 1 && (
                         <p className={`text-[9px] font-bold ${etaDeviationMin > 0 ? 'text-red-500' : 'text-amber-600'}`}>
-                          {t('up_eta_deviation', 'Deviation')}: {etaDeviationMin > 0 ? '+' : ''}{etaDeviationMin} {t('up_eta_minutes', 'min')}
+                          {t('up_eta_deviation', 'Deviation')}: {formatDelay(etaDeviationMin)}
                         </p>
                       )}
                     </div>

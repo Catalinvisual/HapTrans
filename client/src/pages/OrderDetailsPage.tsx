@@ -13,6 +13,7 @@ import ActivityTimeline from '../components/ActivityTimeline';
 import StatusBadge from '../components/ui/StatusBadge';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import { describeWallClockAppointment } from '../lib/stopAppointment';
+import TripEtaPanel, { useTripLiveEta } from '../components/eta/TripEtaPanel';
 export default function OrderDetailsPage() {
   const {
     id
@@ -26,6 +27,9 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const { eta, loading: etaLoading, failed: etaFailed, reload: reloadEta } = useTripLiveEta(
+    order?.trip?.id || order?.tripId,
+  );
   useEffect(() => {
     const fetchOrder = async () => {
       try {
@@ -176,6 +180,14 @@ export default function OrderDetailsPage() {
             </div>
             
             <div className="space-y-6">
+              <TripEtaPanel
+                eta={eta}
+                loading={etaLoading}
+                failed={etaFailed}
+                onRefresh={reloadEta}
+                tripId={order.trip?.id || order.tripId}
+                focusStopId={[...(Array.isArray(order.stops) ? order.stops : [])].reverse().find((s: any) => s.type === 'dropoff' || s.type === 'delivery')?.id}
+              />
               <div className="card p-5">
                 <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><PalletIcon className="w-5 h-5" />{t("jsx_cargoItems")}</h3>
   

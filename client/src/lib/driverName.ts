@@ -31,7 +31,9 @@ export function driverEntityDisplayName(driver: any): string {
   if (!driver) return '—';
   if (driver.firstName) return `${driver.firstName} ${driver.lastName || ''}`.trim();
   const name = driver.user?.name || driver.name || '';
-  if (!looksLikeEmail(name)) return name || '—';
+  // A driver whose display name was never filled in still has an e-mail on the
+  // user record; showing "—" hid a driver that was in fact assigned.
+  if (!looksLikeEmail(name)) return name || humanName(driverEmail(driver)) || '—';
   return humanName(name) || humanName(driverEmail(driver)) || '—';
 }
 
@@ -39,6 +41,9 @@ export function driverEntityDisplayName(driver: any): string {
 export function driverDisplayName(trip: any): string {
   if (!trip) return '—';
   if (trip.driver) return driverEntityDisplayName(trip.driver);
+  // A trip without its own driver runs with the driver attached to its truck.
+  // Reading only trip.driver made an assigned driver show as "—".
+  if (trip.truck?.driver) return driverEntityDisplayName(trip.truck.driver);
   if (trip.carrierDriverName) return `${trip.carrierDriverName}${trip.carrierName ? ` (${trip.carrierName})` : ''}`;
   if (trip.carrierName) return trip.carrierName;
   return '—';

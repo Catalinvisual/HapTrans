@@ -21,6 +21,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { orderIsAdr, tripIsAdr } from '../lib/adrDetect';
 import { driverEntityDisplayName } from '../lib/driverName';
+import { formatDelay } from '../lib/formatDuration';
 import DateField from '../components/dashboard/DateField';
 import { useShortcuts } from '../hooks/useShortcuts';
 import toast from 'react-hot-toast';
@@ -1451,7 +1452,8 @@ function TripDetailDrawer({
     if (!Number.isFinite(minutes)) return '—';
     const rounded = Math.round(minutes);
     if (rounded === 0) return t('up_eta_on_time', 'On time');
-    return `${rounded > 0 ? '+' : '-'}${Math.abs(rounded)} ${t('up_eta_minutes', 'min')}`;
+    // Minutes only up to an hour, then hours/days: "+13 314 min" is unreadable.
+    return formatDelay(rounded);
   };
   const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).map((o: any) => o?.order || o).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
@@ -5261,15 +5263,6 @@ export default function PlanningPage() {
                         {/* Time scale header: two-level resource / time ruler. */}
                         <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-12" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
                           <div className="w-56 shrink-0 border-r border-border/60 bg-card flex flex-col justify-center gap-0.5 px-2 py-1 sticky left-0 z-30">
-                            <div className="flex items-center justify-between">
-                              {viewMode !== 'week' && (
-                                <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[9px] font-bold text-primary hover:text-primary/80 px-1 rounded hover:bg-primary/10">
-                                  {viewMode === 'month'
-                                    ? t('jsx_dateThisMonth', 'This month')
-                                    : t('jsx_today', 'Today')}
-                                </button>
-                              )}
-                            </div>
                             <div className="flex items-center gap-1">
                               <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, -1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_previous', 'Previous period')}>
                                 <ChevronLeft className="w-3.5 h-3.5" />
