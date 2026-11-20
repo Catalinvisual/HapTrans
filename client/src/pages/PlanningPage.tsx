@@ -43,6 +43,7 @@ import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
+import { composeAddress } from '../lib/address';
 import ConsolidationWizard from '../components/ConsolidationWizard';
 import { providerStatusMessage } from '../lib/providerStatus';
 import { statusTone, statusInlineStyle, statusToneName, TONE_HEX } from '../lib/statusColors';
@@ -2197,7 +2198,7 @@ function TripDetailDrawer({
                             <span className="font-bold text-text-primary text-sm truncate">{s.companyName || s.city || '—'}</span>
                             <span className={`text-[8px] font-bold rounded px-1 uppercase ${isPu ? 'text-blue-600 bg-blue-500/10' : 'text-emerald-600 bg-emerald-500/10'}`}>{isPu ? t('loading_stop','Pickup') : t('unloading_stop','Delivery')}</span>
                           </div>
-                          <p className="text-xs text-text-secondary truncate">{s.address}{s.postalCode ? `, ${s.postalCode}` : ''} {s.country || ''}</p>
+                          <p className="text-xs text-text-secondary truncate">{composeAddress({ address: s.address, postalCode: s.postalCode, city: s.city, country: s.country })}</p>
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-0.5">
@@ -4064,7 +4065,7 @@ export default function PlanningPage() {
         (item.orderNumber || '').toLowerCase().includes(searchFilter) ||
         (item.customerReference || '').toLowerCase().includes(searchFilter) ||
         (item.client?.name || '').toLowerCase().includes(searchFilter) ||
-        (item.stops || []).some((s: any) => (s.city || '').toLowerCase().includes(searchFilter) || (s.address || '').toLowerCase().includes(searchFilter))
+        (item.stops || []).some((s: any) => (s.city || '').toLowerCase().includes(searchFilter) || (s.address || '').toLowerCase().includes(searchFilter) || (s.postalCode || '').toLowerCase().includes(searchFilter))
       );
     }
     if (priorityFilter) {
@@ -4241,7 +4242,7 @@ export default function PlanningPage() {
           if (tr.tripNumber?.toLowerCase().includes(searchFilter)) return true;
           if (tr.driver?.name?.toLowerCase().includes(searchFilter)) return true;
           if (tr.trailer?.plateNumber?.toLowerCase().includes(searchFilter)) return true;
-          if (tr.stops?.some((s: any) => (s.city || '').toLowerCase().includes(searchFilter) || (s.address || '').toLowerCase().includes(searchFilter) || (s.country || '').toLowerCase().includes(searchFilter))) return true;
+          if (tr.stops?.some((s: any) => (s.city || '').toLowerCase().includes(searchFilter) || (s.address || '').toLowerCase().includes(searchFilter) || (s.postalCode || '').toLowerCase().includes(searchFilter) || (s.country || '').toLowerCase().includes(searchFilter))) return true;
           if (tr.orders?.some((o: any) => (o.orderNumber || '').toLowerCase().includes(searchFilter) || (o.customerReference || '').toLowerCase().includes(searchFilter) || (o.client?.name || '').toLowerCase().includes(searchFilter))) return true;
           return false;
         });

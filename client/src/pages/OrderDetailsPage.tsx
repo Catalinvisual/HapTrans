@@ -13,6 +13,7 @@ import ActivityTimeline from '../components/ActivityTimeline';
 import StatusBadge from '../components/ui/StatusBadge';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import { describeWallClockAppointment } from '../lib/stopAppointment';
+import { composeAddress } from '../lib/address';
 import TripEtaPanel, { useTripLiveEta } from '../components/eta/TripEtaPanel';
 export default function OrderDetailsPage() {
   const {
@@ -138,7 +139,7 @@ export default function OrderDetailsPage() {
                       <div className="flex flex-wrap justify-between gap-4 mb-2">
                         <div>
                           <p className="font-bold text-text-primary text-base">{stop.companyName || stop.address}</p>
-                          <p className="text-xs text-text-secondary mt-0.5">{stop.address}</p>
+                          <p className="text-xs text-text-secondary mt-0.5">{composeAddress({ address: stop.address, postalCode: stop.postalCode, city: stop.city, country: stop.country })}</p>
                         </div>
                         <div className="text-right">
                           <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${stop.type === 'pickup' ? 'bg-blue-500/10 text-blue-600' : 'bg-green-500/10 text-green-600'}`}>

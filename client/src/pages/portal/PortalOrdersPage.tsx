@@ -15,6 +15,7 @@ import OrderWizard from '../../components/orders/OrderWizard';
 import WeightKgIcon from '../../components/icons/WeightKgIcon';
 import AdrBadge from '../../components/common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
+import { composeCityLine } from '../../lib/address';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 
@@ -60,7 +61,7 @@ export default function PortalOrdersPage() {
   useEffect(() => { setCurrentPage(1); }, [search, status]);
 
   const filtered = useMemo(() => orders.filter(o => {
-    if (!matchesSearch(search, o.orderNumber, o.internalReference, o.customerReference, o.stops?.map((s: any) => `${s.city || ''} ${s.address || ''}`).join(' '))) return false;
+    if (!matchesSearch(search, o.orderNumber, o.internalReference, o.customerReference, o.stops?.map((s: any) => `${s.postalCode || ''} ${s.city || ''} ${s.address || ''}`).join(' '))) return false;
     if (status === 'plannedGroup') return ['new', 'planned'].includes(o.status);
     if (status === 'activeGroup') return ['assigned', 'loading', 'in_transit'].includes(o.status);
     if (status === 'deliveredGroup') return ['delivered', 'pod_received'].includes(o.status);
@@ -86,11 +87,7 @@ export default function PortalOrdersPage() {
     return c;
   }, [orders]);
 
-  const loc = (s: any) => {
-    if (!s) return 'TBD';
-    const parts = [s.city, s.country].filter(Boolean);
-    return parts.length ? parts.join(', ') : (s.address?.split(',')[0] || 'TBD');
-  };
+  const loc = (s: any) => (s ? composeCityLine(s) : 'TBD');
 
   const columns: Column<any>[] = [
     { key: 'ref', label: t('order_ref', 'Order'), sortable: true, render: o => {

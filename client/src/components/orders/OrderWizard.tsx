@@ -866,13 +866,14 @@ export default function OrderWizard({
     n[i] = { ...n[i], ...patch };
     setExtraStops(n);
   };
-  const handleExtraStopSelect = (i: number, label: string, city: string, country: string, lat: number | null, lng: number | null) => {
+  const handleExtraStopSelect = (i: number, label: string, city: string, country: string, lat: number | null, lng: number | null, postalCode?: string) => {
     const n = [...extraStops];
     n[i] = {
       ...n[i],
       address: label,
       city: city || n[i].city,
       country: country || n[i].country,
+      postalCode: postalCode || n[i].postalCode,
       latitude: lat || null,
       longitude: lng || null
     };
@@ -1508,7 +1509,7 @@ export default function OrderWizard({
                       <CompanyAutocomplete value={pickup.companyName} onChange={val => setPickup({
                     ...pickup,
                     companyName: val
-                  })} onSelectFull={(companyName, address, lat, lng, city, country) => {
+                  })} onSelectFull={(companyName, address, lat, lng, city, country, postalCode) => {
                     setPickup(p => ({
                       ...p,
                       companyName,
@@ -1516,7 +1517,8 @@ export default function OrderWizard({
                       latitude: lat || null,
                       longitude: lng || null,
                       city: city || p.city,
-                      country: country || p.country
+                      country: country || p.country,
+                      postalCode: postalCode || p.postalCode
                     }));
                   }} className="input w-full bg-white dark:bg-card" placeholder={t('company_placeholder_pickup', 'e.g. Supplier Warehouse')} />
                     </div>
@@ -1527,7 +1529,7 @@ export default function OrderWizard({
                       <AddressAutocomplete value={pickup.address} onChange={val => setPickup({
                     ...pickup,
                     address: val
-                  })} onSelectFull={(label, city, country, lat, lng) => {
+                  })} onSelectFull={(label, city, country, lat, lng, postalCode) => {
                     if (dropoff.address && isSameLocation({ address: label, latitude: lat, longitude: lng }, dropoff)) {
                       toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
                       return;
@@ -1537,6 +1539,7 @@ export default function OrderWizard({
                       address: label,
                       city: city || p.city,
                       country: country || p.country,
+                      postalCode: postalCode || p.postalCode,
                       latitude: lat || null,
                       longitude: lng || null
                     }));
@@ -1545,6 +1548,9 @@ export default function OrderWizard({
                         <span className="text-xs font-semibold text-text-secondary">{t("jsx_geocoding")}</span>
                         {pickup.latitude && pickup.longitude ? <span className="text-xs font-semibold text-green-600 flex items-center gap-1">{t("jsx_Geocoded")}{pickup.latitude.toFixed(4)}, {pickup.longitude.toFixed(4)})
                           </span> : <span className="text-xs font-semibold text-red-500">{t("jsx_CoordinatesM")}</span>}
+                        {pickup.postalCode && (
+                          <span className="text-xs font-semibold text-text-primary">· {pickup.postalCode}{pickup.city ? ` ${pickup.city}` : ''}</span>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1625,8 +1631,8 @@ export default function OrderWizard({
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_companyLocat", "Company / Location Name")}</label>
                       <CompanyAutocomplete value={stop.companyName} onChange={val => handleExtraStopChange(i, {
                     companyName: val
-                  })} onSelectFull={(companyName, address, lat, lng, city, country) => {
-                    handleExtraStopSelect(i, address, city, country, lat, lng);
+                  })} onSelectFull={(companyName, address, lat, lng, city, country, postalCode) => {
+                    handleExtraStopSelect(i, address, city, country, lat, lng, postalCode);
                     handleExtraStopChange(i, { companyName });
                   }} className="input w-full bg-white dark:bg-card" placeholder={t('stop_company_placeholder', 'e.g. Cross-dock warehouse')} />
                     </div>
@@ -1634,11 +1640,14 @@ export default function OrderWizard({
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                         {t("jsx_fullAddress")}
                       </label>
-                      <AddressAutocomplete value={stop.address} onChange={val => handleExtraStopChange(i, { address: val })} onSelectFull={(label, city, country, lat, lng) => handleExtraStopSelect(i, label, city, country, lat, lng)} placeholder={t('address_placeholder', 'Street, Number, Zip Code')} className="input w-full bg-white dark:bg-card" />
+                      <AddressAutocomplete value={stop.address} onChange={val => handleExtraStopChange(i, { address: val })} onSelectFull={(label, city, country, lat, lng, postalCode) => handleExtraStopSelect(i, label, city, country, lat, lng, postalCode)} placeholder={t('address_placeholder', 'Street, Number, Zip Code')} className="input w-full bg-white dark:bg-card" />
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs font-semibold text-text-secondary">{t("jsx_geocoding")}</span>
                         {stop.latitude && stop.longitude ? <span className="text-xs font-semibold text-green-600 flex items-center gap-1">{t("jsx_Geocoded")}{stop.latitude.toFixed(4)}, {stop.longitude.toFixed(4)})
                           </span> : <span className="text-xs font-semibold text-red-500">{t("jsx_CoordinatesM")}</span>}
+                        {stop.postalCode && (
+                          <span className="text-xs font-semibold text-text-primary">· {stop.postalCode}{stop.city ? ` ${stop.city}` : ''}</span>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1675,7 +1684,7 @@ export default function OrderWizard({
                       <CompanyAutocomplete value={dropoff.companyName} onChange={val => setDropoff({
                     ...dropoff,
                     companyName: val
-                  })} onSelectFull={(companyName, address, lat, lng, city, country) => {
+                  })} onSelectFull={(companyName, address, lat, lng, city, country, postalCode) => {
                     if (pickup.address && isSameLocation(pickup, { address, latitude: lat, longitude: lng })) {
                       toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
                       return;
@@ -1687,7 +1696,8 @@ export default function OrderWizard({
                       latitude: lat || null,
                       longitude: lng || null,
                       city: city || d.city,
-                      country: country || d.country
+                      country: country || d.country,
+                      postalCode: postalCode || d.postalCode
                     }));
                   }} className="input w-full bg-white dark:bg-card" placeholder={t('company_placeholder_delivery', 'e.g. Client Destination')} />
                     </div>
@@ -1698,7 +1708,7 @@ export default function OrderWizard({
                       <AddressAutocomplete value={dropoff.address} onChange={val => setDropoff({
                     ...dropoff,
                     address: val
-                  })} onSelectFull={(label, city, country, lat, lng) => {
+                  })} onSelectFull={(label, city, country, lat, lng, postalCode) => {
                     if (pickup.address && isSameLocation(pickup, { address: label, latitude: lat, longitude: lng })) {
                       toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
                       return;
@@ -1708,6 +1718,7 @@ export default function OrderWizard({
                       address: label,
                       city: city || d.city,
                       country: country || d.country,
+                      postalCode: postalCode || d.postalCode,
                       latitude: lat || null,
                       longitude: lng || null
                     }));
@@ -1716,6 +1727,9 @@ export default function OrderWizard({
                         <span className="text-xs font-semibold text-text-secondary">{t("jsx_geocoding")}</span>
                         {dropoff.latitude && dropoff.longitude ? <span className="text-xs font-semibold text-green-600 flex items-center gap-1">{t("jsx_Geocoded")}{dropoff.latitude.toFixed(4)}, {dropoff.longitude.toFixed(4)})
                           </span> : <span className="text-xs font-semibold text-red-500">{t("jsx_CoordinatesM")}</span>}
+                        {dropoff.postalCode && (
+                          <span className="text-xs font-semibold text-text-primary">· {dropoff.postalCode}{dropoff.city ? ` ${dropoff.city}` : ''}</span>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

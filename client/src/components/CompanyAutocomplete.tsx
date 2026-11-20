@@ -5,7 +5,7 @@ import { Building2, Loader2, MapPin } from 'lucide-react';
 interface CompanyAutocompleteProps {
   value: string;
   onChange: (val: string) => void;
-  onSelectFull?: (companyName: string, address: string, lat?: number, lng?: number, city?: string, country?: string) => void;
+  onSelectFull?: (companyName: string, address: string, lat?: number, lng?: number, city?: string, country?: string, postalCode?: string) => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
@@ -80,7 +80,8 @@ export default function CompanyAutocomplete({
         place.lat,
         place.lng,
         place.city,
-        place.countryCode
+        place.countryCode,
+        place.postalCode
       );
     }
   };

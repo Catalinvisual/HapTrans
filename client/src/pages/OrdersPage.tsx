@@ -37,6 +37,7 @@ import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { getCleanInvoiceFilename } from '../lib/filenameUtils';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { countryIso } from '../lib/countries';
+import { composeAddress } from '../lib/address';
 import { matchesSearch } from '../lib/search';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
@@ -192,7 +193,7 @@ export default function OrdersPage() {
 
   const filtered = useMemo(() => {
     return orders.filter(o => {
-      if (!matchesSearch(search, o.orderNumber, o.referenceNumber, o.customerReference, o.client?.name, o.contactPerson, o.notes)) return false;
+      if (!matchesSearch(search, o.orderNumber, o.referenceNumber, o.customerReference, o.client?.name, o.contactPerson, o.notes, o.stops?.map((s: any) => `${s.postalCode || ''} ${s.city || ''} ${s.address || ''} ${s.country || ''}`).join(' '))) return false;
       if (filters.status !== 'all') {
         const op = operationalStatusForDisplay(o);
         if (filters.status === 'plannedGroup' && !['PLANNING', 'ACCEPTED'].includes(op)) return false;
@@ -456,7 +457,7 @@ export default function OrdersPage() {
         const iso = countryIso(s.country);
         return iso ? `${city} (${iso})` : city;
       };
-      const full = (s: any) => (s ? [s.address, s.city, s.country].filter(Boolean).join(', ') : 'TBD');
+      const full = (s: any) => (s ? composeAddress(s) : 'TBD');
       return (
         <div className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary min-w-[170px]">
           <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />

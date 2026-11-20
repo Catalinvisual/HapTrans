@@ -5,24 +5,31 @@ import { MapPin, Loader2 } from 'lucide-react';
 interface AddressAutocompleteProps {
   value: string;
   onChange: (val: string) => void;
-  /** Called when a suggestion is clicked with full label + parsed city/country/coordinates */
-  onSelectFull?: (label: string, city?: string, country?: string, lat?: number, lng?: number) => void;
+  /**
+   * Called when a suggestion is clicked with the full label plus the parts the
+   * geocoder resolved: city, country, coordinates and the postal code the
+   * suggestion actually belongs to.
+   */
+  onSelectFull?: (label: string, city?: string, country?: string, lat?: number, lng?: number, postalCode?: string) => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
 }
 
-/** Try to parse "Street, City, Country" from a HERE-style label */
-function parseAddressLabel(label: string): { city?: string; country?: string } {
-  // We simply extract the last part as the country.
-  // The rest remains in the full label, which will be put into the 'Address' field.
-  const parts = label.split(',').map(p => p.trim());
-  if (parts.length >= 2) {
-    const country = parts[parts.length - 1];
-    const city = parts[parts.length - 2];
-    return { country, city };
-  }
-  return {};
+/**
+ * Try to parse "Street, PostalCode City, Country" from a HERE-style label.
+ * The label stays the address text; this only fills the structured fields so
+ * the postal code is stored and shown as its own value.
+ */
+function parseAddressLabel(label: string): { city?: string; country?: string; postalCode?: string } {
+  const parts = label.split(',').map(p => p.trim()).filter(Boolean);
+  if (parts.length < 2) return {};
+  const country = parts[parts.length - 1];
+  const cityPart = parts[parts.length - 2];
+  // 1234 AB Eindhoven / 030167 București / 10115 Berlin / 43-150 Bieruń
+  const match = cityPart.match(/^(\d{2,3}-?\d{3,4}|\d{4,6}(?:\s?[A-Za-z]{2})?)\s+(.+)$/);
+  if (match) return { country, city: match[2], postalCode: match[1] };
+  return { country, city: cityPart };
 }
 
 export default function AddressAutocomplete({
@@ -89,21 +96,23 @@ export default function AddressAutocomplete({
     setLoading(true);
     try {
       const res = await api.get(`/routing/geocode?address=${encodeURIComponent(label)}`);
-      const { lat, lng, city, country } = res.data || {};
+      const { lat, lng, city, country, countryCode, countryName, postalCode } = res.data || {};
+      const parsed = parseAddressLabel(label);
       if (onSelectFull) {
         onSelectFull(
           label,
-          city || parseAddressLabel(label).city,
-          country || parseAddressLabel(label).country,
+          city || parsed.city,
+          countryCode || country || countryName || parsed.country,
           lat,
-          lng
+          lng,
+          postalCode || parsed.postalCode
         );
       }
     } catch (e) {
       console.error('Failed to resolve coordinates', e);
       if (onSelectFull) {
-        const { city, country } = parseAddressLabel(label);
-        onSelectFull(label, city, country);
+        const { city, country, postalCode } = parseAddressLabel(label);
+        onSelectFull(label, city, country, undefined, undefined, postalCode);
       }
     } finally {
       setLoading(false);

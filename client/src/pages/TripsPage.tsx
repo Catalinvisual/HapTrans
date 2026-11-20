@@ -8,6 +8,7 @@ import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { useSettingsStore } from '../store/settingsStore';
 import { fmtNumber, fmtMoney, fmtKm, fmtPercent } from '../lib/format';
 import { matchesSearch } from '../lib/search';
+import { composeAddress, composeCityLine } from '../lib/address';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
@@ -150,7 +151,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
   const filtered = useMemo(() => {
     return base.filter(tr => {
-      if (!matchesSearch(search, tr.tripNumber, tr.truck?.plateNumber, tDriverName(tr), tPickup(tr)?.city, tDropoff(tr)?.city, tr.orders?.map((o: any) => o.orderNumber || o.referenceNumber).join(' '))) return false;
+      if (!matchesSearch(search, tr.tripNumber, tr.truck?.plateNumber, tDriverName(tr), tPickup(tr)?.city, tDropoff(tr)?.city, tPickup(tr)?.postalCode, tDropoff(tr)?.postalCode, tPickup(tr)?.address, tDropoff(tr)?.address, tr.stops?.map((s: any) => `${s.postalCode || ''} ${s.city || ''}`).join(' '), tr.orders?.map((o: any) => o.orderNumber || o.referenceNumber).join(' '))) return false;
       if (filters.status !== 'all') {
         const op = operationalStatusForDisplay(tr);
         if (filters.status === 'active' && !TRIP_ACTIVE.includes(op)) return false;
@@ -318,14 +319,13 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     } },
     { key: 'route', label: t('route', 'Route'), className: 'min-w-[180px]', render: tr => {
       const p = tPickup(tr); const d = tDropoff(tr);
-      const city = (s: any) => s?.city || s?.address?.split(',')[0] || '?';
-      const country = (s: any) => (s?.country ? ` (${s.country})` : '');
-      const addr = (s: any) => [s?.address, s?.city, s?.country].filter(Boolean).join(', ');
+      const city = (s: any) => (s ? composeCityLine(s) : '?');
+      const addr = (s: any) => (s ? composeAddress(s) : '');
       return (
         <div className="flex items-center gap-1.5 min-w-0 text-[12px]">
-          <span className="font-semibold text-blue-600 dark:text-blue-400 truncate" title={addr(p) || '—'}>{p ? city(p) : '—'}<span className="text-text-muted font-normal">{p ? country(p) : ''}</span></span>
+          <span className="font-semibold text-blue-600 dark:text-blue-400 truncate" title={addr(p) || '—'}>{p ? city(p) : '—'}</span>
           <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
-          <span className="font-semibold text-green-600 dark:text-green-400 truncate" title={addr(d) || '—'}>{d ? city(d) : '—'}<span className="text-text-muted font-normal">{d ? country(d) : ''}</span></span>
+          <span className="font-semibold text-green-600 dark:text-green-400 truncate" title={addr(d) || '—'}>{d ? city(d) : '—'}</span>
         </div>
       );
     } },
@@ -762,7 +762,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
                   <span className="text-[13px] font-bold text-text-primary">{s.companyName || (isPickup ? t('pickup', 'Pickup') : isDropoff ? t('dropoff', 'Dropoff') : t('stop', 'Stop'))}</span>
                   <span className="text-[10px] font-bold uppercase text-text-secondary">{s.type}</span>
                 </div>
-                <div className="text-[11px] text-text-secondary mt-1">{[s.address, s.city, s.country].filter(Boolean).join(', ')}</div>
+                <div className="text-[11px] text-text-secondary mt-1">{composeAddress({ address: s.address, postalCode: s.postalCode, city: s.city, country: s.country })}</div>
                 <div className="text-[11px] font-semibold text-text-primary mt-1.5">{(s.dateFrom || '—')}{s.timeFrom ? ` ${s.timeFrom}` : ''}{s.dateTo ? ` → ${s.dateTo}${s.timeUntil ? ` ${s.timeUntil}` : ''}` : ''}</div>
                 {(() => {
                   const stopEta = etaStopForStop(eta, s);
@@ -830,7 +830,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
                     <div className="text-[12px] font-bold text-primary">{o.orderNumber || o.referenceNumber}</div>
                     <div className="text-[10px] text-text-secondary">{o.client?.name || ''}</div>
                   </td>
-                  <td className="px-3 py-2.5 text-[11px] text-text-secondary">{pu?.city || '?'} → {dr?.city || '?'}</td>
+                  <td className="px-3 py-2.5 text-[11px] text-text-secondary">{composeCityLine(pu || {})} → {composeCityLine(dr || {})}</td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-bold">{fmtMoney(o.price, o.currency || 'EUR')}</td>
                 </tr>
               );

@@ -7,6 +7,7 @@ import { fmtNumber } from './format';
 import i18n from './i18n';
 import { fuelTypeLabel, getTruckFuelProfile } from './truckFuel';
 import { getCleanOrderFilename, getCleanProfileFilename, getCleanTripFilename } from './filenameUtils';
+import { composeAddress } from './address';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
@@ -479,7 +480,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
 
     const stopRows = stops.map((s: any, idx: number) => {
       const typeStr = (s.type || 'Stop').toUpperCase();
-      const locStr = [s.companyName, s.address, s.city, s.postalCode, s.country].filter(Boolean).join(', ');
+      const locStr = composeAddress(s);
       const schedStr = fmtDateTime(s.plannedDate || s.scheduledArrival || s.arrivalDate || s.time);
       const notes = normalizeText(s.notes || s.instructions || '—');
       return [

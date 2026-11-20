@@ -12,6 +12,7 @@ import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
 import { driverEntityDisplayName } from '../../lib/driverName';
+import { composeAddress } from '../../lib/address';
 
 interface Props {
   order: any;
@@ -47,7 +48,7 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
   const cargo = order.cargoItems || [];
   const sum = (k: string) => cargo.reduce((s: number, c: any) => s + Number(c[k] || 0), 0);
   const pallets = cargo.reduce((s: number, c: any) => s + (c.unit === 'pallet' ? Number(c.quantity) || 0 : 0), 0);
-  const addr = (s: any) => s ? [s.companyName, s.address, s.city, s.country].filter(Boolean).join(', ') : '—';
+  const addr = (s: any) => s ? composeAddress(s) : '—';
   const trip = order.trip;
   const driverNameReadable = driverEntityDisplayName(trip?.driver) !== '—'
     ? driverEntityDisplayName(trip?.driver)
@@ -156,7 +157,7 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
                   <span className="text-[13px] font-bold text-text-primary">{s.companyName || (isPickup ? t('pickup', 'Pickup') : isDropoff ? t('dropoff', 'Dropoff') : t('stop', 'Stop'))}</span>
                   <span className="text-[10px] font-bold uppercase text-text-secondary">{s.type}</span>
                 </div>
-                <div className="text-[11px] text-text-secondary mt-1">{[s.address, s.city, s.country].filter(Boolean).join(', ')}</div>
+                <div className="text-[11px] text-text-secondary mt-1">{composeAddress({ address: s.address, postalCode: s.postalCode, city: s.city, country: s.country })}</div>
                 <div className="text-[11px] font-semibold text-text-primary mt-1.5">{s.dateFrom || '—'}{s.timeFrom ? ` ${s.timeFrom}` : ''}{s.dateTo ? ` → ${s.dateTo}${s.timeUntil ? ` ${s.timeUntil}` : ''}` : ''}</div>
                 {s.contactPerson && <div className="text-[11px] text-text-secondary mt-0.5 flex items-center gap-1"><User className="w-2.5 h-2.5" />{s.contactPerson}{s.phone ? ` · ${s.phone}` : ''}</div>}
                 {s.reference && <div className="text-[11px] text-text-secondary mt-0.5">Ref: {s.reference}</div>}

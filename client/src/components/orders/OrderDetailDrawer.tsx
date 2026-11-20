@@ -28,6 +28,7 @@ import { describeWallClockAppointment } from '../../lib/stopAppointment';
 import TripEtaPanel, { useTripLiveEta } from '../eta/TripEtaPanel';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/settingsStore';
+import { composeAddress } from '../../lib/address';
 import { generateOrderPdf } from '../../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../../lib/pdfArchiveHelper';
 import { fmtMoney, fmtNumber } from '../../lib/format';
@@ -237,12 +238,12 @@ export default function OrderDetailDrawer({
             <Row
               icon={<MapPin className="w-3 h-3 text-blue-500" />}
               label={t('pickup', 'Pickup')}
-              value={pickup ? [pickup.companyName, pickup.address, pickup.city, pickup.country].filter(Boolean).join(', ') : '—'}
+              value={pickup ? composeAddress(pickup) : '—'}
             />
             <Row
               icon={<MapPin className="w-3 h-3 text-green-500" />}
               label={t('dropoff', 'Dropoff')}
-              value={dropoff ? [dropoff.companyName, dropoff.address, dropoff.city, dropoff.country].filter(Boolean).join(', ') : '—'}
+              value={dropoff ? composeAddress(dropoff) : '—'}
             />
             {(() => {
               const loadRef = order.loadingReference || pickup?.reference;
@@ -458,7 +459,7 @@ export default function OrderDetailDrawer({
                     <span className="text-[10px] font-bold uppercase text-text-secondary">{s.type}</span>
                   </div>
                   <div className="text-[11px] text-text-secondary mt-1">
-                    {[s.address, s.city, s.country].filter(Boolean).join(', ')}
+                    {composeAddress({ address: s.address, postalCode: s.postalCode, city: s.city, country: s.country })}
                   </div>
                   <div className="text-[11px] font-semibold text-text-primary mt-1.5 flex flex-wrap items-center gap-1.5">
                     <span>{describeWallClockAppointment(s).label || '—'}</span>

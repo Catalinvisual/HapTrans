@@ -6,6 +6,7 @@ import { Search, X, FileText, Users, Truck, Map, LayoutDashboard, Settings } fro
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { matchesSearch } from '../lib/search';
+import { composeCityLine } from '../lib/address';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -80,14 +81,30 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
           icon: <Users className="w-5 h-5" />
         }));
 
-        const tripResults: SearchResult[] = (tripsRes.data?.data || []).slice(0, 5).map((t: any) => ({
-          id: `t_${t.id}`,
-          type: 'trip',
-          title: `Cursa ${t.referenceNumber || t.id.slice(0, 6)}`,
-          subtitle: `${t.pickupAddress} -> ${t.dropoffAddress}`,
-          url: `/trips`,
-          icon: <Map className="w-5 h-5" />
-        }));
+        // A postal code or a city has to find the trip too, so the whole stop
+        // address is part of the match and of the result subtitle.
+        const tripStops = (t: any) => [...(t.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+        const tripText = (t: any) => [
+          t.referenceNumber, t.tripNumber, t.pickupAddress, t.dropoffAddress,
+          ...tripStops(t).flatMap((s: any) => [s.companyName, s.address, s.postalCode, s.city, s.country]),
+        ].filter(Boolean).join(' ');
+        const tripRoute = (t: any) => {
+          const stops = tripStops(t);
+          const pickup = stops.find((s: any) => s.type === 'pickup') || stops[0];
+          const dropoff = [...stops].reverse().find((s: any) => s.type === 'delivery' || s.type === 'dropoff');
+          if (pickup || dropoff) return `${pickup ? composeCityLine(pickup) : '?'} -> ${dropoff ? composeCityLine(dropoff) : '?'}`;
+          return `${t.pickupAddress || '?'} -> ${t.dropoffAddress || '?'}`;
+        };
+        const tripResults: SearchResult[] = (tripsRes.data?.data || [])
+          .filter((t: any) => matchesSearch(query, tripText(t)))
+          .slice(0, 5).map((t: any) => ({
+            id: `t_${t.id}`,
+            type: 'trip',
+            title: `Cursa ${t.referenceNumber || t.id.slice(0, 6)}`,
+            subtitle: tripRoute(t),
+            url: `/trips`,
+            icon: <Map className="w-5 h-5" />
+          }));
 
         const truckResults: SearchResult[] = (trucksRes.data || []).slice(0, 3).map((t: any) => ({
           id: `tr_${t.id}`,
