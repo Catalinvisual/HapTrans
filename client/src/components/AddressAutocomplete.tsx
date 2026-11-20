@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
+import { preferredPostalCode } from '../lib/address';
 import { MapPin, Loader2 } from 'lucide-react';
 
 interface AddressAutocompleteProps {
@@ -105,7 +106,7 @@ export default function AddressAutocomplete({
           countryCode || country || countryName || parsed.country,
           lat,
           lng,
-          postalCode || parsed.postalCode
+          preferredPostalCode(postalCode, parsed.postalCode)
         );
       }
     } catch (e) {

@@ -43,7 +43,7 @@ import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
-import { composeAddress } from '../lib/address';
+import { composeAddress, composeCityLine } from '../lib/address';
 import ConsolidationWizard from '../components/ConsolidationWizard';
 import { providerStatusMessage } from '../lib/providerStatus';
 import { statusTone, statusInlineStyle, statusToneName, TONE_HEX } from '../lib/statusColors';
@@ -652,10 +652,10 @@ function PoolOrderCard({
           thing in the pool. Cargo moves down to the dates row. */}
       <div className="flex items-center gap-1.5 text-[11px] text-text-secondary min-w-0">
         <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
-        <span className="min-w-0 flex-1 truncate font-semibold text-text-primary">{pickup?.city || pickup?.address?.split(',')[0] || '—'}</span>
+        <span className="min-w-0 flex-1 truncate font-semibold text-text-primary" title={pickup ? composeAddress(pickup) : undefined}>{composeCityLine(pickup || { address: order.pickupAddress, city: order.pickupCity, country: order.pickupCountry })}</span>
         <ArrowRight className="w-2.5 h-2.5 shrink-0 text-text-muted" />
         <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
-        <span className="min-w-0 flex-1 truncate font-semibold text-text-primary">{dropoff?.city || dropoff?.address?.split(',')[0] || '—'}</span>
+        <span className="min-w-0 flex-1 truncate font-semibold text-text-primary" title={dropoff ? composeAddress(dropoff) : undefined}>{composeCityLine(dropoff || { address: order.deliveryAddress, city: order.deliveryCity, country: order.deliveryCountry })}</span>
       </div>
 
       {(pickupDate || dropoffDate) && (

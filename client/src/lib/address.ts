@@ -31,6 +31,33 @@ const mentions = (list: string[], value?: string | null) => {
   });
 };
 
+/**
+ * HERE sometimes returns only the numeric part of a postal code ("5611")
+ * while the label the address came from carries the letters ("5611 AB").
+ * Put the letters back whenever the label proves them, so Dutch and other
+ * alphanumeric postal codes are never shown half-empty.
+ */
+export function fullPostalCode(postalCode?: string | null, address?: string | null): string {
+  const postal = String(postalCode || '').trim();
+  if (!/^\d{4,6}$/.test(postal)) return postal;
+  const match = String(address || '').match(new RegExp(`(^|[^\\d])${postal}\\s?([A-Za-z]{1,2})(?![A-Za-z])`));
+  if (!match) return postal;
+  return `${postal} ${match[2].toUpperCase()}`;
+}
+
+/**
+ * The geocoder and the autocomplete label can disagree on the postal code
+ * ("5611" vs "5611 AB"); the more specific one wins.
+ */
+export function preferredPostalCode(geocoded?: string | null, fromLabel?: string | null): string {
+  const fromGeo = String(geocoded || '').trim();
+  const fromText = String(fromLabel || '').trim();
+  if (!fromGeo) return fromText;
+  if (!fromText) return fromGeo;
+  const size = (value: string) => value.replace(/\s+/g, '').length;
+  return size(fromText) > size(fromGeo) ? fromText : fromGeo;
+}
+
 const countryAliases = (value?: string | null) => {
   const iso = countryIso(value);
   if (!iso) return [];
@@ -54,7 +81,7 @@ const countryAliases = (value?: string | null) => {
  */
 export function composeAddress({ companyName, address, postalCode, city, country }: AddressParts): string {
   const segments = pieces(address);
-  const postal = String(postalCode || '').trim();
+  const postal = fullPostalCode(postalCode, address);
   const cityName = String(city || '').trim();
 
   // A postal code belongs in front of its city, not at the end of the line.
@@ -84,7 +111,7 @@ export function composeAddress({ companyName, address, postalCode, city, country
  */
 export function composeCityLine({ address, postalCode, city, country }: Pick<AddressParts, 'address' | 'postalCode' | 'city' | 'country'>): string {
   const cityName = String(city || '').trim() || pieces(address)[0] || '';
-  const postal = String(postalCode || '').trim();
+  const postal = fullPostalCode(postalCode, address);
   const iso = countryIso(country);
   const place = [postal, cityName].filter(Boolean).join(' ');
   if (!place) return iso || '—';
