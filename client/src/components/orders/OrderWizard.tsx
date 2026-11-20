@@ -13,6 +13,7 @@ import { summariseAppointment } from '../../lib/stopAppointment';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrCargoSection from './AdrCargoSection';
+import ClientFormDrawer, { EMPTY_CLIENT_FORM } from '../ClientFormDrawer';
 import { calculateLdm, calculateVolumeCbm, hasNoCapacityData } from '../../lib/cargoCalc';
 import { fmtMoney } from '../../lib/format';
 import { moveFieldFocus } from '../../lib/fieldNavigation';
@@ -273,6 +274,12 @@ export default function OrderWizard({
   } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
+
+  // A client can be created without leaving the wizard: the same drawer the
+  // clients page uses opens on top, and the new client is selected on save.
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [clientForm, setClientForm] = useState<any>({ ...EMPTY_CLIENT_FORM });
+  const [savingClient, setSavingClient] = useState(false);
 
   const resolveTargetStep = (h?: string | null, s?: number | null) => {
     if (h) {
@@ -720,6 +727,33 @@ export default function OrderWizard({
   }]);
   const handleRemoveCargo = (i: number) => setCargoItems(cargoItems.filter((_, idx) => idx !== i));
 
+  const handleCreateClient = async () => {
+    if (!String(clientForm.name || '').trim()) {
+      toast.error(t('client_name_required', 'Client name is required.'));
+      return;
+    }
+    try {
+      setSavingClient(true);
+      const res = await api.post('/clients', clientForm);
+      const created = res.data;
+      if (created?.id) {
+        // Both the open wizard and the session cache get the new client, so it
+        // is already in the order list and in the next wizard opened.
+        clientsCache = [created, ...(clientsCache || []).filter((c: any) => c.id !== created.id)];
+        clientsRequest = null;
+        setClients(prev => [created, ...prev.filter((c: any) => c.id !== created.id)]);
+        setForm(prev => ({ ...prev, clientId: created.id }));
+        toast.success(t('clientAdded', 'Client added'));
+      }
+      setShowClientForm(false);
+      setClientForm({ ...EMPTY_CLIENT_FORM });
+    } catch {
+      toast.error(t('error', 'Error'));
+    } finally {
+      setSavingClient(false);
+    }
+  };
+
   // Bi-directional synchronization between cargo items (ADR / Frigo) and form.equipmentRequirements
   useEffect(() => {
     const hasAdr = cargoItems.some((c: any) => c.isAdr || c.unNumber);
@@ -752,6 +786,11 @@ export default function OrderWizard({
 
   // Composite ADR 1.1.3.6 Order-Level Assessment
   const adrCargoItems = useMemo(() => cargoItems.filter((c: any) => c.isAdr), [cargoItems]);
+
+  // Step 1 shows the ADR form as soon as ADR is selected, so the classification
+  // is entered where the requirement is chosen instead of only in Cargo.
+  const adrTargetIndex = cargoItems.findIndex((c: any) => c.isAdr);
+  const adrTargetItem = adrTargetIndex >= 0 ? cargoItems[adrTargetIndex] : null;
   const classifiedAdrItems = useMemo(() => cargoItems.filter((c: any) => c.isAdr && c.unNumber), [cargoItems]);
 
   const compositeAdr = useMemo(() => {
@@ -1090,15 +1129,17 @@ export default function OrderWizard({
     value: 'critical',
     label: t('priority_critical', '🔴 Critical')
   }];
+  // Same shape as the currency list in the client drawer: code plus symbol, so
+  // every option reads the same instead of "€", "$ USD" and "RON".
   const currencyOptions: SelectOpt[] = [{
     value: 'EUR',
-    label: '€'
+    label: 'EUR (€)'
   }, {
     value: 'USD',
-    label: '$ USD'
+    label: 'USD ($)'
   }, {
     value: 'RON',
-    label: 'RON'
+    label: 'RON (lei)'
   }];
   const unitOptions: SelectOpt[] = [{
     value: 'pallet',
@@ -1134,6 +1175,8 @@ export default function OrderWizard({
     aria-modal="true"
     tabIndex={-1}
     onKeyDown={(e) => {
+      // The client drawer opens above the wizard and owns its own keys.
+      if (showClientForm) return;
       // Ctrl/Cmd+Enter and Ctrl/Cmd+S press Save from anywhere in the wizard;
       // Alt+←/→ press the Back and Next buttons of the step footer.
       if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 's' || e.key === 'S')) {
@@ -1250,16 +1293,35 @@ export default function OrderWizard({
                   <label className="block text-sm font-medium mb-1.5" htmlFor="wiz-client">
                     {t("jsx_client")}
                   </label>
-                  <ModalSelect
-                    id="wiz-client"
-                    value={form.clientId}
-                    onChange={v => setForm({
-                      ...form,
-                      clientId: v
-                    })}
-                    options={clientOptions}
-                    placeholder={t('select_client_placeholder', 'Select a client...')}
-                  />
+                  <div className="flex items-stretch gap-2">
+                    <div className="flex-1 min-w-0">
+                      <ModalSelect
+                        id="wiz-client"
+                        value={form.clientId}
+                        onChange={v => setForm({
+                          ...form,
+                          clientId: v
+                        })}
+                        options={clientOptions}
+                        placeholder={t('select_client_placeholder', 'Select a client...')}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientForm({ ...EMPTY_CLIENT_FORM });
+                        setShowClientForm(true);
+                      }}
+                      className="btn-secondary flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                      title={t('add_client_from_order_hint', 'The new client is saved and selected for this order.')}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {t('addClient', 'Add client')}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-text-secondary mt-1">
+                    {t('add_client_from_order_hint', 'The new client is saved and selected for this order.')}
+                  </p>
                 </div>
               </div>
               )}
@@ -1387,6 +1449,24 @@ export default function OrderWizard({
                     })}
                   </div>
                 </div>
+                {adrTargetItem && (
+                <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-950 dark:text-amber-200 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      {t('adr_step1_title', 'ADR dangerous goods details')}
+                    </h4>
+                    <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+                      {t('adr_step1_hint', 'Enter the UN code, packaging and quantities here — this is the same ADR record shown in Cargo.')}
+                    </p>
+                  </div>
+                  <AdrCargoSection
+                    item={adrTargetItem}
+                    onChange={patch => handleCargoPatch(adrTargetIndex, patch)}
+                    isPortal={isPortal}
+                  />
+                </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1.5">{t("jsx_internalReference", "Internal Reference")}</label>
@@ -2150,6 +2230,15 @@ export default function OrderWizard({
           </div>
         </div>
       </div>
+
+      <ClientFormDrawer
+        open={showClientForm}
+        form={clientForm}
+        setForm={setClientForm}
+        onClose={() => setShowClientForm(false)}
+        onSubmit={handleCreateClient}
+        saving={savingClient}
+      />
 
       <style>{`
         @keyframes wizardIn {
