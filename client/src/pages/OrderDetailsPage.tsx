@@ -273,15 +273,15 @@ export default function OrderDetailsPage() {
         {activeTab === 'financials' && <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card p-5 border-l-4 border-l-blue-500">
               <h4 className="text-sm text-text-secondary font-bold uppercase tracking-wider">{t("jsx_revenuePrice")}</h4>
-              <p className="text-3xl font-black mt-2">{fmtMoney(order.price || 0)}</p>
+              <p className="text-3xl font-black mt-2">{fmtMoney(order.price || 0, order.currency || 'EUR')}</p>
             </div>
             <div className="card p-5 border-l-4 border-l-red-500">
               <h4 className="text-sm text-text-secondary font-bold uppercase tracking-wider">{t("jsx_estimatedCost")}</h4>
-              <p className="text-3xl font-black mt-2">{fmtMoney(order.estimatedCost || 0)}</p>
+              <p className="text-3xl font-black mt-2">{fmtMoney(order.estimatedCost || 0, order.currency || 'EUR')}</p>
             </div>
             <div className="card p-5 border-l-4 border-l-green-500">
               <h4 className="text-sm text-text-secondary font-bold uppercase tracking-wider">{t("jsx_estimatedProfi")}</h4>
-              <p className="text-3xl font-black mt-2 text-green-600">{fmtMoney(order.estimatedProfit || 0)}</p>
+              <p className="text-3xl font-black mt-2 text-green-600">{fmtMoney(order.estimatedProfit || 0, order.currency || 'EUR')}</p>
             </div>
           </div>}
         {activeTab === 'timeline' && (

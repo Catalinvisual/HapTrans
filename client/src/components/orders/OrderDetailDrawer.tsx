@@ -294,6 +294,16 @@ export default function OrderDetailDrawer({
               label={t('distance', 'Distance')}
               value={order.distanceKm ? `${fmtNumber(order.distanceKm)} km` : '—'}
             />
+            <Row
+              icon={<FileText className="w-3 h-3" />}
+              label={t('internal_reference', 'Internal ref')}
+              value={order.internalReference || order.orderNumber || '—'}
+            />
+            <Row
+              icon={<FileText className="w-3 h-3" />}
+              label={t('customer_reference', 'Customer ref')}
+              value={order.customerReference || '—'}
+            />
           </div>
           {order.notes && (
             <div className="bg-surface/40 rounded-xl p-3 border border-border text-[13px] text-text-primary whitespace-pre-wrap">
@@ -340,6 +350,16 @@ export default function OrderDetailDrawer({
                 </span>
                 {c.ldm ? <span>{fmtNumber(c.ldm, 2)} LDM</span> : null}
                 {c.volumeCbm ? <span>{fmtNumber(c.volumeCbm, 1)} m³</span> : null}
+                {c.lengthCm || c.widthCm || c.heightCm ? (
+                  <span>
+                    {c.lengthCm || '–'} × {c.widthCm || '–'} × {c.heightCm || '–'} cm
+                  </span>
+                ) : null}
+                {c.stackable ? (
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">
+                    {t('jsx_stackable', 'Stackable')}
+                  </span>
+                ) : null}
                 {c.isAdr || c.adrClass || c.unNumber ? (
                   <AdrBadge
                     status={c.adrStatus || (c.adrExemptionType ? `exempt_${c.adrExemptionType}` : undefined)}
@@ -350,13 +370,47 @@ export default function OrderDetailDrawer({
                     showDetails={true}
                   />
                 ) : null}
-                {c.requiresTemperatureControl ? (
+                {c.isTemperatureControlled || c.requiresTemperatureControl ? (
                   <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">
-                    🌡 {c.temperatureMin ?? c.temperatureMax}°C
+                    🌡 {c.temperatureMin ?? c.requiredTemperature ?? '—'}
+                    {c.temperatureMin != null && c.temperatureMax != null && Number(c.temperatureMin) !== Number(c.temperatureMax)
+                      ? ` … ${c.temperatureMax}`
+                      : ''}
+                    °C
                   </span>
                 ) : null}
                 {c.fragile ? <span className="text-amber-600 font-semibold">Fragile</span> : null}
               </div>
+              {c.isAdr && (c.packingGroup || c.tunnelRestrictionCode || c.transportCategory != null ||
+                c.adrPackagingCount || c.adrPackagingCode || c.adrNetMassKg || c.adrGrossMassKg ||
+                c.adrVolumeLiters || c.technicalName || c.classificationCode || c.dangerLabels ||
+                c.specialProvisions || c.limitedQuantity || c.exceptedQuantity || c.environmentalHazard ||
+                c.adrWaste || c.adrEmptyUncleaned) && (
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 text-[10px] text-text-secondary">
+                  {c.technicalName && <div><span className="font-bold">{t('adr_technical_name', 'Technical name')}:</span> {c.technicalName}</div>}
+                  {c.classificationCode && <div><span className="font-bold">{t('adr_classification_code', 'Classification code')}:</span> {c.classificationCode}</div>}
+                  {c.packingGroup && <div><span className="font-bold">{t('adr_packing_group', 'Packing group')}:</span> {c.packingGroup}</div>}
+                  {c.tunnelRestrictionCode && <div><span className="font-bold">{t('adr_tunnel_code', 'Tunnel code')}:</span> {c.tunnelRestrictionCode}</div>}
+                  {c.transportCategory != null && <div><span className="font-bold">{t('adr_transport_category', 'Transport category')}:</span> {c.transportCategory}</div>}
+                  {c.adrTransportType && <div><span className="font-bold">{t('adr_transport_type', 'Carriage type')}:</span> {c.adrTransportType}</div>}
+                  {(c.adrPackagingCode || c.adrPackagingCount) && (
+                    <div>
+                      <span className="font-bold">{t('adr_packaging', 'Packaging')}:</span>{' '}
+                      {[c.adrPackagingCode, c.adrPackagingCount ? `× ${c.adrPackagingCount}` : null].filter(Boolean).join(' ')}
+                    </div>
+                  )}
+                  {c.adrNetMassKg != null && <div><span className="font-bold">{t('adr_net_mass', 'Net mass')}:</span> {fmtNumber(c.adrNetMassKg, 2)} kg</div>}
+                  {c.adrGrossMassKg != null && <div><span className="font-bold">{t('adr_gross_mass', 'Gross mass')}:</span> {fmtNumber(c.adrGrossMassKg, 2)} kg</div>}
+                  {c.adrVolumeLiters != null && <div><span className="font-bold">{t('adr_volume', 'Volume')}:</span> {fmtNumber(c.adrVolumeLiters, 2)} L</div>}
+                  {c.dangerLabels && <div><span className="font-bold">{t('adr_danger_labels', 'Danger labels')}:</span> {c.dangerLabels}</div>}
+                  {c.specialProvisions && <div><span className="font-bold">{t('adr_special_provisions', 'Special provisions')}:</span> {c.specialProvisions}</div>}
+                  {c.limitedQuantity && <div className="font-bold text-blue-600">{t('adr_badge_lq_short', 'Limited quantity (LQ)')}</div>}
+                  {c.exceptedQuantity && <div className="font-bold text-cyan-600">{t('adr_badge_eq_short', 'Excepted quantity (EQ)')}</div>}
+                  {c.environmentalHazard && <div className="font-bold text-red-600">{t('adr_environmental_hazard', 'Environmentally hazardous')}</div>}
+                  {c.adrWaste && <div className="font-bold">{t('adr_waste', 'Waste')}</div>}
+                  {c.adrEmptyUncleaned && <div className="font-bold">{t('adr_empty_uncleaned', 'Empty, uncleaned')}</div>}
+                </div>
+              )}
               {c.adrDeclarationText && (
                 <div className="w-full mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[10px] font-mono text-amber-900 dark:text-amber-200 break-words">
                   <span className="font-bold text-[9px] uppercase tracking-wider block text-amber-600 dark:text-amber-400 mb-0.5">

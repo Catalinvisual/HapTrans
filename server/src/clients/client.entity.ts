@@ -45,6 +45,12 @@ export class Client {
   @Column({ type: 'int', default: 30 })
   paymentTermsDays: number;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  creditLimit: number;
+
+  @Column({ default: 'EUR' })
+  currency: string;
+
   @Column({ default: 'en' })
   invoiceLanguage: string;
 

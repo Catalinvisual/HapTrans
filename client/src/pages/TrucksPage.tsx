@@ -796,12 +796,38 @@ export default function TrucksPage() {
       key: 'specs', label: t('tab_specs', 'Specifications'),
       content: (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('payload', 'Payload')}</div><div className="text-lg font-black mt-0.5">{fmtNumber(Number(drawerTruck.payloadCapacity || drawerTruck.maxWeightKg || 0))} <span className="text-xs text-text-secondary">kg</span></div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('payload', 'Payload')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.payloadCapacity ? `${fmtNumber(Number(drawerTruck.payloadCapacity))} ` : '—'}<span className="text-xs text-text-secondary">{drawerTruck.payloadCapacity ? 'kg' : ''}</span></div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('maxWeightKg', 'Max gross weight')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxWeightKg ? `${fmtNumber(Number(drawerTruck.maxWeightKg))} ` : '—'}<span className="text-xs text-text-secondary">{drawerTruck.maxWeightKg ? 'kg' : ''}</span></div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Pallets')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxPallets || '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Gauge className="w-3 h-3" />{t('maxLdm', 'LDM')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxLdm ? `${drawerTruck.maxLdm} m` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('maxVolumeCbm', 'Volume')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxVolumeCbm ? `${drawerTruck.maxVolumeCbm} m³` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('truck_fuel_consumption', 'Consumption')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${fmtNumber(drawerTruck.fuelConsumption, 1)} ${getTruckFuelProfile(drawerTruck.fuelType)?.unit || t('truck_fuel_unit_unknown', 'unit not configured')}` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('cost_km', 'Cost/km')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.costPerKm ? fmtMoney(Number(drawerTruck.costPerKm)) : '—'}</div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border">
+            <div className="text-[10px] font-bold uppercase text-text-secondary">{t('truck_dimensions', 'Dimensions L × W × H')}</div>
+            <div className="text-lg font-black mt-0.5">
+              {drawerTruck.lengthCm || drawerTruck.widthCm || drawerTruck.heightCm
+                ? `${drawerTruck.lengthCm || '—'} × ${drawerTruck.widthCm || '—'} × ${drawerTruck.heightCm || '—'}`
+                : '—'}
+              {(drawerTruck.lengthCm || drawerTruck.widthCm || drawerTruck.heightCm) && <span className="text-xs text-text-secondary"> cm</span>}
+            </div>
+          </div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border">
+            <div className="text-[10px] font-bold uppercase text-text-secondary">{t('axleCount', 'Axles')}</div>
+            <div className="text-lg font-black mt-0.5">{drawerTruck.axleCount || '—'}</div>
+          </div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border">
+            <div className="text-[10px] font-bold uppercase text-text-secondary">{t('truck_energy_price', 'Energy price')}</div>
+            <div className="text-lg font-black mt-0.5">
+              {drawerTruck.fuelPricePerLiter
+                ? `${fmtNumber(Number(drawerTruck.fuelPricePerLiter), 3)} €/${getTruckFuelProfile(drawerTruck.fuelType)?.unit?.split('/')[0] || ''}`
+                : '—'}
+            </div>
+          </div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border">
+            <div className="text-[10px] font-bold uppercase text-text-secondary">{t('totalMileage', 'Total mileage')}</div>
+            <div className="text-lg font-black mt-0.5">{drawerTruck.totalMileage ? `${fmtNumber(Number(drawerTruck.totalMileage))} km` : '—'}</div>
+          </div>
         </div>
       ),
     },

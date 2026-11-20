@@ -22,6 +22,26 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateClientPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import DetailDrawer from '../components/ui/DetailDrawer';
+import CustomSelect from '../components/CustomSelect';
+
+// Every field the client profile shows later can already be entered here, so a
+// client is created with its real payment terms instead of database defaults.
+const EMPTY_CLIENT_FORM = {
+  name: '',
+  cui: '',
+  address: '',
+  contactName: '',
+  contactEmail: '',
+  phone: '',
+  country: '',
+  paymentTermsDays: 30,
+  discount: 0,
+  defaultFuelSurchargePercent: 0,
+  creditLimit: 0,
+  currency: 'EUR',
+  invoiceLanguage: 'en',
+};
+
 export default function ClientsPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
@@ -38,14 +58,7 @@ export default function ClientsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
-  const [form, setForm] = useState(formStore.clientsForm || {
-    name: '',
-    cui: '',
-    address: '',
-    contactName: '',
-    contactEmail: '',
-    phone: ''
-  });
+  const [form, setForm] = useState<any>(formStore.clientsForm || { ...EMPTY_CLIENT_FORM });
   const [editId, setEditId] = useState<string | null>(formStore.clientsEditId);
   useEffect(() => {
     formStore.setFormState('clients', {
@@ -75,14 +88,7 @@ export default function ClientsPage() {
       }
       setShowForm(false);
       setEditId(null);
-      setForm({
-        name: '',
-        cui: '',
-        address: '',
-        contactName: '',
-        contactEmail: '',
-        phone: ''
-      });
+      setForm({ ...EMPTY_CLIENT_FORM });
       load();
     } catch {
       toast.error(t('error'));
@@ -150,7 +156,7 @@ export default function ClientsPage() {
       render: c => {
         const rates = (c.rates || []).length;
         const disc = Number(c.discount || 0);
-        const terms = c.paymentTerms;
+        const terms = c.paymentTermsDays;
         if (!rates && !disc && !terms) return <span className="text-xs text-text-muted">—</span>;
         const parts: string[] = [];
         if (rates) parts.push(rates + ' ' + (rates > 1 ? t('tariffs', 'tarife') : t('tariff', 'tarif')));
@@ -192,14 +198,7 @@ export default function ClientsPage() {
   useShortcuts({
     'shift+n': () => {
       if (!showForm && !selectedClient) {
-        setForm({
-          name: '',
-          cui: '',
-          address: '',
-          contactName: '',
-          contactEmail: '',
-          phone: ''
-        });
+        setForm({ ...EMPTY_CLIENT_FORM });
         setEditId(null);
         setShowForm(true);
       }
@@ -305,6 +304,41 @@ export default function ClientsPage() {
                 placeholder="Street, No., Building..."
               />
             </div>
+
+            {/* Commercial terms shown on the client profile and used for invoicing */}
+            <div className="md:col-span-2 pt-2 mt-1 border-t border-border">
+              <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                {t('commercial_terms', 'Commercial terms')}
+              </span>
+            </div>
+            <div>
+              <label className="label font-semibold">{t('country', 'Country')}</label>
+              <input className="input" value={form.country || ''} onChange={e => setForm({ ...form, country: e.target.value })} placeholder="RO, NL, DE..." />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('paymentTermsDays', 'Payment terms (days)')}</label>
+              <input type="number" className="input" value={form.paymentTermsDays ?? 30} onChange={e => setForm({ ...form, paymentTermsDays: parseInt(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('discount', 'Discount (%)')}</label>
+              <input type="number" step="0.1" className="input" value={form.discount ?? 0} onChange={e => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('defaultFuelSurcharge', 'Fuel surcharge (%)')}</label>
+              <input type="number" step="0.1" className="input" value={form.defaultFuelSurchargePercent ?? 0} onChange={e => setForm({ ...form, defaultFuelSurchargePercent: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('creditLimitEur', 'Credit limit (€)')}</label>
+              <input type="number" className="input" value={form.creditLimit ?? 0} onChange={e => setForm({ ...form, creditLimit: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('defaultCurrency', 'Default currency')}</label>
+              <CustomSelect value={form.currency || 'EUR'} onChange={val => setForm({ ...form, currency: val })} options={[{ value: 'EUR', label: 'EUR (€)' }, { value: 'RON', label: 'RON (lei)' }, { value: 'USD', label: 'USD ($)' }, { value: 'GBP', label: 'GBP (£)' }]} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="label font-semibold">{t('preferredInvoiceLanguage', 'Preferred invoice language')}</label>
+              <CustomSelect value={form.invoiceLanguage || 'en'} onChange={val => setForm({ ...form, invoiceLanguage: val })} options={[{ value: 'en', label: 'English' }, { value: 'nl', label: 'Dutch' }, { value: 'ro', label: 'Romanian' }, { value: 'de', label: 'German' }, { value: 'fr', label: 'French' }]} />
+            </div>
           </form>
         </DetailDrawer>
       )}
@@ -373,6 +407,27 @@ export default function ClientsPage() {
     }, {
       key: 'phone',
       label: 'Phone'
+    }, {
+      key: 'country',
+      label: 'Country'
+    }, {
+      key: 'paymentTermsDays',
+      label: 'Payment Terms (days)'
+    }, {
+      key: 'discount',
+      label: 'Discount (%)'
+    }, {
+      key: 'defaultFuelSurchargePercent',
+      label: 'Fuel Surcharge (%)'
+    }, {
+      key: 'creditLimit',
+      label: 'Credit Limit'
+    }, {
+      key: 'currency',
+      label: 'Currency'
+    }, {
+      key: 'invoiceLanguage',
+      label: 'Invoice Language'
     }]} />
     
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />

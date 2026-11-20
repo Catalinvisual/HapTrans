@@ -88,7 +88,9 @@ export default function ClientDetails({
     if (!isConfirmed) return;
     try {
       if (rateForm.id) {
-        await api.patch(`/clients/${client.id}/rates/${rateForm.id}`, rateForm);
+        // The API exposes rate updates by rate id; the client segment is only
+        // used when listing and creating rates.
+        await api.patch(`/clients/rates/${rateForm.id}`, rateForm);
         toast.success(t("toast_tarifulAFost"));
       } else {
         await api.post(`/clients/${client.id}/rates`, rateForm);
@@ -109,7 +111,7 @@ export default function ClientDetails({
     });
     if (!isConfirmed) return;
     try {
-      await api.delete(`/clients/${client.id}/rates/${rateId}`);
+      await api.delete(`/clients/rates/${rateId}`);
       toast.success(t("toast_tarifulAFost1"));
       loadRates();
     } catch {
@@ -141,7 +143,7 @@ export default function ClientDetails({
     if (!isConfirmed) return;
     try {
       if (locationForm.id) {
-        await api.patch(`/clients/${client.id}/locations/${locationForm.id}`, locationForm);
+        await api.patch(`/clients/locations/${locationForm.id}`, locationForm);
         toast.success(t("toast_locatiaAFost"));
       } else {
         await api.post(`/clients/${client.id}/locations`, locationForm);
@@ -162,7 +164,7 @@ export default function ClientDetails({
     });
     if (!isConfirmed) return;
     try {
-      await api.delete(`/clients/${client.id}/locations/${locationId}`);
+      await api.delete(`/clients/locations/${locationId}`);
       toast.success(t("toast_locatiaAFost2"));
       loadLocations();
     } catch {
@@ -202,8 +204,16 @@ export default function ClientDetails({
               <div className="font-semibold text-text-primary">{clientData.phone || '—'}</div>
             </div>
             <div>
+              <div className="text-xs text-text-secondary">{t('country', 'Țară')}</div>
+              <div className="font-semibold text-text-primary">{clientData.country || '—'}</div>
+            </div>
+            <div>
               <div className="text-xs text-text-secondary">{t('paymentTermsDays', 'Termen plată (zile)')}</div>
               <div className="font-semibold text-text-primary">{clientData.paymentTermsDays ?? 30} {t('days', 'zile')}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('discount', 'Discount')}</div>
+              <div className="font-semibold text-text-primary">{Number(clientData.discount || 0)}%</div>
             </div>
             <div>
               <div className="text-xs text-text-secondary">{t('defaultFuelSurcharge', 'Suprataxă combustibil')}</div>
@@ -279,8 +289,20 @@ export default function ClientDetails({
               <input className="input" value={generalForm.contactEmail} onChange={e => setGeneralForm({ ...generalForm, contactEmail: e.target.value })} />
             </div>
             <div>
+              <label className="label">{t('phone', 'Telefon')}</label>
+              <input className="input" value={generalForm.phone || ''} onChange={e => setGeneralForm({ ...generalForm, phone: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">{t('country', 'Țară')}</label>
+              <input className="input" value={generalForm.country || ''} onChange={e => setGeneralForm({ ...generalForm, country: e.target.value })} placeholder="RO, NL, DE..." />
+            </div>
+            <div>
               <label className="label">{t('paymentTermsDays')}</label>
               <input type="number" className="input" value={generalForm.paymentTermsDays || 30} onChange={e => setGeneralForm({ ...generalForm, paymentTermsDays: parseInt(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="label">{t('discount', 'Discount (%)')}</label>
+              <input type="number" step="0.1" className="input" value={generalForm.discount || 0} onChange={e => setGeneralForm({ ...generalForm, discount: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
               <label className="label">{t('defaultFuelSurcharge')}</label>

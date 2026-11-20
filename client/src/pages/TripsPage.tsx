@@ -668,6 +668,74 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
           <Row icon={<Coins className="w-3 h-3" />} label={t('tolls', 'Tolls')} value={Number(trip.tollCost || 0) ? fmtMoney(trip.tollCost) : '—'} />
           <Row icon={<Calendar className="w-3 h-3" />} label={t('created_at', 'Created')} value={trip.createdAt ? new Date(trip.createdAt).toLocaleString() : '—'} />
         </div>
+        {(trip.fleetType && trip.fleetType !== 'own_fleet') || trip.carrierName ? (
+          <div className="mt-4 rounded-xl border border-border bg-surface/40 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase text-text-secondary">
+                {t('subcontractor_allocation', 'Subcontractor / Charter')}
+              </span>
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                {trip.fleetType === 'charter'
+                  ? t('fleet_charter', 'Spot charter')
+                  : trip.fleetType === 'subcontractor'
+                  ? t('fleet_subcontractor', 'Subcontractor')
+                  : t('fleet_own', 'Own fleet')}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-text-secondary">
+              {trip.carrierName && (
+                <div className="col-span-2">
+                  <span className="font-bold">{t('carrier', 'Carrier')}:</span>{' '}
+                  <span className="font-semibold text-text-primary">{trip.carrierName}</span>
+                </div>
+              )}
+              {trip.carrierRate != null && (
+                <div>
+                  <span className="font-bold">{t('agreed_rate', 'Agreed rate')}:</span>{' '}
+                  <span className="font-semibold text-text-primary">
+                    {fmtMoney(trip.carrierRate, trip.carrierCurrency || 'EUR')}
+                  </span>
+                </div>
+              )}
+              {trip.carrierReference && (
+                <div>
+                  <span className="font-bold">{t('carrier_ref', 'Carrier ref')}:</span>{' '}
+                  <span className="font-semibold text-text-primary">{trip.carrierReference}</span>
+                </div>
+              )}
+              {trip.carrierTruckPlate && (
+                <div>
+                  <span className="font-bold">{t('carrier_truck', 'Truck plate')}:</span>{' '}
+                  <span className="font-mono font-semibold text-text-primary">{trip.carrierTruckPlate}</span>
+                </div>
+              )}
+              {trip.carrierTrailerPlate && (
+                <div>
+                  <span className="font-bold">{t('carrier_trailer', 'Trailer plate')}:</span>{' '}
+                  <span className="font-mono font-semibold text-text-primary">{trip.carrierTrailerPlate}</span>
+                </div>
+              )}
+              {trip.carrierDriverName && (
+                <div>
+                  <span className="font-bold">{t('carrier_driver', 'Driver')}:</span>{' '}
+                  <span className="font-semibold text-text-primary">{trip.carrierDriverName}</span>
+                </div>
+              )}
+              {trip.carrierDriverPhone && (
+                <div>
+                  <span className="font-bold">{t('carrier_driver_phone', 'Driver phone')}:</span>{' '}
+                  <span className="font-semibold text-text-primary">{trip.carrierDriverPhone}</span>
+                </div>
+              )}
+              {trip.carrierNotes && (
+                <div className="col-span-2">
+                  <span className="font-bold">{t('special_notes', 'Notes')}:</span>{' '}
+                  <span className="whitespace-pre-wrap text-text-primary">{trip.carrierNotes}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
         <div className="mt-4">
           <ActivityTimeline
             entityType="Trip"
@@ -702,6 +770,31 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
                 })()}
                 {s.contactPerson && <div className="text-[11px] text-text-secondary mt-0.5 flex items-center gap-1"><User className="w-2.5 h-2.5" />{s.contactPerson}{s.phone ? ` · ${s.phone}` : ''}</div>}
                 {s.reference && <div className="text-[11px] text-text-secondary mt-0.5">Ref: {s.reference}</div>}
+                {(s.waitingMinutes != null || s.pallets != null || s.weightKg != null || s.ldm != null) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-text-secondary">
+                    {s.waitingMinutes != null && (
+                      <span className="rounded bg-surface px-1.5 py-0.5 border border-border/60">
+                        {t('waiting_time', 'Waiting')}: {s.waitingMinutes} min
+                      </span>
+                    )}
+                    {s.pallets != null && (
+                      <span className="rounded bg-surface px-1.5 py-0.5 border border-border/60">
+                        {fmtNumber(s.pallets)} {t('pallets', 'pal')}
+                      </span>
+                    )}
+                    {s.weightKg != null && (
+                      <span className="rounded bg-surface px-1.5 py-0.5 border border-border/60">
+                        {fmtNumber(s.weightKg)} kg
+                      </span>
+                    )}
+                    {s.ldm != null && (
+                      <span className="rounded bg-surface px-1.5 py-0.5 border border-border/60">
+                        {fmtNumber(s.ldm, 2)} LDM
+                      </span>
+                    )}
+                  </div>
+                )}
+                {s.notes && <div className="mt-1 text-[11px] text-text-secondary italic whitespace-pre-wrap">{s.notes}</div>}
                 {s.tasks?.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {s.tasks.map((tk: any, j: number) => (
@@ -738,7 +831,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
                     <div className="text-[10px] text-text-secondary">{o.client?.name || ''}</div>
                   </td>
                   <td className="px-3 py-2.5 text-[11px] text-text-secondary">{pu?.city || '?'} → {dr?.city || '?'}</td>
-                  <td className="px-3 py-2.5 text-right text-[12px] font-bold">{fmtMoney(o.price)}</td>
+                  <td className="px-3 py-2.5 text-right text-[12px] font-bold">{fmtMoney(o.price, o.currency || 'EUR')}</td>
                 </tr>
               );
             })}
