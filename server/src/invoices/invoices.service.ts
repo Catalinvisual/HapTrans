@@ -374,24 +374,31 @@ export class InvoicesService implements OnModuleInit {
 
     // Reconciliation for orders completed before their invoice state was
     // mirrored on the order: a draft invoice becomes invoice_draft, an issued
-    // one invoiced and a settled one paid. Planning and cancelled orders are
-    // never rewritten.
+    // one invoiced and a settled one paid. The orderId link is repaired on its
+    // own so a database without the legacy orders."invoiceId" column still gets
+    // its orders updated. Planning and cancelled orders are never rewritten.
+    const reconcile = (where: string) => this.repo.query(`
+      UPDATE "orders" o
+      SET "status" = CASE LOWER(i."status")
+        WHEN 'draft' THEN 'invoice_draft'
+        WHEN 'paid' THEN 'paid'
+        WHEN 'cancelled' THEN 'ready_for_invoice'
+        ELSE 'invoiced'
+      END
+      FROM "invoices" i
+      WHERE ${where}
+        AND LOWER(i."status") IN ('draft', 'approved', 'sent', 'viewed', 'overdue', 'paid', 'cancelled')
+        AND LOWER(o."status") IN ('delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid')
+    `);
     try {
-      await this.repo.query(`
-        UPDATE "orders" o
-        SET "status" = CASE LOWER(i."status")
-          WHEN 'draft' THEN 'invoice_draft'
-          WHEN 'paid' THEN 'paid'
-          WHEN 'cancelled' THEN 'ready_for_invoice'
-          ELSE 'invoiced'
-        END
-        FROM "invoices" i
-        WHERE (i."orderId" = o."id" OR o."invoiceId" = i."id")
-          AND LOWER(i."status") IN ('draft', 'approved', 'sent', 'viewed', 'overdue', 'paid', 'cancelled')
-          AND LOWER(o."status") IN ('delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid')
-      `);
+      await reconcile('i."orderId" = o."id"');
     } catch (e: any) {
       console.warn('Order/invoice status reconciliation skipped:', e?.message);
+    }
+    try {
+      await reconcile('o."invoiceId" = i."id"');
+    } catch (e: any) {
+      console.warn('Legacy order/invoice status reconciliation skipped:', e?.message);
     }
   }
 

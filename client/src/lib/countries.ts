@@ -66,24 +66,3 @@ export function countryIso(value: string | null | undefined): string | null {
   if (/^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
   return nameToCode[v.toLowerCase()] || v.slice(0, 2).toUpperCase();
 }
-
-/**
- * One option for a country filter. The stored value may be an ISO2/ISO3 code or
- * a country name in any language; every spelling of the same country collapses
- * into a single option labelled with the full country name.
- */
-export function countryFilterOption(
-  value: string | null | undefined,
-  lang = 'en',
-): { value: string; label: string } | null {
-  if (!value) return null;
-  const raw = String(value).trim();
-  if (!raw) return null;
-  const code = nameToCode[raw.toLowerCase()] || (/^[A-Za-z]{2}$/.test(raw) ? raw.toUpperCase() : null);
-  if (code) {
-    const names = countryNames[code];
-    return { value: code, label: names?.[lang] || names?.en || code };
-  }
-  // An unknown spelling stays a single option instead of being cut to two letters.
-  return { value: `other:${raw.toLowerCase()}`, label: raw };
-}

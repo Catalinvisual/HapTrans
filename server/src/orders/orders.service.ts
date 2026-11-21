@@ -17,6 +17,10 @@ import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { validateStopAppointment } from '../planning/stop-appointment';
 import { planOrderStopMatch } from './order-stop-identity';
 import { stopAppointmentColumns } from './stop-appointment-columns';
+import {
+  INVOICE_SYNCABLE_ORDER_STATUSES,
+  orderStatusForInvoiceStatus,
+} from '../invoices/invoice-order-status';
 
 /**
  * The reference stored on a stop belongs to that stop's own direction.
@@ -144,7 +148,7 @@ export class OrdersService implements OnModuleInit {
     }
   }
 
-  findAll(status?: string) {
+  async findAll(status?: string) {
     const findOptions: any = { 
       relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user', 'createdBy'],
       relationLoadStrategy: 'query',
@@ -154,14 +158,92 @@ export class OrdersService implements OnModuleInit {
       const statuses = status.split(',');
       findOptions.where = { status: In(statuses) };
     }
-    return this.repo.find(findOptions);
+    const orders = await this.repo.find(findOptions);
+    await this.attachBillingStatus(orders as any[]);
+    return orders;
   }
 
-  findOne(id: string) {
-    return this.repo.findOne({ 
+  async findOne(id: string) {
+    const order = await this.repo.findOne({
       where: { id }, 
       relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user', 'createdBy'] 
     });
+    if (!order) return order;
+    await this.attachBillingStatus([order as any]);
+    return order;
+  }
+
+  /**
+   * Orders and invoices are linked by `invoices.orderId`, with the older
+   * `orders.invoiceId` relation still used by legacy rows. The financial state
+   * is derived from the invoice on read, so a stale order row can never hide a
+   * draft, issued or paid invoice. Stale rows are repaired once in the
+   * background, which also keeps the portal, mobile and reports consistent.
+   */
+  private async attachBillingStatus(orders: any[]): Promise<void> {
+    const ids = orders.map((order) => order?.id).filter(Boolean);
+    if (!ids.length) return;
+
+    let rows: any[] = [];
+    try {
+      rows = await this.repo.manager.query(
+        `SELECT DISTINCT ON (o."id") o."id" AS "orderId", i."status" AS "status"
+           FROM "orders" o
+           JOIN "invoices" i ON i."orderId" = o."id" OR o."invoiceId" = i."id"
+          WHERE o."id" = ANY($1::uuid[])
+          ORDER BY o."id", i."updatedAt" DESC NULLS LAST`,
+        [ids],
+      );
+    } catch {
+      // A database without the legacy orders."invoiceId" column still resolves
+      // every invoice that names its order.
+      try {
+        rows = await this.repo.manager.query(
+          `SELECT DISTINCT ON ("orderId") "orderId", "status"
+             FROM "invoices"
+            WHERE "orderId" = ANY($1::uuid[])
+            ORDER BY "orderId", "updatedAt" DESC NULLS LAST`,
+          [ids],
+        );
+      } catch {
+        rows = [];
+      }
+    }
+    if (!rows.length) return;
+
+    const byOrder = new Map<string, string>();
+    for (const row of rows) {
+      const status = orderStatusForInvoiceStatus(row.status);
+      if (status) byOrder.set(String(row.orderId), status);
+    }
+
+    let stale = false;
+    for (const order of orders) {
+      const status = byOrder.get(String(order?.id));
+      if (!status) continue;
+      order.billingStatus = status;
+      const stored = String(order.status || '').toLowerCase();
+      if (order.status !== status && INVOICE_SYNCABLE_ORDER_STATUSES.includes(stored)) stale = true;
+    }
+
+    if (stale) {
+      try {
+        await this.repo.manager.query(
+          `UPDATE "orders" o
+              SET "status" = CASE LOWER(i."status")
+                WHEN 'draft' THEN 'invoice_draft'
+                WHEN 'paid' THEN 'paid'
+                ELSE 'invoiced'
+              END
+             FROM "invoices" i
+            WHERE i."orderId" = o."id"
+              AND o."id" = ANY($1::uuid[])
+              AND LOWER(i."status") IN ('draft', 'approved', 'sent', 'viewed', 'overdue', 'paid')
+              AND LOWER(o."status") IN ('delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid')`,
+          [ids],
+        );
+      } catch { /* the derived status already reaches the client */ }
+    }
   }
 
   async getNextInternalReference(): Promise<{ nextReference: string }> {

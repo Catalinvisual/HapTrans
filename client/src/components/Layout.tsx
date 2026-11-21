@@ -838,9 +838,9 @@ export default function Layout() {
         deferredPrompt = null;
       });
     } else {
-      toast(t('pwa_install_unavailable', 'Aplicația de desktop a fost deja activată în browser.\n\nDacă ai șters-o din greșeală, o poți reinstala dând click pe iconița de instalare din dreapta barei de adrese a browser-ului tău (sus) sau mergând la Meniul Browserului -> Instalare HAPCARGO / Create Shortcut.'), {
+      toast(t('pwa_install_unavailable', 'Aplicația este deja instalată sau instalarea automată nu este disponibilă în acest browser.'), {
         icon: 'ℹ️',
-        duration: 6000
+        duration: 4000
       });
     }
   };
@@ -884,17 +884,6 @@ export default function Layout() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {/* Desktop Install Button */}
-            {!isStandalone && (
-              <button 
-                onClick={handleInstallPWA}
-                title={t('install_app', 'Instalează aplicația pe Desktop')}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 hover:border-primary/40 transition-all text-primary"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-            )}
-
             {/* Global Search Icon */}
             <button 
               onClick={() => setIsSearchOpen(true)}

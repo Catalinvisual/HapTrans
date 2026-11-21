@@ -36,13 +36,31 @@ import { getCompanySettings } from '../store/settingsStore';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { getCleanInvoiceFilename } from '../lib/filenameUtils';
 import { fmtMoney, fmtNumber } from '../lib/format';
-import { countryIso, countryFilterOption } from '../lib/countries';
+import { countryIso } from '../lib/countries';
+import CountryFilterSelect from '../components/CountryFilterSelect';
+import { canonicalCountryCode } from '../components/dashboard/types';
 import { composeAddress } from '../lib/address';
 import { matchesSearch } from '../lib/search';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid', 'cancelled'];
 const INVOICED_STATUSES = ['ready_for_invoice', 'invoice_draft', 'invoiced', 'paid'];
 const BILLING_BADGE_STATUSES = ['invoice_draft', 'invoiced', 'paid'];
+
+/**
+ * The invoice is the source of truth for the financial side of an order. The
+ * server sends `billingStatus` from the linked invoice, so the badge and the
+ * Invoiced filter stay correct even when the stored order status is stale.
+ */
+function billingStatusOf(o: any): string {
+  const fromInvoice = String(o?.billingStatus || '');
+  if (BILLING_BADGE_STATUSES.includes(fromInvoice)) return fromInvoice;
+  const stored = String(o?.status || '');
+  return BILLING_BADGE_STATUSES.includes(stored) ? stored : '';
+}
+
+function effectiveOrderStatus(o: any): string {
+  return billingStatusOf(o) || String(o?.status || '');
+}
 
 
 function sortValue(o: any, key: string): any {
@@ -187,22 +205,10 @@ export default function OrdersPage() {
     return [{ value: 'all', label: t('all_clients', 'All clients') }, ...[...map.entries()].map(([id, count]) => ({ value: id, label: `${orders.find(o => o.client?.id === id)?.client?.name || id} (${count})` }))];
   }, [orders, t]);
 
-  const countryOptions: SelectOption[] = useMemo(() => {
-    // The same country arrives as a code ("DE", "DEU") or as a name ("Germany",
-    // "Deutschland") depending on the source, so every spelling is grouped into
-    // one option labelled with the full country name.
-    const byCountry = new Map<string, string>();
-    orders.forEach(o => o.stops?.forEach((s: any) => {
-      const option = countryFilterOption(s.country, i18n.language);
-      if (option) byCountry.set(option.value, option.label);
-    }));
-    return [
-      { value: 'all', label: t('all_countries', 'All countries') },
-      ...[...byCountry.entries()]
-        .sort((a, b) => a[1].localeCompare(b[1], i18n.language))
-        .map(([value, label]) => ({ value, label })),
-    ];
-  }, [orders, t, i18n.language]);
+  const countryValues = useMemo(
+    () => orders.flatMap((o: any) => (o.stops || []).map((s: any) => s.country)),
+    [orders],
+  );
 
   const filtered = useMemo(() => {
     return orders.filter(o => {
@@ -212,14 +218,14 @@ export default function OrdersPage() {
         if (filters.status === 'plannedGroup' && !['PLANNING', 'ACCEPTED'].includes(op)) return false;
         else if (filters.status === 'activeGroup' && !['EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING'].includes(op)) return false;
         else if (filters.status === 'deliveredGroup' && op !== 'COMPLETED') return false;
-        else if (filters.status === 'invoicedGroup' && !INVOICED_STATUSES.includes(o.status)) return false;
-        else if (!['plannedGroup', 'activeGroup', 'deliveredGroup', 'invoicedGroup'].includes(filters.status) && o.status !== filters.status) return false;
+        else if (filters.status === 'invoicedGroup' && !INVOICED_STATUSES.includes(effectiveOrderStatus(o))) return false;
+        else if (!['plannedGroup', 'activeGroup', 'deliveredGroup', 'invoicedGroup'].includes(filters.status) && effectiveOrderStatus(o) !== filters.status) return false;
       }
       if (filters.client !== 'all' && o.client?.id !== filters.client) return false;
       if (filters.type !== 'all' && (o.transportType || 'ftl') !== filters.type) return false;
       if (filters.priority !== 'all' && (o.priority || 'normal') !== filters.priority) return false;
       if (filters.country !== 'all') {
-        const has = (o.stops || []).some((s: any) => countryFilterOption(s.country, i18n.language)?.value === filters.country);
+        const has = (o.stops || []).some((s: any) => canonicalCountryCode(s.country) === filters.country);
         if (!has) return false;
       }
       if (filters.dateFrom || filters.dateTo) {
@@ -249,7 +255,8 @@ export default function OrdersPage() {
   const statusCounts = useMemo(() => {
     const c: Record<string, number> = {};
     orders.forEach(o => {
-      c[o.status] = (c[o.status] || 0) + 1;
+      const effective = effectiveOrderStatus(o);
+      c[effective] = (c[effective] || 0) + 1;
       const op = operationalStatusForDisplay(o);
       c[op] = (c[op] || 0) + 1;
     });
@@ -517,7 +524,7 @@ export default function OrdersPage() {
       <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(o.price || 0, o.currency || 'EUR')}</div>
     ) },
     { key: 'status', label: t('status', 'Status'), width: '150px', render: o => {
-      const billing = String(o.status || '');
+      const billing = billingStatusOf(o);
       return (
         <div className="flex flex-col items-start gap-1">
           <StatusBadge status={operationalStatusForDisplay(o)} label={t(operationalStatusKey(o), operationalStatusForDisplay(o)) as string} />
@@ -531,7 +538,7 @@ export default function OrdersPage() {
       const trip = o.trip;
       const trackingToken = trip?.trackingToken;
       const tripStatus = trip?.status || o.status;
-      const hasInvoice = BILLING_BADGE_STATUSES.includes(o.status);
+      const hasInvoice = Boolean(billingStatusOf(o));
       const isActiveTracking = ['assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'in_transit'].includes(tripStatus);
       const isDelivered = hasInvoice || ['delivered', 'completed', 'pod_received', 'closed'].includes(tripStatus);
 
@@ -610,7 +617,7 @@ return (
             </div>
             <div className="w-[120px] shrink-0"><CustomSelect size="sm" title={t('status', 'Status')} value={filters.status} onChange={v => setFilter('status', v)} options={[{ value: 'all', label: t('status', 'Status') }, ...ORDER_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} /></div>
             <div className="w-[140px] shrink-0"><CustomSelect size="sm" title={t('client', 'Client')} value={filters.client} onChange={v => setFilter('client', v)} options={clientOptions.map((o, i) => i === 0 ? { ...o, label: t('client', 'Client') } : o)} /></div>
-            <div className="w-[120px] shrink-0"><CustomSelect size="sm" title={t('country', 'Country')} value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions.map((o, i) => i === 0 ? { ...o, label: t('country', 'Country') } : o)} /></div>
+            <div className="w-[150px] shrink-0"><CountryFilterSelect size="sm" title={t('country', 'Country')} value={filters.country} onChange={v => setFilter('country', v)} countries={countryValues} lang={lang} allLabel={t('country', 'Country')} /></div>
             <div className="w-[96px] shrink-0"><CustomSelect size="sm" title={t('type', 'Type')} value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('type', 'Type') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} /></div>
             <div className="w-[116px] shrink-0"><CustomSelect size="sm" title={t('priority', 'Priority')} value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('priority', 'Priority') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} /></div>
             <div className="flex items-center gap-1 shrink-0">
