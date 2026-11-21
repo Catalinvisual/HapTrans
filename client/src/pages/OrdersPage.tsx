@@ -524,15 +524,14 @@ export default function OrdersPage() {
       <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(o.price || 0, o.currency || 'EUR')}</div>
     ) },
     { key: 'status', label: t('status', 'Status'), width: '150px', render: o => {
+      // The invoice is the financial truth: a completed order with an invoice
+      // reads "Invoice draft" / "Invoiced" / "Paid" instead of only "Completed".
       const billing = billingStatusOf(o);
-      return (
-        <div className="flex flex-col items-start gap-1">
-          <StatusBadge status={operationalStatusForDisplay(o)} label={t(operationalStatusKey(o), operationalStatusForDisplay(o)) as string} />
-          {BILLING_BADGE_STATUSES.includes(billing) && (
-            <StatusBadge status={billing} label={t(`status_${billing}`, billing.replace(/_/g, ' ')) as string} />
-          )}
-        </div>
-      );
+      const code = billing || operationalStatusForDisplay(o);
+      const label = billing
+        ? t(`status_${billing}`, billing.replace(/_/g, ' '))
+        : t(operationalStatusKey(o), operationalStatusForDisplay(o));
+      return <StatusBadge status={code} label={label as string} />;
     } },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', sticky: 'right', width: '150px', render: o => {
       const trip = o.trip;

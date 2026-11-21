@@ -546,7 +546,7 @@ export class InvoicesService implements OnModuleInit {
     }
 
     // One invoice per order is a database invariant (unique orderId).
-    const requestedOrderId =
+    let requestedOrderId =
       (typeof dto.orderId === 'string' && dto.orderId.trim()) ||
       (typeof dto.order?.id === 'string' && dto.order.id.trim()) ||
       '';
@@ -574,6 +574,20 @@ export class InvoicesService implements OnModuleInit {
       payload.trip = null;
     }
     delete payload.tripId;
+
+    // An invoice raised from a trip and client without naming the order still
+    // belongs to that client's only order on the trip. Linking it keeps the
+    // order's financial status correct and future updates in sync.
+    if (!requestedOrderId && payload.trip?.id && payload.client?.id) {
+      const clientOrders = await this.repo.manager.getRepository(Order).find({
+        where: { trip: { id: payload.trip.id }, client: { id: payload.client.id } },
+        select: ['id'],
+      });
+      if (clientOrders.length === 1) {
+        requestedOrderId = clientOrders[0].id;
+        payload.orderId = requestedOrderId;
+      }
+    }
 
     if (!payload.transportDetails) {
       payload.transportDetails = await this.resolveTransportDetails(dto);

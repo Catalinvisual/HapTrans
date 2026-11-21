@@ -184,38 +184,75 @@ export class OrdersService implements OnModuleInit {
     const ids = orders.map((order) => order?.id).filter(Boolean);
     if (!ids.length) return;
 
-    let rows: any[] = [];
+    const byOrder = new Map<string, string>();
+    const remember = (rows: any[]) => {
+      for (const row of rows) {
+        const status = orderStatusForInvoiceStatus(row.status);
+        const key = String(row.orderId);
+        if (status && !byOrder.has(key)) byOrder.set(key, status);
+      }
+    };
+
+    // 1. Explicit link, plus invoices raised from the Invoices page without an
+    // order: those are matched by trip + client when that pair identifies
+    // exactly one order on the trip, never when it would be a guess.
     try {
-      rows = await this.repo.manager.query(
-        `SELECT DISTINCT ON (o."id") o."id" AS "orderId", i."status" AS "status"
-           FROM "orders" o
-           JOIN "invoices" i ON i."orderId" = o."id" OR o."invoiceId" = i."id"
-          WHERE o."id" = ANY($1::uuid[])
-          ORDER BY o."id", i."updatedAt" DESC NULLS LAST`,
+      remember(await this.repo.manager.query(
+        `WITH scope AS (
+           SELECT o."id" AS "orderId", o."tripId" AS "tripId", o."clientId" AS "clientId"
+             FROM "orders" o
+            WHERE o."id" = ANY($1::uuid[])
+         ), unique_pair AS (
+           SELECT o."tripId", o."clientId"
+             FROM "orders" o
+            WHERE o."tripId" IN (SELECT DISTINCT s."tripId" FROM scope s WHERE s."tripId" IS NOT NULL)
+            GROUP BY o."tripId", o."clientId"
+           HAVING COUNT(*) = 1
+         )
+         SELECT s."orderId", i."status"
+           FROM scope s
+           JOIN "invoices" i
+             ON i."orderId" = s."orderId"
+             OR (
+               i."orderId" IS NULL
+               AND s."tripId" IS NOT NULL
+               AND s."clientId" IS NOT NULL
+               AND i."tripId" = s."tripId"
+               AND i."clientId" = s."clientId"
+               AND EXISTS (
+                 SELECT 1 FROM unique_pair u
+                  WHERE u."tripId" = s."tripId" AND u."clientId" = s."clientId"
+               )
+             )
+          ORDER BY s."orderId", i."updatedAt" DESC NULLS LAST`,
         [ids],
-      );
+      ));
     } catch {
-      // A database without the legacy orders."invoiceId" column still resolves
-      // every invoice that names its order.
+      // Older schemas without orders."clientId" still resolve explicit links.
       try {
-        rows = await this.repo.manager.query(
-          `SELECT DISTINCT ON ("orderId") "orderId", "status"
+        remember(await this.repo.manager.query(
+          `SELECT "orderId", "status"
              FROM "invoices"
             WHERE "orderId" = ANY($1::uuid[])
-            ORDER BY "orderId", "updatedAt" DESC NULLS LAST`,
+            ORDER BY "updatedAt" DESC NULLS LAST`,
           [ids],
-        );
-      } catch {
-        rows = [];
-      }
+        ));
+      } catch { /* no derived status for this request */ }
     }
-    if (!rows.length) return;
 
-    const byOrder = new Map<string, string>();
-    for (const row of rows) {
-      const status = orderStatusForInvoiceStatus(row.status);
-      if (status) byOrder.set(String(row.orderId), status);
-    }
+    // 2. The legacy orders.invoiceId relation (its column may not exist).
+    try {
+      remember(await this.repo.manager.query(
+        `SELECT o."id" AS "orderId", i."status" AS "status"
+           FROM "orders" o
+           JOIN "invoices" i ON o."invoiceId" = i."id"
+          WHERE o."id" = ANY($1::uuid[])
+          ORDER BY i."updatedAt" DESC NULLS LAST`,
+        [ids],
+      ));
+    } catch { /* legacy link is optional */ }
+
+    if (!byOrder.size) return;
 
     let stale = false;
     for (const order of orders) {
