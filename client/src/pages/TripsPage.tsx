@@ -16,6 +16,7 @@ import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
 import KpiStrip from '../components/ui/KpiStrip';
 import DetailDrawer from '../components/ui/DetailDrawer';
+import AdvanceStopAction from '../components/trips/AdvanceStopAction';
 import type { TabDef } from '../components/ui/DetailDrawer';
 import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -924,6 +925,11 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
       footer={
         <div className="flex items-center justify-between gap-3 w-full flex-wrap">
           <div className="flex items-center gap-2">
+            <AdvanceStopAction
+              stops={stops}
+              tripStatus={trip.status}
+              onAdvanced={() => { load(); onRefetch?.(); }}
+            />
             {['planning', 'planned'].includes(trip.status) && (
               <button onClick={() => updateStatus('dispatched')} className="btn-primary !px-3 !py-1.5 text-xs font-bold flex items-center gap-1.5 shadow-sm">
                 <Send className="w-3.5 h-3.5" />{t('dispatch_trip', 'Dispatch trip')}

@@ -766,7 +766,7 @@ return (
         type="danger"
       />
 
-      <OrderWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} orderId={selectedOrderId || undefined} onSaved={() => { fetchOrders(); setDrawerOrderId(selectedOrderId); setActiveTab('overview'); }} />
+      <OrderWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} orderId={selectedOrderId || undefined} onSaved={() => { fetchOrders(); setDrawerOrderId(selectedOrderId); setActiveTab('overview'); }} onStopsAdvanced={fetchOrders} />
 
       <ConfirmDeleteModal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setOrderToDelete(null); }} onConfirm={confirmDelete} />
       <ConfirmModal

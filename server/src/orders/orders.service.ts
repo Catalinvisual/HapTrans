@@ -167,7 +167,9 @@ export class OrdersService implements OnModuleInit {
   async findOne(id: string) {
     const order = await this.repo.findOne({
       where: { id }, 
-      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user', 'createdBy'] 
+      // trip.stops lets the order modal drive the same stop checkpoint as the
+      // driver app without a second request.
+      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.stops', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user', 'createdBy']
     });
     if (!order) return order;
     await this.attachBillingStatus([order as any]);

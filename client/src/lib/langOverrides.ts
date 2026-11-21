@@ -10736,3 +10736,83 @@ for (const [lng, dict] of Object.entries(additionalTranslations)) {
   if (!langOverrides[lng]) langOverrides[lng] = {};
   Object.assign(langOverrides[lng], dict);
 }
+
+// Dispatcher shortcut that advances the next trip stop through the same
+// lifecycle the driver app reports.
+const stopAdvanceTranslations: Record<string, Record<string, string>> = {
+  ro: {
+    'stop_advance_title': 'Avansează oprirea',
+    'stop_mark_arrived': 'Marcare sosire',
+    'stop_start_loading': 'Începe încărcarea',
+    'stop_complete_loading': 'Finalizează încărcarea',
+    'stop_start_unloading': 'Începe descărcarea',
+    'stop_complete_unloading': 'Finalizează descărcarea',
+    'stop_advance_success': 'Oprire actualizată',
+    'stop_advance_error': 'Oprirea nu a putut fi actualizată'
+  },
+  en: {
+    'stop_advance_title': 'Advance stop',
+    'stop_mark_arrived': 'Mark arrived',
+    'stop_start_loading': 'Start loading',
+    'stop_complete_loading': 'Complete loading',
+    'stop_start_unloading': 'Start unloading',
+    'stop_complete_unloading': 'Complete unloading',
+    'stop_advance_success': 'Stop updated',
+    'stop_advance_error': 'Could not update the stop'
+  },
+  nl: {
+    'stop_advance_title': 'Stop vooruitzetten',
+    'stop_mark_arrived': 'Aankomst markeren',
+    'stop_start_loading': 'Laden starten',
+    'stop_complete_loading': 'Laden voltooien',
+    'stop_start_unloading': 'Lossen starten',
+    'stop_complete_unloading': 'Lossen voltooien',
+    'stop_advance_success': 'Stop bijgewerkt',
+    'stop_advance_error': 'Stop kon niet worden bijgewerkt'
+  },
+  de: {
+    'stop_advance_title': 'Stopp weiterschalten',
+    'stop_mark_arrived': 'Ankunft melden',
+    'stop_start_loading': 'Laden beginnen',
+    'stop_complete_loading': 'Laden abschließen',
+    'stop_start_unloading': 'Entladen beginnen',
+    'stop_complete_unloading': 'Entladen abschließen',
+    'stop_advance_success': 'Stopp aktualisiert',
+    'stop_advance_error': 'Stopp konnte nicht aktualisiert werden'
+  },
+  fr: {
+    'stop_advance_title': "Avancer l'arrêt",
+    'stop_mark_arrived': "Marquer l'arrivée",
+    'stop_start_loading': 'Commencer le chargement',
+    'stop_complete_loading': 'Terminer le chargement',
+    'stop_start_unloading': 'Commencer le déchargement',
+    'stop_complete_unloading': 'Terminer le déchargement',
+    'stop_advance_success': 'Arrêt mis à jour',
+    'stop_advance_error': "Impossible de mettre à jour l'arrêt"
+  },
+  es: {
+    'stop_advance_title': 'Avanzar parada',
+    'stop_mark_arrived': 'Marcar llegada',
+    'stop_start_loading': 'Iniciar carga',
+    'stop_complete_loading': 'Finalizar carga',
+    'stop_start_unloading': 'Iniciar descarga',
+    'stop_complete_unloading': 'Finalizar descarga',
+    'stop_advance_success': 'Parada actualizada',
+    'stop_advance_error': 'No se pudo actualizar la parada'
+  },
+  pl: {
+    'stop_advance_title': 'Przejdź dalej z postojem',
+    'stop_mark_arrived': 'Oznacz przyjazd',
+    'stop_start_loading': 'Rozpocznij załadunek',
+    'stop_complete_loading': 'Zakończ załadunek',
+    'stop_start_unloading': 'Rozpocznij rozładunek',
+    'stop_complete_unloading': 'Zakończ rozładunek',
+    'stop_advance_success': 'Postój zaktualizowany',
+    'stop_advance_error': 'Nie udało się zaktualizować postoju'
+  }
+};
+
+for (const [lng, dict] of Object.entries(stopAdvanceTranslations)) {
+  if (!langOverrides[lng]) langOverrides[lng] = {};
+  Object.assign(langOverrides[lng], dict);
+}

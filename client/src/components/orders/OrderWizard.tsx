@@ -17,6 +17,7 @@ import ClientFormDrawer, { EMPTY_CLIENT_FORM } from '../ClientFormDrawer';
 import { calculateLdm, calculateVolumeCbm, hasNoCapacityData } from '../../lib/cargoCalc';
 import { fmtMoney } from '../../lib/format';
 import { moveFieldFocus } from '../../lib/fieldNavigation';
+import AdvanceStopAction from '../trips/AdvanceStopAction';
 export interface OrderWizardPrefill {
   pickupAddress?: string;
   deliveryAddress?: string;
@@ -30,6 +31,8 @@ interface OrderWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
+  /** Called after a stop checkpoint moved, so the list behind the modal reloads. */
+  onStopsAdvanced?: () => void;
   orderId?: string | null;
   initialStep?: number;
   highlightSection?: string | null;
@@ -263,6 +266,7 @@ export default function OrderWizard({
   isOpen,
   onClose,
   onSaved,
+  onStopsAdvanced,
   orderId,
   initialStep,
   highlightSection,
@@ -274,6 +278,10 @@ export default function OrderWizard({
   } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
+  // Stops of the trip that carries this order. They stay read-only here: the
+  // footer only advances the next checkpoint the driver app reports.
+  const [tripStops, setTripStops] = useState<any[]>([]);
+  const [tripStatus, setTripStatus] = useState<string | null>(null);
 
   // A client can be created without leaving the wizard: the same drawer the
   // clients page uses opens on top, and the new client is selected on save.
@@ -408,6 +416,8 @@ export default function OrderWizard({
           const endpoint = isPortal ? `/portal/orders/${orderId}` : `/orders/${orderId}`;
           targetApi.get(endpoint).then(res => {
           const order = res.data;
+          setTripStops(Array.isArray(order?.trip?.stops) ? order.trip.stops : []);
+          setTripStatus(order?.trip?.status || null);
           setForm({
             clientId: order?.client?.id || order?.clientId || '',
             customerReference: order?.customerReference || '',
@@ -569,6 +579,8 @@ export default function OrderWizard({
           ...emptyStop
         });
         setExtraStops([]);
+        setTripStops([]);
+        setTripStatus(null);
         setCargoItems([{
           ...emptyCargo
         }]);
@@ -2226,7 +2238,16 @@ export default function OrderWizard({
 
         {/* Footer */}
         <div className="px-4 py-2 border-t border-border bg-surface/50 flex justify-between items-center shrink-0 flex-wrap gap-3">
-          <button type="button" onClick={onClose} className="btn-secondary !px-3 !py-1.5 !text-xs">{t("jsx_cancel")}</button>
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            <button type="button" onClick={onClose} className="btn-secondary !px-3 !py-1.5 !text-xs">{t("jsx_cancel")}</button>
+            {orderId && !isPortal && (
+              <AdvanceStopAction
+                stops={tripStops}
+                tripStatus={tripStatus}
+                onAdvanced={() => onStopsAdvanced?.()}
+              />
+            )}
+          </div>
           <div className="flex gap-3 items-center flex-wrap">
             {/* Unprofitable warning banner in footer */}
             {currentStep === STEPS.length - 1 && costEstimate && costEstimate.profit < 0 && (
