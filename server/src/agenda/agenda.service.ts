@@ -8,7 +8,7 @@ import {
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThan, Repository } from 'typeorm';
-import { User } from '../users/user.entity';
+import { User, UserRole } from '../users/user.entity';
 import { ResendService } from '../email/resend.service';
 import { AgendaEvent } from './agenda-event.entity';
 import { AgendaParticipant } from './agenda-participant.entity';
@@ -368,6 +368,8 @@ export class AgendaService {
         (user) =>
           user.id !== viewer.id &&
           user.isActive !== false &&
+          // Drivers work in the mobile app and cannot open the TMS agenda.
+          user.role !== UserRole.DRIVER &&
           (!viewer.companyId || !user.companyId || user.companyId === viewer.companyId),
       )
       .map((user) => ({
@@ -396,6 +398,7 @@ export class AgendaService {
     return users.filter(
       (user) =>
         user.isActive !== false &&
+        user.role !== UserRole.DRIVER &&
         (!viewer.companyId || !user.companyId || user.companyId === viewer.companyId),
     );
   }

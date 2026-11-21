@@ -12,6 +12,8 @@ interface CustomDatePickerProps {
   /** Booking forms block past dates by default; audit/history forms can opt in. */
   allowPast?: boolean;
   minDate?: string;
+  /** Minute granularity of the time list; 1 shows all 60 minutes. */
+  minuteStep?: number;
   className?: string;
 }
 
@@ -23,6 +25,7 @@ export default function CustomDatePicker({
   label,
   allowPast = false,
   minDate,
+  minuteStep,
   className = '',
 }: CustomDatePickerProps) {
   const { i18n } = useTranslation();
@@ -48,6 +51,7 @@ export default function CustomDatePicker({
           className="w-[112px] shrink-0"
           value={timeValue}
           onChange={onTimeChange}
+          minuteStep={minuteStep}
         />
       </div>
     </div>

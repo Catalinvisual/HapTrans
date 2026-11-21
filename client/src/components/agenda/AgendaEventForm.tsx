@@ -374,6 +374,7 @@ export default function AgendaEventForm({
                   }
                   onTimeChange={(startTime) => update({ startTime })}
                   allowPast={false}
+                  minuteStep={1}
                 />
                 <CustomDatePicker
                   label={t('agenda_end')}
@@ -383,6 +384,7 @@ export default function AgendaEventForm({
                   onTimeChange={(endTime) => update({ endTime })}
                   allowPast={false}
                   minDate={draft.date}
+                  minuteStep={1}
                 />
               </>
             )}
