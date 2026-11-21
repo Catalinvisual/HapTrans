@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   FileText,
   Trash2,
@@ -26,6 +26,7 @@ import { orderIsAdr } from '../../lib/adrDetect';
 import { operationalStatusForDisplay, operationalStatusKey } from '../../lib/operationalI18n';
 import { describeWallClockAppointment } from '../../lib/stopAppointment';
 import TripEtaPanel, { useTripLiveEta } from '../eta/TripEtaPanel';
+import AdvanceStopAction from '../trips/AdvanceStopAction';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/settingsStore';
 import { composeAddress } from '../../lib/address';
@@ -104,6 +105,35 @@ export default function OrderDetailDrawer({
         .finally(() => setDocsLoading(false));
     }
   }, [currentTab, order?.id]);
+
+  // Footer shortcut for the checkpoint the driver app reports next. The orders
+  // list does not embed trip stops, so the drawer reads the full order once.
+  const orderTripId = order?.trip?.id || order?.tripId;
+  const [stopProgress, setStopProgress] = useState<{ stops: any[]; tripStatus: string | null }>(() => ({
+    stops: Array.isArray(order?.trip?.stops) ? order.trip.stops : [],
+    tripStatus: order?.trip?.status || null,
+  }));
+
+  const loadStopProgress = useCallback(async () => {
+    if (!order?.id) return;
+    try {
+      const { data } = await api.get(`/orders/${order.id}`);
+      setStopProgress({
+        stops: Array.isArray(data?.trip?.stops) ? data.trip.stops : [],
+        tripStatus: data?.trip?.status || null,
+      });
+    } catch {
+      // Keep whatever the list payload carried; without stops the action hides.
+    }
+  }, [order?.id]);
+
+  useEffect(() => {
+    if (!orderTripId) {
+      setStopProgress({ stops: [], tripStatus: null });
+      return;
+    }
+    loadStopProgress();
+  }, [orderTripId, loadStopProgress]);
 
   if (!order) return null;
 
@@ -746,7 +776,15 @@ export default function OrderDetailDrawer({
       activeTab={currentTab}
       onTabChange={handleTabChange}
       footer={
-        <>
+        <div className="flex items-center gap-2 flex-wrap justify-end w-full">
+          {orderTripId && (
+            <AdvanceStopAction
+              stops={stopProgress.stops}
+              tripStatus={stopProgress.tripStatus}
+              onAdvanced={() => { loadStopProgress(); onRefetch?.(); }}
+              className="mr-auto"
+            />
+          )}
           <button
             onClick={async () => {
               const company = useSettingsStore.getState().company;
@@ -800,7 +838,7 @@ export default function OrderDetailDrawer({
               {t('delete', 'Delete')}
             </button>
           )}
-        </>
+        </div>
       }
     />
   );
