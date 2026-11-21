@@ -65,3 +65,6 @@ client/scripts/i18n-todo.json
 client/test-results/
 client/playwright-report/
 client/blob-report/
+
+# Flutter golden failure artifacts (generated)
+mobile/test/failures/

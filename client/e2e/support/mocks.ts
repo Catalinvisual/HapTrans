@@ -5,7 +5,8 @@ export interface ApiMock {
   match: RegExp;
   method?: string;
   status?: number;
-  body?: unknown;
+  /** Static JSON, or a function of the request URL (for query-dependent mocks). */
+  body?: unknown | ((url: URL) => unknown);
 }
 
 function json(status: number, body: unknown) {
@@ -27,7 +28,10 @@ export async function mockApi(page: Page, mocks: ApiMock[] = []) {
     const hit = mocks.find(
       (mock) => mock.match.test(path) && (!mock.method || mock.method === request.method()),
     );
-    if (hit) return route.fulfill(json(hit.status ?? 200, hit.body ?? null));
+    if (hit) {
+      const body = typeof hit.body === 'function' ? (hit.body as (url: URL) => unknown)(new URL(request.url())) : hit.body;
+      return route.fulfill(json(hit.status ?? 200, body ?? null));
+    }
     if (path === '/notifications') return route.fulfill(json(200, { data: [], unreadCount: 0 }));
     return route.fulfill(json(200, []));
   });
