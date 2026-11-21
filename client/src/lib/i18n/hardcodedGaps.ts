@@ -11,6 +11,8 @@ export const hardcodedGapsResources: Record<string, Record<string, string>> = {
     login_token_required: 'Introduceți tokenul!',
     login_localhost_success: 'Autentificare cu succes pe localhost!',
     login_token_invalid: 'Token invalid!',
+    login_network_error:
+      'Eroare de conexiune la server (CORS / Network Error). Vă rugăm să verificați conexiunea la internet.',
     connection_test_error: 'Eroare la testarea conexiunii',
     trp_not_found_confirm: 'Nu s-a găsit nicio cursă TRP asociată pentru confirmare.',
     trp_not_found_dispatch: 'Nu s-a găsit nicio cursă TRP asociată pentru expediere.',
@@ -34,6 +36,8 @@ export const hardcodedGapsResources: Record<string, Record<string, string>> = {
     login_token_required: 'Enter the token!',
     login_localhost_success: 'Signed in successfully on localhost!',
     login_token_invalid: 'Invalid token!',
+    login_network_error:
+      'Server connection error (CORS / Network Error). Please check your internet connection.',
     connection_test_error: 'Error testing the connection',
     trp_not_found_confirm: 'No associated TRP found to confirm.',
     trp_not_found_dispatch: 'No associated TRP found to dispatch.',
@@ -57,6 +61,8 @@ export const hardcodedGapsResources: Record<string, Record<string, string>> = {
     login_token_required: 'Voer het token in!',
     login_localhost_success: 'Succesvol aangemeld op localhost!',
     login_token_invalid: 'Ongeldig token!',
+    login_network_error:
+      'Fout bij verbinden met de server (CORS / Network Error). Controleer uw internetverbinding.',
     connection_test_error: 'Fout bij het testen van de verbinding',
     trp_not_found_confirm: 'Geen bijbehorende TRP gevonden om te bevestigen.',
     trp_not_found_dispatch: 'Geen bijbehorende TRP gevonden om te verzenden.',
@@ -80,6 +86,8 @@ export const hardcodedGapsResources: Record<string, Record<string, string>> = {
     login_token_required: 'Token eingeben!',
     login_localhost_success: 'Erfolgreich auf localhost angemeldet!',
     login_token_invalid: 'Ungültiger Token!',
+    login_network_error:
+      'Fehler bei der Serververbindung (CORS / Network Error). Bitte prüfen Sie Ihre Internetverbindung.',
     connection_test_error: 'Fehler beim Testen der Verbindung',
     trp_not_found_confirm: 'Keine zugehörige TRP zum Bestätigen gefunden.',
     trp_not_found_dispatch: 'Keine zugehörige TRP zum Versenden gefunden.',
@@ -103,6 +111,8 @@ export const hardcodedGapsResources: Record<string, Record<string, string>> = {
     login_token_required: 'Saisissez le jeton !',
     login_localhost_success: 'Connexion réussie sur localhost !',
     login_token_invalid: 'Jeton invalide !',
+    login_network_error:
+      'Erreur de connexion au serveur (CORS / Network Error). Veuillez vérifier votre connexion Internet.',
     connection_test_error: 'Erreur lors du test de la connexion',
     trp_not_found_confirm: 'Aucun TRP associé trouvé pour confirmer.',
     trp_not_found_dispatch: 'Aucun TRP associé trouvé pour expédier.',
@@ -126,6 +136,8 @@ export const hardcodedGapsResources: Record<string, Record<string, string>> = {
     login_token_required: '¡Introduce el token!',
     login_localhost_success: '¡Sesión iniciada correctamente en localhost!',
     login_token_invalid: '¡Token no válido!',
+    login_network_error:
+      'Error de conexión con el servidor (CORS / Network Error). Comprueba tu conexión a internet.',
     connection_test_error: 'Error al probar la conexión',
     trp_not_found_confirm: 'No se encontró ningún TRP asociado para confirmar.',
     trp_not_found_dispatch: 'No se encontró ningún TRP asociado para enviar.',
@@ -149,6 +161,8 @@ export const hardcodedGapsResources: Record<string, Record<string, string>> = {
     login_token_required: 'Wpisz token!',
     login_localhost_success: 'Pomyślnie zalogowano na localhost!',
     login_token_invalid: 'Nieprawidłowy token!',
+    login_network_error:
+      'Błąd połączenia z serwerem (CORS / Network Error). Sprawdź połączenie z internetem.',
     connection_test_error: 'Błąd podczas testowania połączenia',
     trp_not_found_confirm: 'Nie znaleziono powiązanej trasy TRP do potwierdzenia.',
     trp_not_found_dispatch: 'Nie znaleziono powiązanej trasy TRP do wysłania.',

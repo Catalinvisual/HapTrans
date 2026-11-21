@@ -50,7 +50,7 @@ export default function LoginPage() {
       } else if (Array.isArray(serverMsg) && serverMsg.length > 0) {
         displayMsg = serverMsg.join(', ');
       } else if (err.code === 'ERR_NETWORK' || !err.response) {
-        displayMsg = 'Eroare de conexiune la server (CORS / Network Error). Vă rugăm să verificați conexiunea la internet.';
+        displayMsg = t('login_network_error', 'Eroare de conexiune la server (CORS / Network Error). Vă rugăm să verificați conexiunea la internet.');
       }
 
       const lang = i18n.language;

@@ -60,3 +60,8 @@ server/node_modules/
 # i18n audit output (generated)
 client/scripts/i18n-report.json
 client/scripts/i18n-todo.json
+
+# Playwright
+client/test-results/
+client/playwright-report/
+client/blob-report/

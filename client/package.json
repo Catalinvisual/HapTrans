@@ -12,7 +12,9 @@
     "check:i18n:literals": "node scripts/i18n-literals.cjs",
     "check:i18n:all": "node scripts/i18n-audit.cjs && node scripts/i18n-dynamic.cjs && node scripts/i18n-literals.cjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@emnapi/core": "^1.11.2",
@@ -51,6 +53,7 @@
     "@babel/traverse": "^7.29.8",
     "@babel/types": "^7.29.8",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/forms": "^0.5.11",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^24.12.3",

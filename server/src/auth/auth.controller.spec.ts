@@ -77,7 +77,7 @@ describe('AuthController mobile refresh contract', () => {
 
     await controller.refresh(req, res);
 
-    expect(authService.refreshToken).toHaveBeenCalledWith('session-id.secret', 'HapCargo Driver', '127.0.0.1');
+    expect(authService.refreshToken).toHaveBeenCalledWith('session-id.secret', 'HapCargo Driver', '127.0.0.1', 'mobile');
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ refresh_token: 'new-session-id.new-secret' }),
     );

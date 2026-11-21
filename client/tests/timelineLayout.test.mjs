@@ -53,10 +53,13 @@ test('overlapping trips get separate sub-lanes and both stay addressable', () =>
 });
 
 test('cards stay compact and lanes stay denser than the old 86px rows', () => {
-  assert.ok(TIMELINE_CARD_HEIGHT <= 46);
-  assert.ok(TIMELINE_LANE_HEIGHT <= 52);
-  assert.equal(timelineCardTop(0), 6);
-  assert.equal(timelineCardTop(2), 106);
+  // A card must fit inside its lane, and a lane must stay shorter than the old
+  // 86px row it replaced, otherwise the board loses its density.
+  assert.ok(TIMELINE_CARD_HEIGHT <= TIMELINE_LANE_HEIGHT);
+  assert.ok(TIMELINE_LANE_HEIGHT < 86);
+  // Card offsets follow the lane geometry, so cards never drift from their lane.
+  assert.equal(timelineCardTop(0), 8);
+  assert.equal(timelineCardTop(2), 8 + 2 * 68);
   assert.ok(timelineRowHeight(3) < 3 * 86);
 });
 

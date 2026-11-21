@@ -107,7 +107,7 @@ export class AuthController {
         refreshToken,
         userAgent,
         ip,
-        this.isMobileClient(req) ? 'mobile' : 'tms',
+        mobile ? 'mobile' : 'tms',
       );
 
       // Set NEW HttpOnly Cookie (Token Rotation)
