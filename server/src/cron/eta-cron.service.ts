@@ -7,6 +7,7 @@ import { Truck } from '../trucks/truck.entity';
 import { RoutingService } from '../routing/routing.service';
 import { ResendService } from '../email/resend.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { tripNotificationContext } from '../notifications/notification-context';
 
 @Injectable()
 export class EtaCronService {
@@ -42,6 +43,7 @@ export class EtaCronService {
 
       const sortedStops = [...trip.stops].sort((a, b) => a.sequence - b.sequence);
       const nextStop = sortedStops.find(s => s.status !== 'completed');
+      const context = tripNotificationContext(trip);
       if (!nextStop || !nextStop.latitude || !nextStop.longitude) {
         continue;
       }
@@ -65,7 +67,7 @@ export class EtaCronService {
               await this.notificationsService.create({
                 type: 'eta',
                 title: 'notif_eta_delayed_title',
-                message: trip.tripNumber || trip.id,
+                message: [context.line || trip.id, nextStop.city].filter(Boolean).join(' · '),
                 relatedId: trip.id,
               });
             } catch (e) { this.logger.error('Failed to create ETA delay notification: ' + e.message); }
@@ -96,7 +98,7 @@ export class EtaCronService {
               await this.notificationsService.create({
                 type: 'eta',
                 title: 'notif_eta_recovered_title',
-                message: trip.tripNumber || trip.id,
+                message: [context.line || trip.id, nextStop.city].filter(Boolean).join(' · '),
                 relatedId: trip.id,
               });
             } catch (e) { this.logger.error('Failed to create ETA recovery notification: ' + e.message); }

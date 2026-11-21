@@ -631,6 +631,12 @@ export class DocumentsService implements OnModuleInit {
       const isDriver = isDriverActor(user);
       const isClient = String(user.role || '').toLowerCase() === 'client';
       const tripRef = resolvedTrip?.tripNumber || dto.tripId || 'N/A';
+      // The toast has room for one line: name the trip and the order it belongs to.
+      const documentRefs =
+        [resolvedTrip?.tripNumber, resolvedOrder?.orderNumber]
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)
+          .join(' · ') || tripRef;
 
       if (isDriver || isClient) {
         const roleLabel = isDriver ? 'Șofer' : 'Client';
@@ -638,7 +644,7 @@ export class DocumentsService implements OnModuleInit {
           await this.notificationsService.createOnce({
             type: 'document',
             title: `Document Nou de la ${roleLabel}: ${uName}`,
-            message: `Fișier ${displayType} (${finalFileName}) încărcat pentru: ${tripRef}`,
+            message: `Fișier ${displayType} (${finalFileName}) încărcat pentru: ${documentRefs}`,
             relatedId: savedId,
             eventId: `document:${savedId}:tms`,
             origin: 'DRIVER_APP',

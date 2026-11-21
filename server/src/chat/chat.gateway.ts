@@ -8,6 +8,7 @@ import { actorOwnsTrip } from '../trips/trip-progress';
 const AUTHENTICATED_ROOM = 'authenticated';
 import { ChatService } from './chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { tripNotificationContext, tripNotificationText } from '../notifications/notification-context';
 import { FirebaseService } from '../firebase/firebase.service';
 import { TripsService } from '../trips/trips.service';
 import { DriversService } from '../drivers/drivers.service';
@@ -109,8 +110,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         try {
           const tObj = await this.tripsService.findOne(data.tripId);
           if (tObj) {
-            const ref = tObj.tripNumber || tObj.id;
-            tripContext = ` (Cursa: ${ref})`;
+            const context = tripNotificationContext(tObj);
+            tripContext = ` (Cursa: ${context.headline || tObj.id})`;
           }
         } catch (e) {}
       }
@@ -183,8 +184,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     
     try {
       const trip = await this.tripsService.findOne(data.tripId);
-      const driverName = trip?.driver?.user?.name || 'Șofer';
-      const tripRef = trip?.tripNumber || trip?.id || 'Necunoscut';
       
       const statusMap: Record<string, string> = {
         pending: 'În Așteptare (Pending)',
@@ -195,12 +194,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         delayed: 'Întârziată (Delayed)'
       };
       const displayStatus = statusMap[data.status] || data.status.toUpperCase();
-      const msg = `Cursa ${tripRef} a fost schimbată în statusul: ${displayStatus} de către ${driverName}`;
+      const notification = tripNotificationText(trip, displayStatus);
 
       await this.notificationsService.create({
         type: 'trip',
-        title: `Status Cursă: ${displayStatus}`,
-        message: msg,
+        title: notification.title,
+        message: `${notification.message}.`,
         relatedId: data.tripId,
       });
     } catch (e) {

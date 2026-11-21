@@ -771,7 +771,11 @@ export default function Layout() {
               const { title: notifTitle, message } = formatNotification(latest, lang, t);
               // The tag lets Windows replace the same notification when a second
               // TMS tab polls it too, instead of stacking two toasts.
-              new Notification(notifTitle, { body: message, tag: `tms-${latest.id}` });
+              new Notification(notifTitle, {
+                body: message,
+                tag: `tms-${latest.id}`,
+                icon: '/pwa-192x192.png',
+              });
             } else {
               // Without the desktop toast the chime is the only signal; it must
               // not double the sound the system notification already plays.

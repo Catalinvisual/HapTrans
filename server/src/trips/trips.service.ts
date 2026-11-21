@@ -10,6 +10,7 @@ import { TripCost } from './trip-cost.entity';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { tripNotificationText, tripStatusLabel } from '../notifications/notification-context';
 import { InvoicesService } from '../invoices/invoices.service';
 import { ResendService } from '../email/resend.service';
 import { RoutingService } from '../routing/routing.service';
@@ -752,14 +753,14 @@ export class TripsService {
   ) {
     const source = resolveStatusSource(user);
     const label = this.stopEventLabel(previous, next, stopType);
-    const driverName = trip?.driver?.user?.name || trip?.truck?.driver?.user?.name || 'Driver';
     const eventId = this.notificationKey('stop', trip?.id, stop?.id, previous, next);
     if (source === 'mobile') {
+      const notification = tripNotificationText(trip, [label, stop?.city].filter(Boolean).join(' · '));
       try {
         await this.notificationsService.createOnce({
           type: 'trip',
-          title: `${driverName}: ${label}`,
-          message: `${trip?.tripNumber || 'Trip'}${stop?.city ? ` · ${stop.city}` : ''}: ${label}.`,
+          title: notification.title,
+          message: `${notification.message}.`,
           relatedId: trip?.id,
           eventId,
           origin: 'DRIVER_APP',
@@ -1416,11 +1417,11 @@ export class TripsService {
         driverUserId: resolveTripDriver(existing)?.user?.id || null,
       });
       if (source === 'mobile') {
-        const driverName = (existing as any).driver?.user?.name || (existing as any).truck?.driver?.user?.name || 'Driver';
+        const notification = tripNotificationText(existing, tripStatusLabel(updateData.status));
         await this.notificationsService.createOnce({
           type: 'trip',
-          title: `${driverName}: ${updateData.status === 'started' ? 'Trip started' : updateData.status === 'driver_accepted' ? 'Trip accepted' : updateData.status}`,
-          message: `${existing.tripNumber || 'Trip'}: ${updateData.status}.`,
+          title: notification.title,
+          message: `${notification.message}.`,
           relatedId: id,
           eventId: this.notificationKey('trip-status', id, updateData.status),
           origin: 'DRIVER_APP',

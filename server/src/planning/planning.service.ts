@@ -27,6 +27,7 @@ import { PricingEngine } from '../engines/pricing.engine';
 import { TimelineService } from '../timeline/timeline.service';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { tripNotificationText } from '../notifications/notification-context';
 import { OptimizationService } from './optimization.service';
 import { RoutingService, TruckRoadRoute } from '../routing/routing.service';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
@@ -389,11 +390,11 @@ export class PlanningService {
       this.logger.warn(`Order audit mirror failed for trip ${trip.id}: ${e?.message}`);
     }
     try {
-      const driverName = user?.name || trip?.driver?.user?.name || trip?.truck?.driver?.user?.name || 'Driver';
+      const notification = tripNotificationText(trip, label, user?.name);
       await this.notificationsService?.createOnce({
         type: 'trip',
-        title: `${driverName}: ${label}`,
-        message: `${trip.tripNumber || 'Trip'}: ${label}.`,
+        title: notification.title,
+        message: `${notification.message}.`,
         relatedId: trip.id,
         eventId: `driver-trip-status:${trip.id}:${newStatus}:${Date.now()}`,
         origin: 'DRIVER_APP',
