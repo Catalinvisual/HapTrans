@@ -18,6 +18,7 @@ export enum OrderStatus {
   DELIVERED = 'delivered',
   POD_RECEIVED = 'pod_received',
   READY_FOR_INVOICE = 'ready_for_invoice',
+  INVOICE_DRAFT = 'invoice_draft',
   INVOICED = 'invoiced',
   PAID = 'paid',
   CANCELLED = 'cancelled',

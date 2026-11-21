@@ -120,6 +120,7 @@ export const TERMINAL_ORDER_STATUSES = [
   'completed',
   'pod_received',
   'ready_for_invoice',
+  'invoice_draft',
   'invoiced',
   'paid',
   'cancelled',

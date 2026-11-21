@@ -214,6 +214,7 @@ export const STATUS_TONE_ASSIGNMENTS: Record<string, StatusToneName> = {
   documents_pending: 'documents',
   pending_documents: 'documents',
   ready_for_invoice: 'documents',
+  invoice_draft: 'documents',
   pod_pending: 'documents',
 
   // Completed / delivered

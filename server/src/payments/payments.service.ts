@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, EntityManager } from "typeorm";
 import { Payment } from "./payment.entity";
 import { Invoice, InvoiceStatus } from "../invoices/invoice.entity";
+import { syncOrderStatusForInvoice } from "../invoices/invoice-order-status";
 
 @Injectable()
 export class PaymentsService {
@@ -49,6 +50,7 @@ export class PaymentsService {
       const newRemaining = Number(invoice.total) - newTotalPaid;
       if (newRemaining <= 0.01) {
         await this.invoiceRepo.update(invoice.id, { status: "paid" as any });
+        await syncOrderStatusForInvoice(this.manager, { orderId: invoice.orderId, status: InvoiceStatus.PAID });
       }
     }
 
@@ -66,6 +68,7 @@ export class PaymentsService {
       const totalPaid = (invoice.payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
       if (Number(invoice.total) - totalPaid > 0.01) {
         await this.invoiceRepo.update(invoice.id, { status: "sent" as any });
+        await syncOrderStatusForInvoice(this.manager, { orderId: invoice.orderId, status: InvoiceStatus.SENT });
       }
     }
     return this.findByInvoice(payment.invoice.id);

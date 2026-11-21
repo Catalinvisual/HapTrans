@@ -36,11 +36,10 @@ describe('AutomationCronService automatic invoices', () => {
 
     expect(invoicesService.createDraftForCompletedOrder).toHaveBeenCalledWith('ord-1');
     expect(orderRepo.update).toHaveBeenCalledWith('ord-1', {
-      status: 'invoiced',
       invoice: { id: 'inv-1' },
     });
     expect(notificationsService.create).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Factură generată automat',
+      title: 'Factură draft generată automat',
       relatedId: 'inv-1',
     }));
   });

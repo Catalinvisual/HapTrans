@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual } from 'typeorm';
+import { Repository, LessThanOrEqual, In, IsNull } from 'typeorm';
 import { Order } from '../orders/order.entity';
 import { Trip } from '../trips/trip.entity';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -28,10 +28,17 @@ export class AutomationCronService {
     try { await this.flagOverdueTrips(); } catch (e) { this.logger.error('flagOverdue failed: ' + e.message); }
   }
 
-  /** Orders in ready_for_invoice without an invoice get an invoice generated automatically. */
+  /**
+   * Completed orders without an invoice get a draft invoice automatically.
+   * Delivery completion already raises it, so this also retries orders whose
+   * draft failed or that were completed before the draft flow existed.
+   */
   private async autoInvoiceReadyOrders() {
     const orders = await this.orderRepo.find({
-      where: { status: 'ready_for_invoice' },
+      where: {
+        status: In(['ready_for_invoice', 'delivered', 'pod_received']),
+        invoice: IsNull(),
+      },
       relations: ['client', 'invoice'],
       take: 50,
     });
@@ -52,13 +59,15 @@ export class AutomationCronService {
         continue;
       }
 
-      await this.orderRepo.update(order.id, { status: 'invoiced', invoice: { id: invoice.id } } as any);
+      // The invoice service writes the order status from the invoice status
+      // (draft / invoiced / paid); only the invoice link is added here.
+      await this.orderRepo.update(order.id, { invoice: { id: invoice.id } } as any);
 
       if (result.created) {
         await this.notificationsService.create({
           type: 'alert',
-          title: 'Factură generată automat',
-          message: `Comanda ${order.orderNumber || ''} a fost facturată automat — ${invoice.invoiceNumber} (€${gross.toLocaleString()}).`,
+          title: 'Factură draft generată automat',
+          message: `Comanda ${order.orderNumber || ''} are factura draft ${invoice.invoiceNumber} (€${gross.toLocaleString()}). Verifică și aprobă factura din pagina Facturi.`,
           relatedId: invoice.id,
         });
         created++;

@@ -45,6 +45,16 @@ Object.entries(countryNames).forEach(([code, names]) => {
   Object.values(names).forEach(n => { nameToCode[n.toLowerCase()] = code; });
 });
 
+/** ISO 3166-1 alpha-3 codes that show up in imported orders and stop addresses. */
+const iso3ToIso2: Record<string, string> = {
+  ROU: 'RO', DEU: 'DE', NLD: 'NL', FRA: 'FR', BEL: 'BE', POL: 'PL', HUN: 'HU', ITA: 'IT',
+  AUT: 'AT', ESP: 'ES', CZE: 'CZ', HRV: 'HR', SVK: 'SK', BGR: 'BG', SVN: 'SI', SRB: 'RS',
+  BIH: 'BA', MKD: 'MK', ALB: 'AL', GRC: 'GR', TUR: 'TR', UKR: 'UA', CHE: 'CH', LUX: 'LU',
+  DNK: 'DK', SWE: 'SE', NOR: 'NO', FIN: 'FI', LTU: 'LT', LVA: 'LV', EST: 'EE', IRL: 'IE',
+  PRT: 'PT', GBR: 'GB',
+};
+Object.entries(iso3ToIso2).forEach(([iso3, iso2]) => { nameToCode[iso3.toLowerCase()] = iso2; });
+
 /**
  * Normalize a country value (ISO code or localized name) to a 2-letter ISO code.
  * Returns null for empty input.
@@ -55,4 +65,25 @@ export function countryIso(value: string | null | undefined): string | null {
   if (!v) return null;
   if (/^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
   return nameToCode[v.toLowerCase()] || v.slice(0, 2).toUpperCase();
+}
+
+/**
+ * One option for a country filter. The stored value may be an ISO2/ISO3 code or
+ * a country name in any language; every spelling of the same country collapses
+ * into a single option labelled with the full country name.
+ */
+export function countryFilterOption(
+  value: string | null | undefined,
+  lang = 'en',
+): { value: string; label: string } | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const code = nameToCode[raw.toLowerCase()] || (/^[A-Za-z]{2}$/.test(raw) ? raw.toUpperCase() : null);
+  if (code) {
+    const names = countryNames[code];
+    return { value: code, label: names?.[lang] || names?.en || code };
+  }
+  // An unknown spelling stays a single option instead of being cut to two letters.
+  return { value: `other:${raw.toLowerCase()}`, label: raw };
 }

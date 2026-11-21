@@ -6,6 +6,7 @@ import { Invoice, InvoiceStatus, InvoiceTransportDetails } from './invoice.entit
 import { InvoiceItem } from './invoice-item.entity';
 import { Trip } from '../trips/trip.entity';
 import { Order } from '../orders/order.entity';
+import { syncOrderStatusForInvoice } from './invoice-order-status';
 import { v2 as cloudinary } from 'cloudinary';
 import { computeAuditChanges } from '../action-logs/diff.util';
 
@@ -370,6 +371,37 @@ export class InvoicesService implements OnModuleInit {
     } catch (e: any) {
       console.warn('Invoices onModuleInit note:', e?.message);
     }
+
+    // Reconciliation for orders completed before their invoice state was
+    // mirrored on the order: a draft invoice becomes invoice_draft, an issued
+    // one invoiced and a settled one paid. Planning and cancelled orders are
+    // never rewritten.
+    try {
+      await this.repo.query(`
+        UPDATE "orders" o
+        SET "status" = CASE LOWER(i."status")
+          WHEN 'draft' THEN 'invoice_draft'
+          WHEN 'paid' THEN 'paid'
+          WHEN 'cancelled' THEN 'ready_for_invoice'
+          ELSE 'invoiced'
+        END
+        FROM "invoices" i
+        WHERE (i."orderId" = o."id" OR o."invoiceId" = i."id")
+          AND LOWER(i."status") IN ('draft', 'approved', 'sent', 'viewed', 'overdue', 'paid', 'cancelled')
+          AND LOWER(o."status") IN ('delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid')
+      `);
+    } catch (e: any) {
+      console.warn('Order/invoice status reconciliation skipped:', e?.message);
+    }
+  }
+
+  /**
+   * The order carries the invoice's financial state so the TMS order list and
+   * its Invoiced filter show draft / invoiced / paid without loading the
+   * invoice.
+   */
+  private syncOrderStatus(invoice: { orderId?: string | null; status?: string | null }): Promise<void> {
+    return syncOrderStatusForInvoice(this.repo.manager, invoice);
   }
 
   async findAll() { 
@@ -626,12 +658,14 @@ export class InvoicesService implements OnModuleInit {
               console.warn('Action log failed for refreshed invoice:', err?.message);
             }
           }
+          await this.syncOrderStatus(savedDraft as any);
           return this.findOne(savedDraft.id);
         }
         if (meta) meta.existing = 'issued';
         console.warn(
           `Invoice ${existing.invoiceNumber} is already issued for order ${requestedOrderId}; returning it unchanged.`,
         );
+        await this.syncOrderStatus(existing as any);
         return this.findOne(existing.id);
       }
     }
@@ -680,6 +714,7 @@ export class InvoicesService implements OnModuleInit {
         console.warn('Action log failed for invoice:', err?.message);
       }
     }
+    await this.syncOrderStatus(saved as any);
     return this.findOne(saved.id);
   }
 
@@ -690,7 +725,12 @@ export class InvoicesService implements OnModuleInit {
    */
   async createDraftForCompletedOrder(orderId: string, user?: any): Promise<{ invoice: Invoice | null; created: boolean; reason?: string }> {
     const existing = await this.repo.findOne({ where: { orderId } });
-    if (existing) return { invoice: existing, created: false, reason: 'already_invoiced' };
+    if (existing) {
+      // A completion event may re-write the order as delivered after the draft
+      // was raised, so the invoice state is re-asserted on every call.
+      await this.syncOrderStatus(existing as any);
+      return { invoice: existing, created: false, reason: 'already_invoiced' };
+    }
 
     const order = await this.repo.manager.getRepository(Order).findOne({
       where: { id: orderId },
@@ -753,7 +793,10 @@ export class InvoicesService implements OnModuleInit {
       // A concurrent completion may have won the unique order index. Return the
       // existing invoice instead of failing the already-successful completion.
       const raced = await this.repo.findOne({ where: { orderId } }).catch(() => null);
-      if (raced) return { invoice: raced, created: false, reason: 'concurrent_completion' };
+      if (raced) {
+        await this.syncOrderStatus(raced as any);
+        return { invoice: raced, created: false, reason: 'concurrent_completion' };
+      }
       throw error;
     }
   }
@@ -762,6 +805,7 @@ export class InvoicesService implements OnModuleInit {
     const inv = await this.findOneForPdf(id);
     if (!inv) throw new BadRequestException('Invoice not found');
     await this.repo.update(id, { status: InvoiceStatus.APPROVED } as any);
+    await this.syncOrderStatus({ orderId: (inv as any).orderId, status: InvoiceStatus.APPROVED });
     if (user) {
       try {
         await this.actionLogs.logAction('Invoice', id, 'APPROVED', user);
@@ -788,6 +832,7 @@ export class InvoicesService implements OnModuleInit {
       : dto;
     Object.assign(inv, next);
     const saved = await this.repo.save(inv);
+    await this.syncOrderStatus(saved as any);
     if (user && updatedFields.length > 0) {
       try {
         await this.actionLogs.logAction('Invoice', id, 'UPDATED', user, { updatedFields, changes });
@@ -798,7 +843,14 @@ export class InvoicesService implements OnModuleInit {
     return saved;
   }
   async remove(id: string) {
-    return this.repo.delete(id); 
+    const inv = await this.repo.findOne({ where: { id } });
+    const deleted = await this.repo.delete(id);
+    // A deleted invoice must not leave its order looking invoiced: the order
+    // returns to the point where a new draft can be raised.
+    if (inv?.orderId) {
+      await this.syncOrderStatus({ orderId: inv.orderId, status: InvoiceStatus.CANCELLED });
+    }
+    return deleted;
   }
 
 

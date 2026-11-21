@@ -35,7 +35,7 @@ const TRIP_ON_ROAD_OVERVIEW = new Set([
   'partially_delivered', 'in_transit', 'active',
 ]);
 const ORDER_DELIVERED_OVERVIEW = new Set([
-  'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'closed',
+  'delivered', 'pod_received', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid', 'closed',
 ]);
 const ORDER_OPEN_OVERVIEW = new Set([
   'draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'dispatched',

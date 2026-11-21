@@ -10092,6 +10092,9 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_overdue': 'Overdue',
     'status_sent': 'Sent',
     'status_approved': 'Approved',
+    'status_invoice_draft': 'Invoice draft',
+    'status_ready_for_invoice': 'Ready to invoice',
+    'status_invoiced': 'Invoiced',
 
     'driver_contact': 'Driver & Contact',
     'salary_package': 'Salary Package',
@@ -10302,6 +10305,9 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_overdue': 'Restant',
     'status_sent': 'Trimis',
     'status_approved': 'Aprobat',
+    'status_invoice_draft': 'Factură draft',
+    'status_ready_for_invoice': 'Gata de facturare',
+    'status_invoiced': 'Facturat',
 
     'driver_contact': 'Șofer & Contact',
     'salary_package': 'Pachet Salarial',
@@ -10501,6 +10507,9 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_overdue': 'Achterstallig',
     'status_sent': 'Verzonden',
     'status_approved': 'Goedgekeurd',
+    'status_invoice_draft': 'Conceptfactuur',
+    'status_ready_for_invoice': 'Klaar om te factureren',
+    'status_invoiced': 'Gefactureerd',
 
     'vat_short': 'BTW',
     'vat_number': 'BTW-nummer',
@@ -10545,6 +10554,9 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_overdue': 'Überfällig',
     'status_sent': 'Gesendet',
     'status_approved': 'Genehmigt',
+    'status_invoice_draft': 'Rechnungsentwurf',
+    'status_ready_for_invoice': 'Bereit zur Rechnungsstellung',
+    'status_invoiced': 'Fakturiert',
 
     'vat_short': 'USt-IdNr.',
     'vat_number': 'USt-IdNr. / Steuernummer',
@@ -10589,6 +10601,9 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_overdue': 'En retard',
     'status_sent': 'Envoyé',
     'status_approved': 'Approuvé',
+    'status_invoice_draft': 'Facture brouillon',
+    'status_ready_for_invoice': 'Prêt à facturer',
+    'status_invoiced': 'Facturé',
 
     'vat_short': 'TVA',
     'vat_number': 'Numéro de TVA',
@@ -10633,6 +10648,9 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_overdue': 'Vencido',
     'status_sent': 'Enviado',
     'status_approved': 'Aprobado',
+    'status_invoice_draft': 'Factura borrador',
+    'status_ready_for_invoice': 'Listo para facturar',
+    'status_invoiced': 'Facturado',
 
     'vat_short': 'IVA',
     'vat_number': 'NIF / IVA',
@@ -10677,6 +10695,9 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_overdue': 'Zaległy',
     'status_sent': 'Wysłany',
     'status_approved': 'Zatwierdzony',
+    'status_invoice_draft': 'Szkic faktury',
+    'status_ready_for_invoice': 'Gotowe do faktury',
+    'status_invoiced': 'Zafakturowane',
 
     'vat_short': 'NIP',
     'vat_number': 'Numer NIP / VAT',

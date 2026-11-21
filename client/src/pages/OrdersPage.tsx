@@ -36,11 +36,13 @@ import { getCompanySettings } from '../store/settingsStore';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { getCleanInvoiceFilename } from '../lib/filenameUtils';
 import { fmtMoney, fmtNumber } from '../lib/format';
-import { countryIso } from '../lib/countries';
+import { countryIso, countryFilterOption } from '../lib/countries';
 import { composeAddress } from '../lib/address';
 import { matchesSearch } from '../lib/search';
 
-const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
+const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid', 'cancelled'];
+const INVOICED_STATUSES = ['ready_for_invoice', 'invoice_draft', 'invoiced', 'paid'];
+const BILLING_BADGE_STATUSES = ['invoice_draft', 'invoiced', 'paid'];
 
 
 function sortValue(o: any, key: string): any {
@@ -186,10 +188,21 @@ export default function OrdersPage() {
   }, [orders, t]);
 
   const countryOptions: SelectOption[] = useMemo(() => {
-    const set = new Set<string>();
-    orders.forEach(o => o.stops?.forEach((s: any) => { if (s.country) set.add(s.country); }));
-    return [{ value: 'all', label: t('all_countries', 'All countries') }, ...[...set].sort().map(c => ({ value: c, label: c }))];
-  }, [orders, t]);
+    // The same country arrives as a code ("DE", "DEU") or as a name ("Germany",
+    // "Deutschland") depending on the source, so every spelling is grouped into
+    // one option labelled with the full country name.
+    const byCountry = new Map<string, string>();
+    orders.forEach(o => o.stops?.forEach((s: any) => {
+      const option = countryFilterOption(s.country, i18n.language);
+      if (option) byCountry.set(option.value, option.label);
+    }));
+    return [
+      { value: 'all', label: t('all_countries', 'All countries') },
+      ...[...byCountry.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], i18n.language))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  }, [orders, t, i18n.language]);
 
   const filtered = useMemo(() => {
     return orders.filter(o => {
@@ -199,14 +212,14 @@ export default function OrdersPage() {
         if (filters.status === 'plannedGroup' && !['PLANNING', 'ACCEPTED'].includes(op)) return false;
         else if (filters.status === 'activeGroup' && !['EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING'].includes(op)) return false;
         else if (filters.status === 'deliveredGroup' && op !== 'COMPLETED') return false;
-        else if (filters.status === 'invoicedGroup' && !['ready_for_invoice', 'invoiced', 'paid'].includes(o.status)) return false;
+        else if (filters.status === 'invoicedGroup' && !INVOICED_STATUSES.includes(o.status)) return false;
         else if (!['plannedGroup', 'activeGroup', 'deliveredGroup', 'invoicedGroup'].includes(filters.status) && o.status !== filters.status) return false;
       }
       if (filters.client !== 'all' && o.client?.id !== filters.client) return false;
       if (filters.type !== 'all' && (o.transportType || 'ftl') !== filters.type) return false;
       if (filters.priority !== 'all' && (o.priority || 'normal') !== filters.priority) return false;
       if (filters.country !== 'all') {
-        const has = (o.stops || []).some((s: any) => s.country === filters.country);
+        const has = (o.stops || []).some((s: any) => countryFilterOption(s.country, i18n.language)?.value === filters.country);
         if (!has) return false;
       }
       if (filters.dateFrom || filters.dateTo) {
@@ -217,7 +230,7 @@ export default function OrdersPage() {
       }
       return true;
     });
-  }, [orders, search, filters]);
+  }, [orders, search, filters, i18n.language]);
 
   const sorted = useMemo(() => {
     const dir = sort.dir === 'asc' ? 1 : -1;
@@ -503,21 +516,32 @@ export default function OrdersPage() {
     { key: 'price', label: t('price', 'Price'), sortable: true, align: 'right', width: '104px', render: o => (
       <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(o.price || 0, o.currency || 'EUR')}</div>
     ) },
-    { key: 'status', label: t('status', 'Status'), width: '150px', render: o => <StatusBadge status={operationalStatusForDisplay(o)} label={t(operationalStatusKey(o), operationalStatusForDisplay(o)) as string} /> },
+    { key: 'status', label: t('status', 'Status'), width: '150px', render: o => {
+      const billing = String(o.status || '');
+      return (
+        <div className="flex flex-col items-start gap-1">
+          <StatusBadge status={operationalStatusForDisplay(o)} label={t(operationalStatusKey(o), operationalStatusForDisplay(o)) as string} />
+          {BILLING_BADGE_STATUSES.includes(billing) && (
+            <StatusBadge status={billing} label={t(`status_${billing}`, billing.replace(/_/g, ' ')) as string} />
+          )}
+        </div>
+      );
+    } },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', sticky: 'right', width: '150px', render: o => {
       const trip = o.trip;
       const trackingToken = trip?.trackingToken;
       const tripStatus = trip?.status || o.status;
+      const hasInvoice = BILLING_BADGE_STATUSES.includes(o.status);
       const isActiveTracking = ['assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'in_transit'].includes(tripStatus);
-      const isDelivered = ['delivered', 'completed', 'pod_received', 'closed', 'invoiced', 'paid'].includes(tripStatus);
+      const isDelivered = hasInvoice || ['delivered', 'completed', 'pod_received', 'closed'].includes(tripStatus);
 
       return (
         <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
-          {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' ? (
+          {!hasInvoice && o.status !== 'cancelled' ? (
             <button title={t('create_invoice', 'Generează factură')} onClick={() => handleCreateInvoice(o)} className="p-1 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10">
               <FileText className="w-3.5 h-3.5" />
             </button>
-          ) : (o.status === 'invoiced' || o.status === 'paid') ? (
+          ) : hasInvoice ? (
             <button title={t('view_invoice', 'Vezi Factura în pagina Facturi')} onClick={() => navigate('/invoices')} className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
               <FileText className="w-3.5 h-3.5" />
             </button>
@@ -573,7 +597,7 @@ return (
         { key: 'planned', label: t('kpi_planned', 'Planned'), value: (statusCounts.PLANNING || 0) + (statusCounts.ACCEPTED || 0), icon: Boxes, color: 'text-amber-600', onClick: () => setStatusFilterFromKpi('plannedGroup'), active: filters.status === 'plannedGroup' },
         { key: 'active', label: t('kpi_active', 'In transit'), value: (statusCounts.EN_ROUTE_TO_PICKUP || 0) + (statusCounts.ARRIVED_AT_PICKUP || 0) + (statusCounts.LOADING || 0) + (statusCounts.EN_ROUTE_TO_DELIVERY || 0) + (statusCounts.ARRIVED_AT_DELIVERY || 0) + (statusCounts.UNLOADING || 0), icon: Activity, color: 'text-blue-600', onClick: () => setStatusFilterFromKpi('activeGroup'), active: filters.status === 'activeGroup' },
         { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: statusCounts.COMPLETED || 0, icon: Flag, color: 'text-green-600', onClick: () => setStatusFilterFromKpi('deliveredGroup'), active: filters.status === 'deliveredGroup' },
-        { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (statusCounts.ready_for_invoice || 0) + (statusCounts.invoiced || 0) + (statusCounts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatusFilterFromKpi('invoicedGroup'), active: filters.status === 'invoicedGroup' },
+        { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (statusCounts.ready_for_invoice || 0) + (statusCounts.invoice_draft || 0) + (statusCounts.invoiced || 0) + (statusCounts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatusFilterFromKpi('invoicedGroup'), active: filters.status === 'invoicedGroup' },
         { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: fmtMoney(totalRevenue), icon: Coins, color: 'text-primary' },
       ]} dense />
 
