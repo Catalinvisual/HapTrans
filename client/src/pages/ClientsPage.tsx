@@ -57,6 +57,12 @@ export default function ClientsPage() {
   }, []);
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    // The drawer footer is outside the form, so the browser's `required` check
+    // never runs for it: validate the name here before asking for confirmation.
+    if (!String(form.name || '').trim()) {
+      toast.error(t('client_name_required', 'Client name is required.'));
+      return;
+    }
     if (!await confirmSave()) return;
     try {
       if (editId) {
