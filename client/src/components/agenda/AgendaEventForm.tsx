@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { CalendarDays, Check, Search, StickyNote, X } from 'lucide-react';
 import api from '../../lib/api';
+import CustomDatePicker from '../CustomDatePicker';
+import CustomSelect from '../CustomSelect';
+import DateField from '../dashboard/DateField';
 import {
   AGENDA_COLORS,
   AGENDA_COLOR_HEX,
@@ -13,7 +16,7 @@ import {
   type AgendaKind,
   type AgendaPerson,
 } from './types';
-import { dayKey, hhmm, parseDayKey } from './agendaUtils';
+import { dayKey, hhmm, parseDayKey, startOfDay } from './agendaUtils';
 
 interface AgendaEventFormProps {
   event: AgendaEvent | null;
@@ -24,15 +27,42 @@ interface AgendaEventFormProps {
   onSaved: () => void;
 }
 
+function timeFromMinutes(total: number): string {
+  const minutes = ((total % 1440) + 1440) % 1440;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
 function emptyDraft(date: Date, kind: AgendaKind): AgendaDraft {
-  const key = dayKey(date);
+  let base = startOfDay(date);
+  let startMinutes = 9 * 60;
+
+  if (kind === 'event' && base.getTime() < startOfDay(new Date()).getTime()) {
+    base = startOfDay(new Date());
+  }
+
+  // A new event today starts at the next quarter hour, never in the past.
+  if (kind === 'event' && dayKey(base) === dayKey(new Date())) {
+    const now = new Date();
+    const next = Math.ceil((now.getHours() * 60 + now.getMinutes() + 15) / 15) * 15;
+    if (next <= 22 * 60) {
+      startMinutes = next;
+    } else {
+      base = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+      startMinutes = 9 * 60;
+    }
+  }
+
+  const endMinutes = startMinutes + 60;
+  const endBase =
+    endMinutes >= 1440 ? new Date(base.getTime() + 24 * 60 * 60 * 1000) : base;
+
   return {
     title: '',
     kind,
-    date: key,
-    endDate: key,
-    startTime: '09:00',
-    endTime: '10:00',
+    date: dayKey(base),
+    endDate: dayKey(endBase),
+    startTime: timeFromMinutes(startMinutes),
+    endTime: timeFromMinutes(endMinutes),
     allDay: kind === 'note',
     description: '',
     location: '',
@@ -74,7 +104,8 @@ export default function AgendaEventForm({
   onClose,
   onSaved,
 }: AgendaEventFormProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language || 'en').slice(0, 2);
   const [draft, setDraft] = useState<AgendaDraft>(() =>
     event ? draftFromEvent(event) : emptyDraft(defaultDate, defaultKind),
   );
@@ -151,6 +182,28 @@ export default function AgendaEventForm({
       return;
     }
 
+    // No new events in the past. Editing an event that was already in the past
+    // stays possible, but a future event cannot be moved backwards.
+    const isEvent = draft.kind === 'event';
+    const originalStart = event ? new Date(event.startAt).getTime() : null;
+    const wasPast =
+      originalStart !== null && originalStart < Date.now() - 60_000;
+    const moved =
+      originalStart === null || Math.abs(startAt.getTime() - originalStart) > 60_000;
+    if (isEvent && moved && !wasPast) {
+      if (
+        draft.allDay &&
+        startOfDay(startAt).getTime() < startOfDay(new Date()).getTime()
+      ) {
+        setFormError(t('agenda_error_past'));
+        return;
+      }
+      if (!draft.allDay && startAt.getTime() < Date.now() - 60_000) {
+        setFormError(t('agenda_error_past'));
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -170,8 +223,14 @@ export default function AgendaEventForm({
       toast.success(event ? t('agenda_saved') : t('agenda_created'));
       onSaved();
       onClose();
-    } catch {
-      toast.error(t('agenda_error_save'));
+    } catch (error) {
+      const code = (error as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
+      if (code === 'AGENDA_START_IN_PAST') {
+        setFormError(t('agenda_error_past'));
+      } else {
+        toast.error(t('agenda_error_save'));
+      }
     } finally {
       setSaving(false);
     }
@@ -255,42 +314,6 @@ export default function AgendaEventForm({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass} htmlFor="agenda-date">
-                {t('agenda_date')}
-              </label>
-              <input
-                id="agenda-date"
-                type="date"
-                className={inputClass}
-                value={draft.date}
-                onChange={(changeEvent) => {
-                  const date = changeEvent.target.value;
-                  update({
-                    date,
-                    endDate: !draft.endDate || draft.endDate < date ? date : draft.endDate,
-                  });
-                }}
-              />
-            </div>
-            {!isNote && (
-              <div>
-                <label className={labelClass} htmlFor="agenda-end-date">
-                  {t('agenda_end_date')}
-                </label>
-                <input
-                  id="agenda-end-date"
-                  type="date"
-                  className={inputClass}
-                  min={draft.date}
-                  value={draft.endDate}
-                  onChange={(changeEvent) => update({ endDate: changeEvent.target.value })}
-                />
-              </div>
-            )}
-          </div>
-
           {!isNote && (
             <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-text">
               <input
@@ -303,34 +326,67 @@ export default function AgendaEventForm({
             </label>
           )}
 
-          {!isNote && !draft.allDay && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={labelClass} htmlFor="agenda-start">
-                  {t('agenda_start')}
-                </label>
-                <input
-                  id="agenda-start"
-                  type="time"
-                  className={inputClass}
-                  value={draft.startTime}
-                  onChange={(changeEvent) => update({ startTime: changeEvent.target.value })}
+          <div className="space-y-2">
+            {isNote ? (
+              <DateField
+                label={t('agenda_date')}
+                value={draft.date}
+                onChange={(date) => update({ date })}
+                lang={lang}
+                allowPast
+              />
+            ) : draft.allDay ? (
+              <div className="grid grid-cols-2 gap-2">
+                <DateField
+                  label={t('agenda_start')}
+                  value={draft.date}
+                  onChange={(date) =>
+                    update({
+                      date,
+                      endDate:
+                        !draft.endDate || draft.endDate < date ? date : draft.endDate,
+                    })
+                  }
+                  lang={lang}
+                  allowPast={false}
+                />
+                <DateField
+                  label={t('agenda_end_date')}
+                  value={draft.endDate}
+                  onChange={(endDate) => update({ endDate })}
+                  lang={lang}
+                  allowPast={false}
+                  min={draft.date}
                 />
               </div>
-              <div>
-                <label className={labelClass} htmlFor="agenda-end">
-                  {t('agenda_end')}
-                </label>
-                <input
-                  id="agenda-end"
-                  type="time"
-                  className={inputClass}
-                  value={draft.endTime}
-                  onChange={(changeEvent) => update({ endTime: changeEvent.target.value })}
+            ) : (
+              <>
+                <CustomDatePicker
+                  label={t('agenda_start')}
+                  dateValue={draft.date}
+                  timeValue={draft.startTime}
+                  onDateChange={(date) =>
+                    update({
+                      date,
+                      endDate:
+                        !draft.endDate || draft.endDate < date ? date : draft.endDate,
+                    })
+                  }
+                  onTimeChange={(startTime) => update({ startTime })}
+                  allowPast={false}
                 />
-              </div>
-            </div>
-          )}
+                <CustomDatePicker
+                  label={t('agenda_end')}
+                  dateValue={draft.endDate}
+                  timeValue={draft.endTime}
+                  onDateChange={(endDate) => update({ endDate })}
+                  onTimeChange={(endTime) => update({ endTime })}
+                  allowPast={false}
+                  minDate={draft.date}
+                />
+              </>
+            )}
+          </div>
 
           {!isNote && (
             <div className="grid grid-cols-2 gap-2">
@@ -348,23 +404,16 @@ export default function AgendaEventForm({
                 />
               </div>
               <div>
-                <label className={labelClass} htmlFor="agenda-reminder">
-                  {t('agenda_reminder')}
-                </label>
-                <select
-                  id="agenda-reminder"
-                  className={inputClass}
-                  value={draft.reminderMinutes}
-                  onChange={(changeEvent) =>
-                    update({ reminderMinutes: Number(changeEvent.target.value) })
-                  }
-                >
-                  {AGENDA_REMINDER_OPTIONS.map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {t(AGENDA_REMINDER_KEYS[minutes])}
-                    </option>
-                  ))}
-                </select>
+                <p className={labelClass}>{t('agenda_reminder')}</p>
+                <CustomSelect
+                  value={String(draft.reminderMinutes)}
+                  onChange={(value) => update({ reminderMinutes: Number(value) })}
+                  options={AGENDA_REMINDER_OPTIONS.map((minutes) => ({
+                    value: String(minutes),
+                    label: t(AGENDA_REMINDER_KEYS[minutes]),
+                  }))}
+                  placeholder={t('agenda_reminder')}
+                />
               </div>
             </div>
           )}

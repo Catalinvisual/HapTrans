@@ -4,9 +4,15 @@ import toast from 'react-hot-toast';
 import { CalendarDays } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
+import AgendaAlerts from './AgendaAlerts';
 import AgendaEventForm from './AgendaEventForm';
 import AgendaPanel from './AgendaPanel';
 import { useAgenda } from './useAgenda';
+import {
+  hasAlertDesktopShown,
+  markAlertDesktopShown,
+  useAgendaAlerts,
+} from './useAgendaAlerts';
 import type { AgendaEvent, AgendaKind, AgendaView } from './types';
 import { LOCALES, dayKey, eventsOn, formatTime, startOfDay } from './agendaUtils';
 
@@ -27,10 +33,13 @@ export default function AgendaButton() {
     date: Date;
     kind: AgendaKind;
   } | null>(null);
+  // Agenda notifications are on unless the user explicitly turned them off.
   const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('agendaNotifications') === 'true';
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('agendaNotifications') !== 'false';
   });
+  const [permissionVersion, setPermissionVersion] = useState(0);
+  const [responding, setResponding] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -65,61 +74,52 @@ export default function AgendaButton() {
   const todayEvents = eventsOn(events, today).filter(
     (event) => event.kind === 'event' && event.status !== 'cancelled',
   );
-  const pendingInvites = invites.filter(
-    (event) => new Date(event.startAt).getTime() >= today.getTime(),
-  );
+  // The API already returns every still-relevant pending invitation, even when
+  // the event falls outside the visible calendar window.
   const badgeCount = new Set(
-    [...todayEvents, ...pendingInvites].map((event) => event.id),
+    [...todayEvents, ...invites].map((event) => event.id),
   ).size;
 
+  const {
+    alerts,
+    ignore: ignoreAlert,
+    snooze: snoozeAlert,
+    dismissInvite,
+    now: alertNow,
+  } = useAgendaAlerts({
+    events,
+    invites,
+    userId: user?.id,
+    enabled: notificationsEnabled,
+  });
+  const topAlert = alerts[0] || null;
+  const topAlertKey = topAlert?.key;
+
   useEffect(() => {
-    if (!events.length) return;
-    const now = Date.now();
-
-    for (const event of events) {
-      if (
-        event.kind !== 'event' ||
-        event.status === 'cancelled' ||
-        !event.reminderMinutes
-      ) {
-        continue;
-      }
-      const start = new Date(event.startAt).getTime();
-      if (Number.isNaN(start)) continue;
-      const dueAt = start - event.reminderMinutes * 60000;
-      // Fire only inside the reminder window, with a one-minute grace period.
-      if (now < dueAt || now > start + 60000) continue;
-
-      const storageKey = `agenda_notified_${user?.id || 'me'}_${event.id}_${event.startAt}`;
-      try {
-        if (localStorage.getItem(storageKey)) continue;
-        localStorage.setItem(storageKey, '1');
-      } catch {
-        // Storage can be unavailable; showing the toast once per poll is fine.
-      }
-
-      const body = t('agenda_reminder_body', {
-        title: event.title,
-        time: formatTime(event.startAt, locale),
-      });
-      toast(`${t('agenda_reminder_toast')}: ${body}`, { icon: '⏰', duration: 8000 });
-
-      if (
-        notificationsEnabled &&
-        typeof Notification !== 'undefined' &&
-        Notification.permission === 'granted'
-      ) {
-        try {
-          new Notification(t('agenda_reminder_toast'), {
-            body,
-            tag: `agenda-${event.id}`,
-          });
-        } catch {
-          // The browser can refuse while the page is not focused; the toast stays.
-        }
-      }
+    if (!topAlert || !topAlertKey || !notificationsEnabled) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+      return;
     }
-  }, [events, notificationsEnabled, locale, t, user?.id]);
+    if (hasAlertDesktopShown(topAlert)) return;
+    markAlertDesktopShown(topAlert);
+
+    const title =
+      topAlert.kind === 'invite'
+        ? t('agenda_alert_invite_title')
+        : t('agenda_reminder_toast');
+    const body =
+      topAlert.kind === 'invite'
+        ? t('agenda_alert_invite_body', { name: topAlert.event.ownerName })
+        : t('agenda_reminder_body', {
+            title: topAlert.event.title,
+            time: formatTime(topAlert.event.startAt, locale),
+          });
+    try {
+      new Notification(title, { body, tag: `agenda-${topAlert.event.id}` });
+    } catch {
+      // The browser can refuse while the page is not focused; the in-app card stays.
+    }
+  }, [topAlertKey, notificationsEnabled, permissionVersion, locale, t]);
 
   useEffect(() => {
     setDetail((current) =>
@@ -168,38 +168,63 @@ export default function AgendaButton() {
     setForm(null);
   };
 
+  const openAgenda = () => {
+    if (open) {
+      closePanel();
+      return;
+    }
+    setOpen(true);
+    // Opening the agenda is a user gesture, the right moment to ask once for
+    // desktop notification permission (in-app cards work without it).
+    if (
+      notificationsEnabled &&
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'default'
+    ) {
+      Notification.requestPermission()
+        .then(() => setPermissionVersion((value) => value + 1))
+        .catch(() => undefined);
+    }
+  };
+
   const toggleNotifications = async () => {
-    if (!notificationsEnabled) {
-      if (!('Notification' in window)) {
-        toast.error(t('agenda_bell_denied'));
-        return;
-      }
-      let permission = Notification.permission;
-      if (permission === 'default') {
-        permission = await Notification.requestPermission();
-      }
-      if (permission !== 'granted') {
-        toast.error(t('agenda_bell_denied'));
-        return;
-      }
-      setNotificationsEnabled(true);
-      localStorage.setItem('agendaNotifications', 'true');
-      toast.success(t('agenda_bell_on'));
-    } else {
+    if (notificationsEnabled) {
       setNotificationsEnabled(false);
       localStorage.setItem('agendaNotifications', 'false');
       toast.success(t('agenda_bell_off'));
+      return;
     }
+
+    setNotificationsEnabled(true);
+    localStorage.setItem('agendaNotifications', 'true');
+
+    if (typeof Notification === 'undefined') {
+      toast(t('agenda_bell_limited'), { icon: '🔔' });
+      return;
+    }
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      try {
+        permission = await Notification.requestPermission();
+      } catch {
+        permission = 'denied';
+      }
+    }
+    setPermissionVersion((value) => value + 1);
+    if (permission === 'granted') toast.success(t('agenda_bell_on'));
+    else toast(t('agenda_bell_limited'), { icon: '🔔' });
   };
 
   const respondToInvite = async (
     event: AgendaEvent,
     status: 'accepted' | 'declined',
   ) => {
+    if (responding) return;
     const invite = event.participants.find(
       (participant) => participant.userId === user?.id,
     );
     if (!invite) return;
+    setResponding(true);
     try {
       const { data } = await api.patch<AgendaEvent>(`/agenda/invites/${invite.id}`, {
         status,
@@ -207,10 +232,13 @@ export default function AgendaButton() {
       setDetail((current) =>
         current && current.id === event.id ? data : current,
       );
+      dismissInvite(event);
       toast.success(t('agenda_responded'));
       reload();
     } catch {
       toast.error(t('agenda_error_save'));
+    } finally {
+      setResponding(false);
     }
   };
 
@@ -230,10 +258,7 @@ export default function AgendaButton() {
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => {
-          if (open) closePanel();
-          else setOpen(true);
-        }}
+        onClick={openAgenda}
         title={t('agenda_open')}
         aria-label={t('agenda_open')}
         aria-expanded={open}
@@ -264,7 +289,7 @@ export default function AgendaButton() {
           >
             <AgendaPanel
               events={events}
-              invites={pendingInvites}
+              invites={invites}
               loading={loading}
               error={error}
               view={view}
@@ -275,7 +300,12 @@ export default function AgendaButton() {
               onClose={closePanel}
               onCreate={(kind) => {
                 setDetail(null);
-                setForm({ event: null, date: startOfDay(selectedDate), kind });
+                const base = startOfDay(selectedDate);
+                const date =
+                  kind === 'event' && base.getTime() < today.getTime()
+                    ? today
+                    : base;
+                setForm({ event: null, date, kind });
               }}
               onOpenEvent={setDetail}
               detail={detail}
@@ -307,6 +337,27 @@ export default function AgendaButton() {
           people={people}
           onClose={() => setForm(null)}
           onSaved={reload}
+        />
+      )}
+
+      {notificationsEnabled && topAlert && (
+        <AgendaAlerts
+          alert={topAlert}
+          index={0}
+          total={alerts.length}
+          locale={locale}
+          now={alertNow}
+          panelOpen={open}
+          responding={responding}
+          onSnooze={(minutes) => snoozeAlert(topAlert, minutes)}
+          onIgnore={() => ignoreAlert(topAlert)}
+          onAccept={() => respondToInvite(topAlert.event, 'accepted')}
+          onDecline={() => respondToInvite(topAlert.event, 'declined')}
+          onClose={() =>
+            topAlert.kind === 'invite'
+              ? dismissInvite(topAlert.event)
+              : ignoreAlert(topAlert)
+          }
         />
       )}
     </>

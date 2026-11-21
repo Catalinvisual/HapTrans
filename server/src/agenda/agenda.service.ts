@@ -84,6 +84,8 @@ export class AgendaService {
     if (endAt && endAt.getTime() < startAt.getTime()) {
       throw new BadRequestException('AGENDA_END_BEFORE_START');
     }
+    const allDay = kind === 'note' ? true : body?.allDay === true;
+    this.assertStartNotPast(kind, allDay, startAt);
 
     const event = this.eventsRepo.create({
       userId: viewer.id,
@@ -95,7 +97,7 @@ export class AgendaService {
       color: COLORS.includes(String(body?.color)) ? String(body.color) : 'orange',
       startAt,
       endAt,
-      allDay: kind === 'note' ? true : body?.allDay === true,
+      allDay,
       reminderMinutes: kind === 'note' ? 0 : this.reminder(body?.reminderMinutes),
       status: STATUSES.includes(String(body?.status))
         ? (String(body.status) as AgendaEvent['status'])
@@ -134,6 +136,8 @@ export class AgendaService {
     if (!event) throw new NotFoundException('AGENDA_EVENT_NOT_FOUND');
     if (event.userId !== viewer.id) throw new ForbiddenException('AGENDA_NOT_OWNER');
 
+    const previousStart = new Date(event.startAt).getTime();
+
     if (body?.title !== undefined) event.title = this.requireTitle(body.title);
     if (body?.description !== undefined) {
       event.description = this.optionalText(body.description, 5000);
@@ -160,6 +164,14 @@ export class AgendaService {
     }
     if (body?.status !== undefined && STATUSES.includes(String(body.status))) {
       event.status = String(body.status) as AgendaEvent['status'];
+    }
+
+    if (startChanged && event.kind === 'event') {
+      const moved = Math.abs(event.startAt.getTime() - previousStart) > 60_000;
+      const wasPast = previousStart < Date.now() - 60_000;
+      // A future event may not be dragged into the past; editing an old event's
+      // details (or another already-past slot) stays allowed.
+      if (moved && !wasPast) this.assertStartNotPast(event.kind, event.allDay, event.startAt);
     }
 
     if (event.kind === 'note') {
@@ -442,6 +454,13 @@ export class AgendaService {
         })),
       };
     });
+  }
+
+  private assertStartNotPast(kind: string, allDay: boolean, startAt: Date) {
+    if (kind !== 'event' || allDay) return;
+    if (startAt.getTime() < Date.now() - 60_000) {
+      throw new BadRequestException('AGENDA_START_IN_PAST');
+    }
   }
 
   private requireTitle(value: unknown): string {
