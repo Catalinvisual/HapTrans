@@ -49,6 +49,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
 import { PdfArchivingModule } from './archiving/pdf-archiving.module';
 import { AdrModule } from './adr/adr.module';
+import { AgendaModule } from './agenda/agenda.module';
 
 @Module({
   imports: [
@@ -124,6 +125,7 @@ import { AdrModule } from './adr/adr.module';
     ReportsModule,
     PdfArchivingModule,
     AdrModule,
+    AgendaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

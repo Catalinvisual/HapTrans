@@ -22,6 +22,7 @@ import { dashboardProResources } from './dashboardProI18n';
 import { usersPageResources } from './usersI18n';
 import { usersRolesResources } from './usersRolesI18n';
 import { helpResources } from './help';
+import { agendaResources } from './agendaI18n';
 
 const resources = {
   ro: { translation: {
@@ -12141,6 +12142,15 @@ for (const lng of Object.keys(shortcutsResources)) {
 for (const lng of Object.keys(helpResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, helpResources[lng]);
+}
+
+// Personal agenda panel, in all seven locales.
+for (const lng of Object.keys(agendaResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign(
+    (resources as any)[lng].translation,
+    (agendaResources as any)[lng].translation,
+  );
 }
 
 const getInitialLanguage = (): string => {

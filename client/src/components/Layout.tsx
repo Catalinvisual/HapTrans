@@ -13,6 +13,7 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import { stopFieldNavigation } from '../lib/fieldNavigation';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
+import AgendaButton from './agenda/AgendaButton';
 import ConfirmModal from './ConfirmModal';
 import KeyboardCursor from './KeyboardCursor';
 import { navItems, filterNavItems, canSection, canModule } from '../lib/navPermissions';
@@ -838,6 +839,8 @@ export default function Layout() {
             >
               <BookOpen className="w-4 h-4" />
             </button>
+            {/* Personal agenda */}
+            <AgendaButton />
             {/* Shortcuts Help Icon */}
             <button 
               onClick={() => setIsShortcutsModalOpen(true)}

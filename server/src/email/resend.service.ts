@@ -442,6 +442,142 @@ export class ResendService {
     }
   }
 
+  private escapeAgendaHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private formatAgendaWhen(event: any): string {
+    if (!event?.startAt) return '';
+    const timeZone = process.env.AGENDA_TIMEZONE || 'Europe/Bucharest';
+    const start = new Date(event.startAt);
+    if (Number.isNaN(start.getTime())) return '';
+    const end = event.endAt ? new Date(event.endAt) : null;
+    const date = new Intl.DateTimeFormat('ro-RO', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      timeZone,
+    }).format(start);
+    if (event.allDay) return date;
+    const time = new Intl.DateTimeFormat('ro-RO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone,
+    }).format(start);
+    let range = `${date}, ${time}`;
+    if (end && !Number.isNaN(end.getTime())) {
+      const endDate = new Intl.DateTimeFormat('ro-RO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone,
+      }).format(end);
+      const endTime = new Intl.DateTimeFormat('ro-RO', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone,
+      }).format(end);
+      range += ` – ${endDate} ${endTime}`;
+    }
+    return range;
+  }
+
+  async sendAgendaInviteEmail(email: string, name: string, event: any, inviterName: string) {
+    const logoUrl = await this.getLogoUrl();
+    const logoHtml = logoUrl
+      ? `<img src="${logoUrl}" style="height:48px; max-width:250px; object-fit:contain;" alt="HapCargo" />`
+      : `<h2 style="color:#ff5a00;margin:0;font-size:24px;">HapCargo</h2>`;
+    const when = this.formatAgendaWhen(event);
+    const title = this.escapeAgendaHtml(event?.title);
+    const location = event?.location ? this.escapeAgendaHtml(event.location) : '';
+    const description = event?.description ? this.escapeAgendaHtml(event.description) : '';
+    const inviter = this.escapeAgendaHtml(inviterName || 'HapCargo');
+
+    const htmlContent = `
+      <html>
+      <body style="font-family:Arial,sans-serif;color:#1e293b;background:#ffffff;margin:0;padding:20px;line-height:1.6;">
+        <div style="text-align:center;margin-bottom:24px;">${logoHtml}</div>
+        <h2 style="color:#0d1b2a;margin:0 0 8px;">Invitație în agendă</h2>
+        <p>Salut ${this.escapeAgendaHtml(name) || ''},</p>
+        <p><strong>${inviter}</strong> te-a invitat la un eveniment.</p>
+        <div style="background:#f8fafc;border-left:4px solid #ff5a00;padding:15px 20px;margin:20px 0;border-radius:0 8px 8px 0;">
+          <p style="margin:0 0 6px;font-size:17px;font-weight:700;">${title}</p>
+          <p style="margin:4px 0;">${this.escapeAgendaHtml(when)}</p>
+          ${location ? `<p style="margin:4px 0;">${location}</p>` : ''}
+          ${description ? `<p style="margin:10px 0 0;white-space:pre-wrap;">${description}</p>` : ''}
+        </div>
+        <p>Deschide aplicația HapCargo și intră în Agenda pentru a confirma sau refuza invitația.</p>
+        <p style="color:#64748b;font-size:13px;">Notificarea îți este trimisă pentru că ai un cont în echipa HapCargo.</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: email,
+          subject: `Invitație agendă: ${event?.title || 'Eveniment'}`,
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Agenda invite to:', email);
+      }
+    } catch (e) {
+      console.error('Failed to send agenda invite email:', e);
+    }
+  }
+
+  async sendAgendaReminderEmail(email: string, name: string, event: any) {
+    const logoUrl = await this.getLogoUrl();
+    const logoHtml = logoUrl
+      ? `<img src="${logoUrl}" style="height:48px; max-width:250px; object-fit:contain;" alt="HapCargo" />`
+      : `<h2 style="color:#ff5a00;margin:0;font-size:24px;">HapCargo</h2>`;
+    const when = this.formatAgendaWhen(event);
+    const title = this.escapeAgendaHtml(event?.title);
+    const location = event?.location ? this.escapeAgendaHtml(event.location) : '';
+
+    const htmlContent = `
+      <html>
+      <body style="font-family:Arial,sans-serif;color:#1e293b;background:#ffffff;margin:0;padding:20px;line-height:1.6;">
+        <div style="text-align:center;margin-bottom:24px;">${logoHtml}</div>
+        <h2 style="color:#0d1b2a;margin:0 0 8px;">Eveniment în curând</h2>
+        <p>Salut ${this.escapeAgendaHtml(name) || ''},</p>
+        <p>Îți reamintim că urmează un eveniment din agenda ta.</p>
+        <div style="background:#f8fafc;border-left:4px solid #ff5a00;padding:15px 20px;margin:20px 0;border-radius:0 8px 8px 0;">
+          <p style="margin:0 0 6px;font-size:17px;font-weight:700;">${title}</p>
+          <p style="margin:4px 0;">${this.escapeAgendaHtml(when)}</p>
+          ${location ? `<p style="margin:4px 0;">${location}</p>` : ''}
+        </div>
+        <p style="color:#64748b;font-size:13px;">Poți modifica sau șterge evenimentul din Agenda HapCargo.</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: email,
+          subject: `Reminder agendă: ${event?.title || 'Eveniment'}`,
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Agenda reminder to:', email);
+      }
+    } catch (e) {
+      console.error('Failed to send agenda reminder email:', e);
+    }
+  }
+
   async sendPortalInviteEmail(email: string, name: string, inviteLink: string, company?: any) {
     const logoUrl = await this.getLogoUrl(company);
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
