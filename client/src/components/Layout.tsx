@@ -452,9 +452,41 @@ export default function Layout() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // The desktop (Windows) toast is the TMS's only notification popup: the in-app
+  // card was removed so the same notification is never shown twice. It stays on
+  // unless the user turns it off from the bell menu.
   const [osNotificationsEnabled, setOsNotificationsEnabled] = useState(() => {
-    return typeof window !== 'undefined' && localStorage.getItem('osNotifications') === 'true';
+    if (typeof window === 'undefined' || typeof Notification === 'undefined') return false;
+    if (localStorage.getItem('osNotifications') === 'false') return false;
+    return Notification.permission !== 'denied';
   });
+
+  // Browsers only show the permission prompt after a gesture, so ask on the
+  // first click when notifications are on but the permission was never decided.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof Notification === 'undefined') return;
+    if (localStorage.getItem('osNotifications') === 'false') return;
+    if (Notification.permission !== 'default') return;
+
+    let asked = false;
+    const detach = () => {
+      document.removeEventListener('pointerdown', ask);
+      document.removeEventListener('keydown', ask);
+    };
+    const ask = async () => {
+      if (asked) return;
+      asked = true;
+      detach();
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setOsNotificationsEnabled(false);
+        localStorage.setItem('osNotifications', 'false');
+      }
+    };
+    document.addEventListener('pointerdown', ask);
+    document.addEventListener('keydown', ask);
+    return detach;
+  }, []);
 
   const toggleOsNotifications = async () => {
     if (!osNotificationsEnabled) {
@@ -503,7 +535,6 @@ export default function Layout() {
   }, [title]);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [popupNotif, setPopupNotif] = useState<any | null>(null);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -729,18 +760,23 @@ export default function Layout() {
           const latest = res.data.data[0];
           if (lastNotifIdRef.current !== null && latest.id !== lastNotifIdRef.current && !latest.isRead) {
             lastNotifIdRef.current = latest.id;
-            setPopupNotif(latest);
-            playNotificationSound();
 
-            const osEnabled = localStorage.getItem('osNotifications') === 'true';
-            if (osEnabled && "Notification" in window && Notification.permission === "granted") {
-               const { title, message } = formatNotification(latest, lang, t);
-               new Notification(title, { body: message });
+            // Read the stored preference instead of the state: this function is
+            // captured by the socket/interval effect and would keep a stale value.
+            const osEnabled = localStorage.getItem('osNotifications') !== 'false';
+            const canNotify =
+              osEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+            if (canNotify) {
+              // One surface only: the Windows/desktop toast, never an extra card.
+              const { title: notifTitle, message } = formatNotification(latest, lang, t);
+              // The tag lets Windows replace the same notification when a second
+              // TMS tab polls it too, instead of stacking two toasts.
+              new Notification(notifTitle, { body: message, tag: `tms-${latest.id}` });
+            } else {
+              // Without the desktop toast the chime is the only signal; it must
+              // not double the sound the system notification already plays.
+              playNotificationSound();
             }
-
-            setTimeout(() => {
-              setPopupNotif((current: any) => current?.id === latest.id ? null : current);
-            }, 6000);
           } else if (lastNotifIdRef.current === null) {
             lastNotifIdRef.current = latest.id;
           }
@@ -1051,54 +1087,6 @@ export default function Layout() {
           </div>
         </main>
       </div>
-
-      {/* Bottom-right Real-time Notification Popup Card */}
-      {popupNotif && (() => {
-        const n = popupNotif;
-        const { title: translatedTitle, message: translatedMessage } = formatNotification(n, lang, t);
-
-        const NotifIcon = n.type === 'document' ? FileText
-          : n.type === 'chat' ? MessageSquare
-          : n.type === 'trip' ? Truck
-          : AlertTriangle;
-
-        const iconColor = n.type === 'document' ? 'text-blue-500'
-          : n.type === 'chat' ? 'text-green-500'
-          : n.type === 'trip' ? 'text-orange-500'
-          : 'text-red-500';
-
-        return (
-          <div 
-            className="fixed bottom-6 right-6 z-[9999] w-80 bg-card/95 backdrop-blur-md rounded-2xl shadow-2xl border border-border p-4 animate-slide-in flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-all duration-200"
-            onClick={() => {
-              if (!n.isRead) markAsRead(n.id);
-              if (n.type === 'document') navigate('/documents');
-              else if (n.type === 'chat') navigate('/chat');
-              else if (n.type === 'trip') navigate('/trips');
-              setPopupNotif(null);
-            }}
-          >
-            <div className="flex items-center justify-between border-b border-border/50 pb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center border border-border">
-                  <NotifIcon className={`w-4 h-4 ${iconColor}`} />
-                </div>
-                <span className="font-bold text-text text-xs tracking-wide uppercase">{translatedTitle}</span>
-              </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setPopupNotif(null); }}
-                className="text-text-secondary hover:text-text p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-xs text-text-secondary leading-relaxed font-medium">{translatedMessage}</p>
-            <div className="w-full bg-surface h-1 rounded-full overflow-hidden mt-1">
-              <div className="bg-primary h-full w-full animate-[progress_6s_linear]" />
-            </div>
-          </div>
-        );
-      })()}
 
       <ShortcutsHelpModal 
         isOpen={isShortcutsModalOpen} 
