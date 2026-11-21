@@ -61,7 +61,7 @@ export default function TelematicsSimulatorPage() {
       toast.success(`${t('sim_switch_activity', 'Activity changed to')} ${activity}`);
       loadSimData();
     } catch (e) {
-      toast.error('Error changing activity');
+      toast.error(t('tm_error_change_activity', 'Error changing activity'));
     }
   };
 
@@ -72,7 +72,7 @@ export default function TelematicsSimulatorPage() {
       await api.post(`/telematics/simulator/${selectedTruck.truckId}/timescale`, { scale });
       toast.success(`${t('sim_time_accel', 'Simulation speed accelerated to')} ${scale}x`);
     } catch (e) {
-      toast.error('Error setting simulation time scale');
+      toast.error(t('tm_error_time_scale', 'Error setting simulation time scale'));
     }
   };
 
@@ -82,7 +82,7 @@ export default function TelematicsSimulatorPage() {
     try {
       await api.post(`/telematics/simulator/${selectedTruck.truckId}/speed`, { speed: newSpeed });
     } catch (e) {
-      toast.error('Error');
+      toast.error(t('tm_error_generic', 'Error'));
     }
   };
 
@@ -90,10 +90,10 @@ export default function TelematicsSimulatorPage() {
     if (!selectedTruck) return;
     try {
       await api.post(`/telematics/simulator/${selectedTruck.truckId}/scenario`, { scenarioId });
-      toast.success(`Scenario #${scenarioId} activated!`);
+      toast.success(t('tm_scenario_activated', 'Scenario #{{id}} activated!', { id: scenarioId }));
       loadSimData();
     } catch (e) {
-      toast.error('Error triggering scenario');
+      toast.error(t('tm_error_trigger', 'Error triggering scenario'));
     }
   };
 
@@ -101,10 +101,10 @@ export default function TelematicsSimulatorPage() {
     if (!selectedTruck) return;
     try {
       await api.post(`/telematics/simulator/${selectedTruck.truckId}/disconnect`);
-      toast.error('Telematics signal interrupted (OFFLINE)');
+      toast.error(t('tm_signal_interrupted', 'Telematics signal interrupted (OFFLINE)'));
       loadSimData();
     } catch (e) {
-      toast.error('Error');
+      toast.error(t('tm_error_generic', 'Error'));
     }
   };
 
@@ -112,10 +112,10 @@ export default function TelematicsSimulatorPage() {
     if (!selectedTruck) return;
     try {
       await api.post(`/telematics/simulator/${selectedTruck.truckId}/reconnect`);
-      toast.success('Connection restored (LIVE)');
+      toast.success(t('tm_connection_restored', 'Connection restored (LIVE)'));
       loadSimData();
     } catch (e) {
-      toast.error('Error');
+      toast.error(t('tm_error_generic', 'Error'));
     }
   };
 
@@ -126,10 +126,10 @@ export default function TelematicsSimulatorPage() {
         driverId: `driver-new-${Date.now()}`,
         driverName: newDriverName,
       });
-      toast.success('Driver changed on active trip!');
+      toast.success(t('tm_driver_changed', 'Driver changed on active trip!'));
       loadSimData();
     } catch (e) {
-      toast.error('Error changing driver');
+      toast.error(t('tm_error_driver_change', 'Error changing driver'));
     }
   };
 

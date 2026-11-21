@@ -62,7 +62,7 @@ export default function ClientPortalAccess({
       });
       loadUsers();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to invite user');
+      toast.error(err.response?.data?.message || t('portal_invite_failed', 'Failed to invite user'));
     }
   };
   const handleStatusChange = async (userId: string, status: string) => {
@@ -70,7 +70,7 @@ export default function ClientPortalAccess({
       await api.patch(`/portal-users/${userId}/status`, {
         status
       });
-      toast.success(`User marked as ${status}`);
+      toast.success(t('client_portal_user_marked', 'User marked as {{status}}', { status }));
       loadUsers();
     } catch {
       toast.error(t("toast_failedToUpdat"));

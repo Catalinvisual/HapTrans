@@ -56,3 +56,7 @@ server/node_modules/
 
 .tools/
 .verify-pg/
+
+# i18n audit output (generated)
+client/scripts/i18n-report.json
+client/scripts/i18n-todo.json

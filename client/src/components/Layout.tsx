@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { stopFieldNavigation } from '../lib/fieldNavigation';
+import { translateCountryNames } from '../lib/notificationText';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import AgendaButton from './agenda/AgendaButton';
@@ -168,6 +169,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = `Nieuw Document • ${name}`;
     else if (lang === 'de') title = `Neues Dokument • ${name}`;
     else if (lang === 'fr') title = `Nouveau Document • ${name}`;
+    else if (lang === 'es') title = `Nuevo documento • ${name}`;
+    else if (lang === 'pl') title = `Nowy dokument • ${name}`;
     else title = `New Document • ${name}`;
   } else if (title.includes('Mesaj de la')) {
     const parts = title.split(':');
@@ -177,6 +180,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = `Nieuw Bericht • ${name}`;
     else if (lang === 'de') title = `Neue Nachricht • ${name}`;
     else if (lang === 'fr') title = `Nouveau Message • ${name}`;
+    else if (lang === 'es') title = `Nuevo mensaje • ${name}`;
+    else if (lang === 'pl') title = `Nowa wiadomość • ${name}`;
     else title = `New Message • ${name}`;
   } else if (title.startsWith('Status Cursă:')) {
     const statusPart = title.replace('Status Cursă:', '').trim();
@@ -185,14 +190,23 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = `Rit Update • ${statusPart}`;
     else if (lang === 'de') title = `Fahrt Update • ${statusPart}`;
     else if (lang === 'fr') title = `Mise à jour du Trajet • ${statusPart}`;
+    else if (lang === 'es') title = `Actualización del viaje • ${statusPart}`;
+    else if (lang === 'pl') title = `Aktualizacja trasy • ${statusPart}`;
     else title = `Trip Update • ${statusPart}`;
   }
 
   // --- 2. TRANSLATE MESSAGE ---
   if (message) {
-    const permisText = lang === 'ro' ? 'Permis de Conducere' : lang === 'en' ? 'Driver License' : lang === 'nl' ? 'Rijbewijs' : lang === 'de' ? 'Führerschein' : 'Permis de conduire';
-    const medicalText = lang === 'ro' ? 'Aviz Medical' : lang === 'en' ? 'Medical Certificate' : lang === 'nl' ? 'Medische Verklaring' : lang === 'de' ? 'Ärztliches Gutachten' : 'Certificat médical';
-    const tachoText = lang === 'ro' ? 'Card Tahograf' : lang === 'en' ? 'Tachograph Card' : lang === 'nl' ? 'Bestuurderskaart' : lang === 'de' ? 'Fahrerkarte' : 'Carte de tachygraphe';
+    const docLabels: Record<string, [string, string, string]> = {
+      ro: ['Permis de Conducere', 'Aviz Medical', 'Card Tahograf'],
+      en: ['Driver License', 'Medical Certificate', 'Tachograph Card'],
+      nl: ['Rijbewijs', 'Medische Verklaring', 'Bestuurderskaart'],
+      de: ['Führerschein', 'Ärztliches Gutachten', 'Fahrerkarte'],
+      fr: ['Permis de conduire', 'Certificat médical', 'Carte de tachygraphe'],
+      es: ['Permiso de conducir', 'Certificado médico', 'Tarjeta de tacógrafo'],
+      pl: ['Prawo jazdy', 'Orzeczenie lekarskie', 'Karta kierowcy'],
+    };
+    const [permisText, medicalText, tachoText] = docLabels[lang] || docLabels.en;
     
     message = message.replace('Permis', permisText)
                      .replace('Aviz Medical', medicalText)
@@ -207,6 +221,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') message = `Nieuw document (${docType}) voor rit #${cleanTripId}`;
     else if (lang === 'de') message = `Neues Dokument (${docType}) für Fahrt #${cleanTripId}`;
     else if (lang === 'fr') message = `Nouveau document (${docType}) pour le trajet #${cleanTripId}`;
+    else if (lang === 'es') message = `Nuevo documento (${docType}) para el viaje #${cleanTripId}`;
+    else if (lang === 'pl') message = `Nowy dokument (${docType}) dla trasy #${cleanTripId}`;
     else message = `New document (${docType}) for trip #${cleanTripId}`;
   } else if (n.type === 'document' && message?.includes('Fișier') && message?.includes('încărcat pentru Cursa:')) {
     const match = message.match(/Fișier (.*?) încărcat pentru Cursa: (.*)/);
@@ -218,6 +234,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
       else if (lang === 'nl') message = `${docType} bestand geüpload (Rit: ${tripRef})`;
       else if (lang === 'de') message = `${docType}-Datei hochgeladen (Fahrt: ${tripRef})`;
       else if (lang === 'fr') message = `Fichier ${docType} téléversé (Course: ${tripRef})`;
+      else if (lang === 'es') message = `Archivo ${docType} subido (Viaje: ${tripRef})`;
+      else if (lang === 'pl') message = `Przesłano plik ${docType} (Trasa: ${tripRef})`;
       else message = `${docType} file uploaded (Trip: ${tripRef})`;
     }
   } else if (n.type === 'chat' && message?.includes('(Cursa:')) {
@@ -229,6 +247,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') message = `${msgText} (Rit: ${tripRef})`;
     else if (lang === 'de') message = `${msgText} (Fahrt: ${tripRef})`;
     else if (lang === 'fr') message = `${msgText} (Course: ${tripRef})`;
+    else if (lang === 'es') message = `${msgText} (Viaje: ${tripRef})`;
+    else if (lang === 'pl') message = `${msgText} (Trasa: ${tripRef})`;
     else message = `${msgText} (Trip: ${tripRef})`;
   } else if (n.type === 'trip' && message?.includes('|||')) {
     const parts = message.split('|||');
@@ -263,6 +283,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
       else if (lang === 'nl') message = `Rit ${routeText} is gewijzigd naar: ${translatedStatus}`;
       else if (lang === 'de') message = `Fahrt ${routeText} wurde geändert in: ${translatedStatus}`;
       else if (lang === 'fr') message = `Trajet ${routeText} a été changé en: ${translatedStatus}`;
+      else if (lang === 'es') message = `El viaje ${routeText} ha cambiado a: ${translatedStatus}`;
+      else if (lang === 'pl') message = `Trasa ${routeText} została zmieniona na: ${translatedStatus}`;
       else message = `Trip ${routeText} has been changed to: ${translatedStatus}`;
     } else {
       if (lang === 'ro') message = `Cursa #${cleanTripId} a fost schimbată în: ${translatedStatus}`;
@@ -270,6 +292,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
       else if (lang === 'nl') message = `Rit #${cleanTripId} is gewijzigd naar: ${translatedStatus}`;
       else if (lang === 'de') message = `Fahrt #${cleanTripId} wurde geändert in: ${translatedStatus}`;
       else if (lang === 'fr') message = `Trajet #${cleanTripId} a été changé en: ${translatedStatus}`;
+      else if (lang === 'es') message = `El viaje #${cleanTripId} ha cambiado a: ${translatedStatus}`;
+      else if (lang === 'pl') message = `Trasa #${cleanTripId} została zmieniona na: ${translatedStatus}`;
       else message = `Trip #${cleanTripId} has been changed to: ${translatedStatus}`;
     }
   } else if (n.type === 'trip' && message?.includes('a fost schimbată în statusul:')) {
@@ -305,7 +329,9 @@ const formatNotification = (n: any, lang: string, t: any) => {
       else if (lang === 'en') message = `Trip ${tripRef} is now: ${statusPart} (${driverName})`;
       else if (lang === 'nl') message = `Rit ${tripRef} is nu: ${statusPart} (${driverName})`;
       else if (lang === 'de') message = `Fahrt ${tripRef} ist jetzt: ${statusPart} (${driverName})`;
-      else if (lang === 'fr') message = `Course ${tripRef} est mtn: ${statusPart} (${driverName})`;
+      else if (lang === 'fr') message = `Le trajet ${tripRef} est maintenant : ${statusPart} (${driverName})`;
+      else if (lang === 'es') message = `El viaje ${tripRef} ahora es: ${statusPart} (${driverName})`;
+      else if (lang === 'pl') message = `Trasa ${tripRef} ma teraz status: ${statusPart} (${driverName})`;
       else message = `Trip ${tripRef} is now: ${statusPart} (${driverName})`;
     }
   } else if (message?.includes('a depășit timpul limită programat pentru livrare')) {
@@ -316,6 +342,9 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') message = `Rit ${tripRef} heeft de geplande levertijd overschreden.`;
     else if (lang === 'de') message = `Fahrt ${tripRef} hat die geplante Lieferzeit überschritten.`;
     else if (lang === 'fr') message = `Le trajet ${tripRef} a dépassé l'heure de livraison prévue.`;
+    else if (lang === 'es') message = `El viaje ${tripRef} ha superado el plazo de entrega previsto.`;
+    else if (lang === 'pl') message = `Trasa ${tripRef} przekroczyła planowany termin dostawy.`;
+    else message = `Trip ${tripRef} has exceeded the scheduled delivery deadline.`;
   } else if (message?.includes('are risc major de întârziere')) {
     const match = message.match(/Cursa (.*?) are risc major de întârziere/);
     const tripRef = match ? match[1] : '';
@@ -324,6 +353,9 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') message = `Rit ${tripRef} heeft een groot risico op vertraging (>60 min).`;
     else if (lang === 'de') message = `Fahrt ${tripRef} hat ein hohes Verspätungsrisiko (>60 min).`;
     else if (lang === 'fr') message = `Le trajet ${tripRef} présente un risque de retard majeur (>60 min).`;
+    else if (lang === 'es') message = `El viaje ${tripRef} tiene un riesgo importante de retraso (>60 min).`;
+    else if (lang === 'pl') message = `Trasa ${tripRef} ma wysokie ryzyko opóźnienia (>60 min).`;
+    else message = `Trip ${tripRef} has a major delay risk (>60 min).`;
   } else if (message?.includes('a fost creată pe') && message?.includes('și trebuie aprobată')) {
     const match = message.match(/Factura provizorie (.*?) pentru clientul (.*?) a fost creată pe/);
     if (match) {
@@ -334,6 +366,9 @@ const formatNotification = (n: any, lang: string, t: any) => {
       else if (lang === 'nl') message = `Conceptfactuur ${invNum} (${clientName}) is ouder dan 7 dagen en vereist goedkeuring.`;
       else if (lang === 'de') message = `Entwurfsrechnung ${invNum} (${clientName}) ist älter als 7 Tage und erfordert eine Genehmigung.`;
       else if (lang === 'fr') message = `La facture brouillon ${invNum} (${clientName}) date de plus de 7 jours et nécessite une approbation.`;
+      else if (lang === 'es') message = `La factura borrador ${invNum} (${clientName}) tiene más de 7 días y requiere aprobación.`;
+      else if (lang === 'pl') message = `Faktura robocza ${invNum} (${clientName}) ma ponad 7 dni i wymaga zatwierdzenia.`;
+      else message = `Draft invoice ${invNum} (${clientName}) is older than 7 days and requires approval.`;
     }
   } else if (message?.includes('Factura provizorie') && message?.includes('așteaptă aprobarea')) {
     const match = message.match(/Factura provizorie (.*?) pentru clientul (.*?) așteaptă aprobarea/);
@@ -345,12 +380,18 @@ const formatNotification = (n: any, lang: string, t: any) => {
       else if (lang === 'nl') message = `Conceptfactuur ${invNum} (${clientName}) wacht op uw goedkeuring.`;
       else if (lang === 'de') message = `Entwurfsrechnung ${invNum} (${clientName}) wartet auf Ihre Genehmigung.`;
       else if (lang === 'fr') message = `La facture brouillon ${invNum} (${clientName}) attend votre approbation.`;
+      else if (lang === 'es') message = `La factura borrador ${invNum} (${clientName}) espera tu aprobación.`;
+      else if (lang === 'pl') message = `Faktura robocza ${invNum} (${clientName}) czeka na Twoje zatwierdzenie.`;
+      else message = `Draft invoice ${invNum} (${clientName}) is waiting for your approval.`;
     }
   } else if (message === 'notif_chat_file') {
     message = t('notif_chat_file') || message;
   }
 
-  return { title, message };
+  // Country names inside stored texts (routes, addresses, document names) must
+  // follow the interface language too, not the language of the event that
+  // produced the notification.
+  return { title: translateCountryNames(title, lang), message: translateCountryNames(message, lang) };
 };
 
 
@@ -971,7 +1012,7 @@ export default function Layout() {
                           : n.type === 'trip' ? 'text-orange-500'
                           : 'text-red-500';
 
-                        const localeMap: Record<string,string> = { ro:'ro-RO', en:'en-GB', nl:'nl-NL', de:'de-DE', fr:'fr-FR' };
+                        const localeMap: Record<string,string> = { ro:'ro-RO', en:'en-GB', nl:'nl-NL', de:'de-DE', fr:'fr-FR', es:'es-ES', pl:'pl-PL' };
 
                         return (
                           <div

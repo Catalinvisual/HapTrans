@@ -7,6 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "check:i18n": "node scripts/check-i18n.cjs",
+    "check:i18n:audit": "node scripts/i18n-audit.cjs",
+    "check:i18n:dynamic": "node scripts/i18n-dynamic.cjs",
+    "check:i18n:literals": "node scripts/i18n-literals.cjs",
+    "check:i18n:all": "node scripts/i18n-audit.cjs && node scripts/i18n-dynamic.cjs && node scripts/i18n-literals.cjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

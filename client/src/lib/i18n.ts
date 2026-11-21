@@ -23,6 +23,7 @@ import { usersPageResources } from './usersI18n';
 import { usersRolesResources } from './usersRolesI18n';
 import { helpResources } from './help';
 import { agendaResources } from './agendaI18n';
+import { completenessResources } from './i18nCompleteness';
 
 const resources = {
   ro: { translation: {
@@ -9495,7 +9496,7 @@ smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein
       notif_status_loading: 'Beladen',
       notif_status_unloading: 'Entladen',
       notif_status_completed: 'Abgeschlossen',
-      notif_status_storniert: 'Storniert',
+      notif_status_cancelled: 'Storniert',
       chatWith: 'Chat mit {{name}}',
       consumption: 'Verbrauch',
       unavailable: 'Nicht verfügbar',
@@ -11267,6 +11268,13 @@ for (const lng of Object.keys(truckFormResources)) {
   Object.assign((resources as any)[lng].translation, truckFormResources[lng].translation);
 }
 
+
+// Strings that only existed as inline translation defaults in the code, completed
+// for all seven locales. langOverrides below still wins on conflicts.
+for (const lng of Object.keys(completenessResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, completenessResources[lng]);
+}
 
 for (const lng of Object.keys(langOverrides)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };

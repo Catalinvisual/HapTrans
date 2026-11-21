@@ -992,7 +992,7 @@ export default function TrucksPage() {
                     toast.error(res.data.message || 'Conexiune eșuată');
                   }
                 } catch (e) {
-                  toast.error('Eroare la testarea conexiunii');
+                  toast.error(t('connection_test_error', 'Eroare la testarea conexiunii'));
                 }
               }}
               className="px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary/90 transition-all"

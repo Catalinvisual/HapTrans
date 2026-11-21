@@ -27,7 +27,7 @@ export default function LoginPage() {
     e.preventDefault();
     const cleanEmail = email.trim();
     if (!cleanEmail || !password) {
-      toast.error('Vă rugăm să introduceți emailul și parola.');
+      toast.error(t('login_credentials_required', 'Vă rugăm să introduceți emailul și parola.'));
       return;
     }
 
@@ -76,7 +76,7 @@ export default function LoginPage() {
   const handleApplyQuickToken = () => {
     const raw = quickToken.trim();
     if (!raw) {
-      toast.error('Introduceți tokenul!');
+      toast.error(t('login_token_required', 'Introduceți tokenul!'));
       return;
     }
     try {
@@ -97,10 +97,10 @@ export default function LoginPage() {
         }
       }
       setAuth(user, token);
-      toast.success('Autentificare cu succes pe localhost!');
+      toast.success(t('login_localhost_success', 'Autentificare cu succes pe localhost!'));
       navigate('/dashboard');
     } catch (e) {
-      toast.error('Token invalid!');
+      toast.error(t('login_token_invalid', 'Token invalid!'));
     }
   };
 

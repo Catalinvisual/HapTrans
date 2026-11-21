@@ -543,7 +543,7 @@ export default function OrderWizard({
             });
           }
         }).catch(() => {
-            toast.error("Failed to load order details.");
+            toast.error(t('order_load_failed', 'Failed to load order details.'));
           });
         })();
       } else {

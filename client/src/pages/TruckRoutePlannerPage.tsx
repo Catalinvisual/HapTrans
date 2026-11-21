@@ -830,7 +830,7 @@ export default function TruckRoutePlannerPage() {
 
   const handleConfirmPlan = async () => {
     if (!effectiveTripId) {
-      toast.error('No associated TRP found to confirm.');
+      toast.error(t('trp_not_found_confirm', 'No associated TRP found to confirm.'));
       return;
     }
     setActionLoading('confirm');
@@ -848,7 +848,7 @@ export default function TruckRoutePlannerPage() {
 
   const handleDispatchToDriver = async () => {
     if (!effectiveTripId) {
-      toast.error('No associated TRP found to dispatch.');
+      toast.error(t('trp_not_found_dispatch', 'No associated TRP found to dispatch.'));
       return;
     }
     setActionLoading('dispatch');
@@ -865,7 +865,7 @@ export default function TruckRoutePlannerPage() {
 
   const handleReopenPlanning = async () => {
     if (!effectiveTripId) {
-      toast.error('No associated TRP found to reopen.');
+      toast.error(t('trp_not_found_reopen', 'No associated TRP found to reopen.'));
       return;
     }
     setActionLoading('reopen');
@@ -1030,7 +1030,7 @@ export default function TruckRoutePlannerPage() {
 
   const handleValidate = async () => {
     if (!effectiveTripId) {
-      toast.error('No associated TRP found to validate.');
+      toast.error(t('trp_not_found_validate', 'No associated TRP found to validate.'));
       return;
     }
     setActionLoading('validate');
