@@ -401,6 +401,11 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const lang = (i18n.language || 'ro').slice(0, 2);
+  // The socket/polling effect below is mounted once and keeps the first render's
+  // `i18n`/`t` in its closure; a ref always points at the instance of the latest
+  // render, so a toast raised later follows the language the user picked.
+  const i18nRef = useRef(i18n);
+  i18nRef.current = i18n;
 
   // The TMS session ends 12 hours after sign-in and the server refuses to renew
   // it. Sign the browser out at the same moment, so an idle tab is closed
@@ -808,8 +813,22 @@ export default function Layout() {
             const canNotify =
               osEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted';
             if (canNotify) {
+              // This poller is mounted once (socket/interval effect), so it keeps
+              // the first render's `lang`/`t` in its closure. Read the language at
+              // call time, otherwise a toast after switching to Dutch would still
+              // be translated to Romanian.
+              const liveI18n = i18nRef.current || i18n;
+              const toastLang = (
+                liveI18n.language ||
+                localStorage.getItem('hapcargo_lang') ||
+                'ro'
+              ).slice(0, 2);
               // One surface only: the Windows/desktop toast, never an extra card.
-              const { title: notifTitle, message } = formatNotification(latest, lang, t);
+              const { title: notifTitle, message } = formatNotification(
+                latest,
+                toastLang,
+                liveI18n.t.bind(liveI18n),
+              );
               // The tag lets Windows replace the same notification when a second
               // TMS tab polls it too, instead of stacking two toasts.
               new Notification(notifTitle, {
