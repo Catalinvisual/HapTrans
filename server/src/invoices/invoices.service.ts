@@ -1,12 +1,16 @@
 import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Like } from 'typeorm';
+import { Repository, Between, Like, In } from 'typeorm';
 import * as crypto from 'crypto';
 import { Invoice, InvoiceStatus, InvoiceTransportDetails } from './invoice.entity';
 import { InvoiceItem } from './invoice-item.entity';
 import { Trip } from '../trips/trip.entity';
 import { Order } from '../orders/order.entity';
-import { syncOrderStatusForInvoice } from './invoice-order-status';
+import {
+  INVOICEABLE_ORDER_STATUSES,
+  orderIsInvoiceable,
+  syncOrderStatusForInvoice,
+} from './invoice-order-status';
 import { v2 as cloudinary } from 'cloudinary';
 import { computeAuditChanges } from '../action-logs/diff.util';
 
@@ -551,6 +555,23 @@ export class InvoicesService implements OnModuleInit {
       (typeof dto.order?.id === 'string' && dto.order.id.trim()) ||
       '';
 
+    // Invoicing starts only after the transport is finished. The button and
+    // order picker hide unfinished orders, but the API refuses them too so a
+    // direct request or an old screen cannot raise an invoice for a planning
+    // or in-transit order.
+    if (requestedOrderId) {
+      const linkedOrder = await this.repo.manager.getRepository(Order).findOne({
+        where: { id: requestedOrderId },
+        select: ['id', 'orderNumber', 'status'],
+      });
+      if (!linkedOrder) throw new BadRequestException('Comanda nu a fost găsită.');
+      if (!orderIsInvoiceable(linkedOrder.status)) {
+        throw new BadRequestException(
+          `Comanda ${linkedOrder.orderNumber || requestedOrderId} nu poate fi facturată până când livrarea nu este finalizată (status: ${linkedOrder.status || 'unknown'}).`,
+        );
+      }
+    }
+
     // Safely associate client relation
     if (dto.clientId && typeof dto.clientId === 'string' && dto.clientId.trim() !== '') {
       payload.client = { id: dto.clientId.trim() };
@@ -580,7 +601,11 @@ export class InvoicesService implements OnModuleInit {
     // order's financial status correct and future updates in sync.
     if (!requestedOrderId && payload.trip?.id && payload.client?.id) {
       const clientOrders = await this.repo.manager.getRepository(Order).find({
-        where: { trip: { id: payload.trip.id }, client: { id: payload.client.id } },
+        where: {
+          trip: { id: payload.trip.id },
+          client: { id: payload.client.id },
+          status: In(INVOICEABLE_ORDER_STATUSES),
+        },
         select: ['id'],
       });
       if (clientOrders.length === 1) {
@@ -825,6 +850,19 @@ export class InvoicesService implements OnModuleInit {
   async approve(id: string, user?: any) {
     const inv = await this.findOneForPdf(id);
     if (!inv) throw new BadRequestException('Invoice not found');
+    // A draft raised before the order was delivered must not become an issued
+    // invoice while the transport is still planning or in transit.
+    if (inv.orderId) {
+      const linkedOrder = await this.repo.manager.getRepository(Order).findOne({
+        where: { id: inv.orderId },
+        select: ['id', 'orderNumber', 'status'],
+      });
+      if (!linkedOrder || !orderIsInvoiceable(linkedOrder.status)) {
+        throw new BadRequestException(
+          `Comanda ${linkedOrder?.orderNumber || inv.orderId} nu poate fi facturată până când livrarea nu este finalizată (status: ${linkedOrder?.status || 'unknown'}).`,
+        );
+      }
+    }
     await this.repo.update(id, { status: InvoiceStatus.APPROVED } as any);
     await this.syncOrderStatus({ orderId: (inv as any).orderId, status: InvoiceStatus.APPROVED });
     if (user) {

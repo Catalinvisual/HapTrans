@@ -203,9 +203,14 @@ describe('InvoicesService automatic draft invoice', () => {
 describe('InvoicesService invoice creation', () => {
   let repo: any;
   let service: InvoicesService;
+  let orderRepo: any;
   const year = new Date().getFullYear();
 
   beforeEach(() => {
+    orderRepo = {
+      findOne: jest.fn(async () => ({ id: 'ord-1', orderNumber: 'ORD-1', status: 'delivered' })),
+      find: jest.fn(async () => []),
+    };
     repo = {
       findOne: jest.fn(),
       find: jest.fn(async () => []),
@@ -214,7 +219,7 @@ describe('InvoicesService invoice creation', () => {
       save: jest.fn(async (value: any) => ({ ...value })),
       update: jest.fn(async () => ({})),
       count: jest.fn(async () => 0),
-      manager: { getRepository: jest.fn() },
+      manager: { getRepository: jest.fn(() => orderRepo) },
     };
     service = new InvoicesService(repo as any, { logAction: jest.fn(async () => ({})) } as any);
     jest.spyOn(service, 'findOne').mockImplementation(async (id: string) => ({ id } as any));
@@ -261,6 +266,16 @@ describe('InvoicesService invoice creation', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
+
+  it('refuses to invoice an order whose transport is not completed', async () => {
+    repo.findOne.mockResolvedValue(null);
+    orderRepo.findOne.mockResolvedValue({ id: 'ord-1', orderNumber: 'ORD-1', status: 'planned' });
+
+    await expect(service.create({ orderId: 'ord-1', clientId: 'client-1', amount: 100 }))
+      .rejects.toThrow(/nu poate fi facturată/);
+
+    expect(repo.save).not.toHaveBeenCalled();
+  });
 
   it('numbers the next invoice after the highest number already used', async () => {
     repo.findOne.mockResolvedValue(null);

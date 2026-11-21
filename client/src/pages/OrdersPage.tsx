@@ -45,6 +45,8 @@ import { matchesSearch } from '../lib/search';
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid', 'cancelled'];
 const INVOICED_STATUSES = ['ready_for_invoice', 'invoice_draft', 'invoiced', 'paid'];
 const BILLING_BADGE_STATUSES = ['invoice_draft', 'invoiced', 'paid'];
+// Invoicing starts only after the transport is finished.
+const INVOICEABLE_ORDER_STATUSES = ['delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid'];
 
 /**
  * The invoice is the source of truth for the financial side of an order. The
@@ -60,6 +62,10 @@ function billingStatusOf(o: any): string {
 
 function effectiveOrderStatus(o: any): string {
   return billingStatusOf(o) || String(o?.status || '');
+}
+
+function canInvoiceOrder(o: any): boolean {
+  return INVOICEABLE_ORDER_STATUSES.includes(String(o?.status || '').toLowerCase());
 }
 
 
@@ -343,6 +349,10 @@ export default function OrdersPage() {
   };
 
   const handleCreateInvoice = async (o: any) => {
+    if (!canInvoiceOrder(o)) {
+      toast.error(t('order_invoice_not_completed', 'Comanda poate fi facturată doar după finalizarea livrării.'));
+      return;
+    }
     const clientId = o.client?.id || o.clientId || (typeof o.client === 'string' ? o.client : null);
     if (!clientId) {
       toast.error(t('order_needs_client', 'Comanda trebuie să aibă un client selectat înainte de facturare. Editează comanda și alege un client.'));
@@ -543,7 +553,7 @@ export default function OrdersPage() {
 
       return (
         <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
-          {!hasInvoice && o.status !== 'cancelled' ? (
+          {!hasInvoice && canInvoiceOrder(o) ? (
             <button title={t('create_invoice', 'Generează factură')} onClick={() => handleCreateInvoice(o)} className="p-1 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10">
               <FileText className="w-3.5 h-3.5" />
             </button>

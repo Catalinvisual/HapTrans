@@ -44,6 +44,24 @@ export function orderStatusFollowsInvoice(status: string | null | undefined): bo
 }
 
 /**
+ * An order may only be invoiced once its transport is finished. Planning,
+ * loading and in-transit orders are refused, as is any cancelled one.
+ */
+export const INVOICEABLE_ORDER_STATUSES = [
+  'delivered',
+  'pod_received',
+  'completed',
+  'ready_for_invoice',
+  INVOICE_DRAFT_ORDER_STATUS,
+  'invoiced',
+  'paid',
+];
+
+export function orderIsInvoiceable(status: string | null | undefined): boolean {
+  return INVOICEABLE_ORDER_STATUSES.includes(String(status ?? '').toLowerCase().trim());
+}
+
+/**
  * Writes the invoice's financial state onto the linked order. The guarded
  * UPDATE never rewrites a planning, in-transit or cancelled order, so an early
  * invoice cannot pull an order out of dispatch.

@@ -10096,6 +10096,7 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_invoice_draft': 'Invoice draft',
     'status_ready_for_invoice': 'Ready to invoice',
     'status_invoiced': 'Invoiced',
+    'order_invoice_not_completed': 'The order can only be invoiced after its delivery is completed.',
 
     'driver_contact': 'Driver & Contact',
     'salary_package': 'Salary Package',
@@ -10309,6 +10310,7 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_invoice_draft': 'Factură draft',
     'status_ready_for_invoice': 'Gata de facturare',
     'status_invoiced': 'Facturat',
+    'order_invoice_not_completed': 'Comanda poate fi facturată doar după finalizarea livrării.',
 
     'driver_contact': 'Șofer & Contact',
     'salary_package': 'Pachet Salarial',
@@ -10511,6 +10513,7 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_invoice_draft': 'Conceptfactuur',
     'status_ready_for_invoice': 'Klaar om te factureren',
     'status_invoiced': 'Gefactureerd',
+    'order_invoice_not_completed': 'De opdracht kan pas worden gefactureerd nadat de levering is voltooid.',
 
     'vat_short': 'BTW',
     'vat_number': 'BTW-nummer',
@@ -10558,6 +10561,7 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_invoice_draft': 'Rechnungsentwurf',
     'status_ready_for_invoice': 'Bereit zur Rechnungsstellung',
     'status_invoiced': 'Fakturiert',
+    'order_invoice_not_completed': 'Der Auftrag kann erst nach Abschluss der Lieferung fakturiert werden.',
 
     'vat_short': 'USt-IdNr.',
     'vat_number': 'USt-IdNr. / Steuernummer',
@@ -10605,6 +10609,7 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_invoice_draft': 'Facture brouillon',
     'status_ready_for_invoice': 'Prêt à facturer',
     'status_invoiced': 'Facturé',
+    'order_invoice_not_completed': "La commande ne peut être facturée qu'après la fin de la livraison.",
 
     'vat_short': 'TVA',
     'vat_number': 'Numéro de TVA',
@@ -10652,6 +10657,7 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_invoice_draft': 'Factura borrador',
     'status_ready_for_invoice': 'Listo para facturar',
     'status_invoiced': 'Facturado',
+    'order_invoice_not_completed': 'El pedido solo puede facturarse cuando la entrega esté finalizada.',
 
     'vat_short': 'IVA',
     'vat_number': 'NIF / IVA',
@@ -10699,6 +10705,7 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'status_invoice_draft': 'Szkic faktury',
     'status_ready_for_invoice': 'Gotowe do faktury',
     'status_invoiced': 'Zafakturowane',
+    'order_invoice_not_completed': 'Zamówienie można zafakturować dopiero po zakończeniu dostawy.',
 
     'vat_short': 'NIP',
     'vat_number': 'Numer NIP / VAT',
