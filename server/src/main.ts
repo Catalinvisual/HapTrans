@@ -503,6 +503,18 @@ async function bootstrap() {
     await dataSource.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customerReference" character varying`);
     await dataSource.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "internalReference" character varying`);
     await dataSource.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "transportType" character varying NOT NULL DEFAULT 'ftl'`);
+    // Legacy/imported rows carried names that are not transport types
+    // ("dedicated", "ltl", "urgent", ...), which the UI showed as extra types.
+    // Collapse them onto the three the wizard offers.
+    await dataSource.query(
+      `UPDATE "orders" SET "transportType" = 'groupage' WHERE lower(trim("transportType")) IN ('ltl','grupaj','sammelgut','partial','less than truckload','less-than-truckload')`,
+    ).catch(() => {});
+    await dataSource.query(
+      `UPDATE "orders" SET "transportType" = 'express' WHERE lower(trim("transportType")) IN ('expres','urgent')`,
+    ).catch(() => {});
+    await dataSource.query(
+      `UPDATE "orders" SET "transportType" = 'ftl' WHERE lower(trim("transportType")) NOT IN ('ftl','groupage','express')`,
+    ).catch(() => {});
     await dataSource.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "priority" character varying NOT NULL DEFAULT 'normal'`);
     await dataSource.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "currency" character varying`);
 

@@ -20,6 +20,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { orderIsAdr, tripIsAdr } from '../lib/adrDetect';
+import { transportTypeLabel } from '../lib/transportType';
 import { driverEntityDisplayName } from '../lib/driverName';
 import { formatDelay } from '../lib/formatDuration';
 import DateField from '../components/dashboard/DateField';
@@ -644,7 +645,7 @@ function PoolOrderCard({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <span className="px-1.5 py-0 text-[8px] font-black rounded-full bg-primary/10 text-primary border border-primary/20">{(order.transportType || 'FTL').toUpperCase()}</span>
+          <span className="px-1.5 py-0 text-[8px] font-black rounded-full bg-primary/10 text-primary border border-primary/20">{transportTypeLabel(order.transportType)}</span>
         </div>
       </div>
 
@@ -6062,7 +6063,7 @@ export default function PlanningPage() {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-text-primary">{assignOrderModal.orderNumber}</span>
                 <span className="text-[11px] font-black text-primary uppercase px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
-                  {assignOrderModal.transportType || 'FTL'}
+                  {transportTypeLabel(assignOrderModal.transportType)}
                 </span>
               </div>
               {(() => {

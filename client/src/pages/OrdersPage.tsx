@@ -4,6 +4,7 @@ import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, Fi
 
 const WebsiteQuotesPage = lazy(() => import('./WebsiteQuotesPage'));
 import { orderIsAdr } from '../lib/adrDetect';
+import { normalizeTransportType } from '../lib/transportType';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
 import OrderWizard from '../components/orders/OrderWizard';
@@ -235,7 +236,7 @@ export default function OrdersPage() {
         else if (!['plannedGroup', 'activeGroup', 'deliveredGroup', 'invoicedGroup'].includes(filters.status) && effectiveOrderStatus(o) !== filters.status) return false;
       }
       if (filters.client !== 'all' && o.client?.id !== filters.client) return false;
-      if (filters.type !== 'all' && (o.transportType || 'ftl') !== filters.type) return false;
+      if (filters.type !== 'all' && normalizeTransportType(o.transportType) !== filters.type) return false;
       if (filters.priority !== 'all' && (o.priority || 'normal') !== filters.priority) return false;
       if (filters.country !== 'all') {
         const has = (o.stops || []).some((s: any) => canonicalCountryCode(s.country) === filters.country);
@@ -340,7 +341,7 @@ export default function OrdersPage() {
     { key: 'pickup', label: 'Pickup', transform: (_v: any, o: any) => { const p = o.stops?.find((s: any) => s.type === 'pickup'); return p ? [p.city, p.country].filter(Boolean).join(', ') : ''; } },
     { key: 'dropoff', label: 'Dropoff', transform: (_v: any, o: any) => { const d = o.stops?.find((s: any) => s.type === 'dropoff'); return d ? [d.city, d.country].filter(Boolean).join(', ') : ''; } },
     { key: 'date', label: 'Date', transform: (_v: any, o: any) => { const p = o.stops?.find((s: any) => s.type === 'pickup'); return p?.dateFrom ? formatDateExcel(p.dateFrom) : ''; } },
-    { key: 'type', label: 'Type', transform: (_v: any, o: any) => o.transportType || 'ftl' },
+    { key: 'type', label: 'Type', transform: (_v: any, o: any) => normalizeTransportType(o.transportType) },
     { key: 'priority', label: 'Priority', transform: (_v: any, o: any) => o.priority || 'normal' },
     { key: 'weight', label: 'Weight (kg)', transform: (_v: any, o: any) => o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0 },
     { key: 'price', label: 'Price', transform: (_v: any, o: any) => o.price || 0 },
@@ -515,11 +516,19 @@ export default function OrdersPage() {
         </div>
       );
     } },
-    { key: 'type', label: t('type', 'Type'), width: '76px', render: o => (
-      <span className={`px-1.5 py-px text-[9.5px] font-bold rounded border ${(o.transportType || 'ftl') === 'groupage' || (o.transportType || 'ftl') === 'ltl' ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900' : (o.transportType || 'ftl') === 'express' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900' : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900'}`}>
-        {(o.transportType || 'ftl').toUpperCase()}
-      </span>
-    ) },
+    { key: 'type', label: t('type', 'Type'), width: '76px', render: o => {
+      const type = normalizeTransportType(o.transportType);
+      const tone = type === 'groupage'
+        ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900'
+        : type === 'express'
+          ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900'
+          : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900';
+      return (
+        <span className={`px-1.5 py-px text-[9.5px] font-bold rounded border ${tone}`}>
+          {type.toUpperCase()}
+        </span>
+      );
+    } },
     { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, align: 'left', hideBelow: 'md', width: '150px', render: o => {
       const w = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
       const ldm = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;

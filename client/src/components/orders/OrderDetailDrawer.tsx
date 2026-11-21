@@ -23,6 +23,7 @@ import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
+import { transportTypeLabel } from '../../lib/transportType';
 import { operationalStatusForDisplay, operationalStatusKey } from '../../lib/operationalI18n';
 import { describeWallClockAppointment } from '../../lib/stopAppointment';
 import TripEtaPanel, { useTripLiveEta } from '../eta/TripEtaPanel';
@@ -313,7 +314,7 @@ export default function OrderDetailDrawer({
             <Row
               icon={<Box className="w-3 h-3" />}
               label={t('transport_type', 'Transport type')}
-              value={(order.transportType || 'ftl').toUpperCase()}
+              value={transportTypeLabel(order.transportType)}
             />
             <Row
               icon={<Flag className="w-3 h-3" />}

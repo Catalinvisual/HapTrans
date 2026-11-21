@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { orderIsAdr } from '../lib/adrDetect';
+import { transportTypeLabel } from '../lib/transportType';
 import { fmtMoney } from '../lib/format';
 import { Loader2, ArrowLeft, MapPin, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -105,7 +106,7 @@ export default function OrderDetailsPage() {
               <div>
                 <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><Truck className="w-4 h-4 text-primary" /> {t("jsx_transportDetai", "Transport Details")}</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_transportType", "Transport Type")}:</span><span className="font-bold capitalize">{order.transportType || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_transportType", "Transport Type")}:</span><span className="font-bold capitalize">{transportTypeLabel(order.transportType)}</span></div>
                   <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_priority", "Priority")}:</span><span className={`font-bold capitalize ${order.priority === 'urgent' ? 'text-red-500' : ''}`}>{order.priority || '—'}</span></div>
                   <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_distance", "Distance")}:</span><span className="font-bold">{order.distanceKm ? `${order.distanceKm} km` : '—'}</span></div>
                 </div>

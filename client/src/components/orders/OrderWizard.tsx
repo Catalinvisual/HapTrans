@@ -18,6 +18,7 @@ import { calculateLdm, calculateVolumeCbm, hasNoCapacityData } from '../../lib/c
 import { fmtMoney } from '../../lib/format';
 import { moveFieldFocus } from '../../lib/fieldNavigation';
 import AdvanceStopAction from '../trips/AdvanceStopAction';
+import { normalizeTransportType } from '../../lib/transportType';
 export interface OrderWizardPrefill {
   pickupAddress?: string;
   deliveryAddress?: string;
@@ -423,7 +424,7 @@ export default function OrderWizard({
             customerReference: order?.customerReference || '',
             internalReference: order?.internalReference || '',
             priority: order?.priority || 'normal',
-            transportType: order?.transportType || 'ftl',
+            transportType: normalizeTransportType(order?.transportType),
             price: order?.price?.toString() || '',
             currency: order?.currency || 'EUR',
             notes: order?.notes || '',

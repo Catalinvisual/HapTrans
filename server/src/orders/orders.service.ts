@@ -16,6 +16,7 @@ import { computeAuditChanges } from '../action-logs/diff.util';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { validateStopAppointment } from '../planning/stop-appointment';
 import { planOrderStopMatch } from './order-stop-identity';
+import { normalizeTransportType } from './transport-type';
 import { stopAppointmentColumns } from './stop-appointment-columns';
 import {
   INVOICE_SYNCABLE_ORDER_STATUSES,
@@ -491,7 +492,7 @@ export class OrdersService implements OnModuleInit {
       let rateSource: string | null = null;
       if (finalPrice === null && dto.clientId) {
         try {
-          const suggestion = await this.suggestPriceFromClientRate(dto.clientId, safeNum(dto.distanceKm) || 0, dto.transportType || dto.freightType);
+          const suggestion = await this.suggestPriceFromClientRate(dto.clientId, safeNum(dto.distanceKm) || 0, normalizeTransportType(dto.transportType ?? dto.freightType));
           if (suggestion) {
             finalPrice = suggestion.price;
             rateSource = suggestion.rateName;
@@ -518,7 +519,9 @@ export class OrdersService implements OnModuleInit {
         contactPhone: dto.contactPhone || null,
         equipmentRequirements: Array.isArray(dto.equipmentRequirements) ? dto.equipmentRequirements : [],
         priority: dto.priority || 'normal',
-        transportType: dto.transportType || dto.freightType || 'ftl',
+        // Only ftl/groupage/express are real types; legacy names are mapped on write
+        // so no screen can show a fourth type again.
+        transportType: normalizeTransportType(dto.transportType ?? dto.freightType),
         price: finalPrice,
         currency: dto.currency || 'EUR',
         notes: rateSource ? `${dto.notes ? dto.notes + '\n' : ''}Price suggested from client rate: ${rateSource}`.trim() : (dto.notes || null),
@@ -723,6 +726,13 @@ export class OrdersService implements OnModuleInit {
         updateData.price = safeNum(updateData.price) ?? safeNum(updateData.agreedPrice);
       }
       if ('agreedPrice' in updateData) delete updateData.agreedPrice;
+
+      // Same canonical set as create(): an edit must not reintroduce "dedicated"
+      // or any other legacy spelling in the transport type column.
+      if ('transportType' in updateData || 'freightType' in updateData) {
+        updateData.transportType = normalizeTransportType(updateData.transportType ?? updateData.freightType);
+        delete updateData.freightType;
+      }
 
       if ('clientId' in updateData) {
         updateData.client = updateData.clientId ? { id: updateData.clientId } : null;

@@ -8,6 +8,7 @@ import i18n from './i18n';
 import { fuelTypeLabel, getTruckFuelProfile } from './truckFuel';
 import { getCleanOrderFilename, getCleanProfileFilename, getCleanTripFilename } from './filenameUtils';
 import { composeAddress } from './address';
+import { transportTypeLabel } from './transportType';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
@@ -164,7 +165,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       ['Client', normalizeText(order?.client?.name || '—')],
       ['Reference', normalizeText(order?.orderNumber || order?.referenceNumber || order?.customerReference || '—')],
       ['Price', `€ ${order?.price || 0}`],
-      ['Transport Type', (order?.transportType || 'ftl').toUpperCase()],
+      ['Transport Type', transportTypeLabel(order?.transportType)],
       ['ADR Status', (order?.isAdr || (order?.adrStatus && order?.adrStatus !== 'none')) ? `${(order?.adrStatus || 'ADR').toUpperCase()} (${order?.adrTotalPoints || 0} pts${order?.adrExemptionApplied ? ` - ${order?.adrExemptionApplied}` : ''})` : 'Not Applicable (Non-hazardous)'],
     ],
     margin: { left: 40 },

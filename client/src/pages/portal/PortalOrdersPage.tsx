@@ -15,6 +15,7 @@ import OrderWizard from '../../components/orders/OrderWizard';
 import WeightKgIcon from '../../components/icons/WeightKgIcon';
 import AdrBadge from '../../components/common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
+import { normalizeTransportType } from '../../lib/transportType';
 import { composeCityLine } from '../../lib/address';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
@@ -134,8 +135,8 @@ export default function PortalOrdersPage() {
       );
     } },
     { key: 'type', label: t('type', 'Type'), render: o => {
-      const tp = o.transportType || 'ftl';
-      const cls = tp === 'groupage' || tp === 'ltl' ? 'bg-orange-100 text-orange-700 border-orange-200' : tp === 'express' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-blue-100 text-blue-700 border-blue-200';
+      const tp = normalizeTransportType(o.transportType);
+      const cls = tp === 'groupage' ? 'bg-orange-100 text-orange-700 border-orange-200' : tp === 'express' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-blue-100 text-blue-700 border-blue-200';
       return <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${cls}`}>{tp.toUpperCase()}</span>;
     } },
     { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, align: 'right', hideBelow: 'md', render: o => {
