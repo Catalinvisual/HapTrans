@@ -65,7 +65,14 @@ function effectiveOrderStatus(o: any): string {
 }
 
 function canInvoiceOrder(o: any): boolean {
-  return INVOICEABLE_ORDER_STATUSES.includes(String(o?.status || '').toLowerCase());
+  const status = String(o?.status || '').toLowerCase();
+  if (BILLING_BADGE_STATUSES.includes(status)) return true;
+  // The status shown in the list is the operational one: a row reading
+  // "Completed" is invoiceable even if its stored status is older, and a row
+  // still in planning/transit is not, whatever the stored status says.
+  const operational = String(o?.operationalStatus || '').trim().toUpperCase();
+  if (operational) return operational === 'COMPLETED';
+  return INVOICEABLE_ORDER_STATUSES.includes(status);
 }
 
 

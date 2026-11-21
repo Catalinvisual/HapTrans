@@ -142,8 +142,14 @@ export default function InvoicesPage({
   // Only finished transports can be invoiced. The order being edited stays in
   // the list so an existing invoice always shows its order.
   const INVOICEABLE_ORDER_STATUSES = ['delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid'];
-  const canInvoiceOrder = (o: any) =>
-    INVOICEABLE_ORDER_STATUSES.includes(String(o?.status || '').toLowerCase()) || o?.id === form.orderId;
+  const canInvoiceOrder = (o: any) => {
+    if (o?.id === form.orderId) return true;
+    const status = String(o?.status || '').toLowerCase();
+    if (['invoice_draft', 'invoiced', 'paid'].includes(status)) return true;
+    const operational = String(o?.operationalStatus || '').trim().toUpperCase();
+    if (operational) return operational === 'COMPLETED';
+    return INVOICEABLE_ORDER_STATUSES.includes(status);
+  };
   const filteredOrders = (form.clientId ? orders.filter((o: any) => o.client?.id === form.clientId) : orders)
     .filter(canInvoiceOrder);
   const load = async () => {

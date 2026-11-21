@@ -35,10 +35,18 @@ export class AutomationCronService {
    */
   private async autoInvoiceReadyOrders() {
     const orders = await this.orderRepo.find({
-      where: {
-        status: In(['ready_for_invoice', 'delivered', 'pod_received']),
-        invoice: IsNull(),
-      },
+      where: [
+        {
+          status: In(['ready_for_invoice', 'delivered', 'pod_received']),
+          invoice: IsNull(),
+        },
+        // A finished transport is invoiced even when its stored commercial
+        // status was never advanced by the old flow.
+        {
+          operationalStatus: 'COMPLETED',
+          invoice: IsNull(),
+        },
+      ],
       relations: ['client', 'invoice'],
       take: 50,
     });

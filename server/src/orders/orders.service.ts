@@ -66,6 +66,7 @@ export function stopReferenceFor(stopDto: any, type: string): string | null {
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
+  private billingLookupWarned = false;
 
   constructor(
     @InjectRepository(Order) private repo: Repository<Order>,
@@ -183,6 +184,9 @@ export class OrdersService implements OnModuleInit {
   private async attachBillingStatus(orders: any[]): Promise<void> {
     const ids = orders.map((order) => order?.id).filter(Boolean);
     if (!ids.length) return;
+    // Plain placeholders instead of array binding: pg + an explicit uuid[] cast
+    // is the one place this lookup could fail silently on older deployments.
+    const placeholders = ids.map((_, index) => `$${index + 1}`).join(', ');
 
     const byOrder = new Map<string, string>();
     const remember = (rows: any[]) => {
@@ -201,7 +205,7 @@ export class OrdersService implements OnModuleInit {
         `WITH scope AS (
            SELECT o."id" AS "orderId", o."tripId" AS "tripId", o."clientId" AS "clientId"
              FROM "orders" o
-            WHERE o."id" = ANY($1::uuid[])
+            WHERE o."id" IN (${placeholders})
          ), unique_pair AS (
            SELECT o."tripId", o."clientId"
              FROM "orders" o
@@ -225,17 +229,21 @@ export class OrdersService implements OnModuleInit {
                )
              )
           ORDER BY s."orderId", i."updatedAt" DESC NULLS LAST`,
-        [ids],
+        ids,
       ));
-    } catch {
+    } catch (error: any) {
+      if (!this.billingLookupWarned) {
+        this.billingLookupWarned = true;
+        this.logger.warn(`Billing status lookup failed, explicit links only: ${error?.message || error}`);
+      }
       // Older schemas without orders."clientId" still resolve explicit links.
       try {
         remember(await this.repo.manager.query(
           `SELECT "orderId", "status"
              FROM "invoices"
-            WHERE "orderId" = ANY($1::uuid[])
+            WHERE "orderId" IN (${placeholders})
             ORDER BY "updatedAt" DESC NULLS LAST`,
-          [ids],
+          ids,
         ));
       } catch { /* no derived status for this request */ }
     }
@@ -246,11 +254,68 @@ export class OrdersService implements OnModuleInit {
         `SELECT o."id" AS "orderId", i."status" AS "status"
            FROM "orders" o
            JOIN "invoices" i ON o."invoiceId" = i."id"
-          WHERE o."id" = ANY($1::uuid[])
+          WHERE o."id" IN (${placeholders})
           ORDER BY i."updatedAt" DESC NULLS LAST`,
-        [ids],
+        ids,
       ));
     } catch { /* legacy link is optional */ }
+
+    // 3. Invoices raised before the order link existed still carry the
+    // transport snapshot of that order, so an exact loading/unloading reference
+    // identifies it without guessing.
+    try {
+      remember(await this.repo.manager.query(
+        `SELECT o."id" AS "orderId", i."status" AS "status"
+           FROM "orders" o
+           JOIN "invoices" i
+             ON i."orderId" IS NULL
+            AND i."transportDetails" IS NOT NULL
+            AND (
+              (o."loadingReference" IS NOT NULL AND o."loadingReference" <> ''
+                AND i."transportDetails"->>'loadingReference' = o."loadingReference")
+              OR (o."unloadingReference" IS NOT NULL AND o."unloadingReference" <> ''
+                AND i."transportDetails"->>'unloadingReference' = o."unloadingReference")
+            )
+          WHERE o."id" IN (${placeholders})
+          ORDER BY i."updatedAt" DESC NULLS LAST`,
+        ids,
+      ));
+    } catch { /* transport snapshot is optional */ }
+
+    // 4. Invoices that predate the order link usually still name the order in
+    // their notes ("Factura pentru comanda ORD-..." / "Automatically generated
+    // from completed order ORD-..."). An exact order number in the note counts;
+    // nothing is inferred from a partial match.
+    const unmatched = orders.filter((order) => {
+      if (byOrder.has(String(order?.id))) return false;
+      return Boolean(order?.orderNumber || order?.internalReference);
+    });
+    if (unmatched.length) {
+      const refs = Array.from(new Set(
+        unmatched
+          .flatMap((order) => [order.orderNumber, order.internalReference])
+          .filter(Boolean)
+          .map(String),
+      ));
+      if (refs.length) {
+        try {
+          const noteRows: any[] = await this.repo.manager.query(
+            `SELECT i."status", i."notes"
+               FROM "invoices" i
+              WHERE i."orderId" IS NULL
+                AND (${refs.map((_, index) => `i."notes" LIKE $${index + 1}`).join(' OR ')})
+              ORDER BY i."updatedAt" DESC NULLS LAST`,
+            refs.map((ref) => `%${ref}%`),
+          );
+          for (const order of unmatched) {
+            const own = [order.orderNumber, order.internalReference].filter(Boolean).map(String);
+            const match = noteRows.find((row) => own.some((ref) => String(row.notes || '').includes(ref)));
+            const status = match ? orderStatusForInvoiceStatus(match.status) : null;
+            if (status) byOrder.set(String(order.id), status);
+          }
+        } catch { /* note matching is a best-effort fallback */ }
+      }
+    }
 
     if (!byOrder.size) return;
 
@@ -260,7 +325,8 @@ export class OrdersService implements OnModuleInit {
       if (!status) continue;
       order.billingStatus = status;
       const stored = String(order.status || '').toLowerCase();
-      if (order.status !== status && INVOICE_SYNCABLE_ORDER_STATUSES.includes(stored)) stale = true;
+      const completed = String(order.operationalStatus || '').toUpperCase() === 'COMPLETED';
+      if (order.status !== status && (INVOICE_SYNCABLE_ORDER_STATUSES.includes(stored) || completed)) stale = true;
     }
 
     if (stale) {
@@ -274,10 +340,13 @@ export class OrdersService implements OnModuleInit {
               END
              FROM "invoices" i
             WHERE i."orderId" = o."id"
-              AND o."id" = ANY($1::uuid[])
+              AND o."id" IN (${placeholders})
               AND LOWER(i."status") IN ('draft', 'approved', 'sent', 'viewed', 'overdue', 'paid')
-              AND LOWER(o."status") IN ('delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid')`,
-          [ids],
+              AND (
+                LOWER(o."status") IN ('delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid')
+                OR UPPER(COALESCE(o."operationalStatus", '')) = 'COMPLETED'
+              )`,
+          ids,
         );
       } catch { /* the derived status already reaches the client */ }
     }

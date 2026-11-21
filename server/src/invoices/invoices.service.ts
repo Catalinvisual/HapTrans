@@ -9,6 +9,7 @@ import { Order } from '../orders/order.entity';
 import {
   INVOICEABLE_ORDER_STATUSES,
   orderIsInvoiceable,
+  orderOperationalCompleted,
   syncOrderStatusForInvoice,
 } from './invoice-order-status';
 import { v2 as cloudinary } from 'cloudinary';
@@ -562,10 +563,10 @@ export class InvoicesService implements OnModuleInit {
     if (requestedOrderId) {
       const linkedOrder = await this.repo.manager.getRepository(Order).findOne({
         where: { id: requestedOrderId },
-        select: ['id', 'orderNumber', 'status'],
+        select: ['id', 'orderNumber', 'status', 'operationalStatus'],
       });
       if (!linkedOrder) throw new BadRequestException('Comanda nu a fost găsită.');
-      if (!orderIsInvoiceable(linkedOrder.status)) {
+      if (!orderIsInvoiceable(linkedOrder)) {
         throw new BadRequestException(
           `Comanda ${linkedOrder.orderNumber || requestedOrderId} nu poate fi facturată până când livrarea nu este finalizată (status: ${linkedOrder.status || 'unknown'}).`,
         );
@@ -601,11 +602,18 @@ export class InvoicesService implements OnModuleInit {
     // order's financial status correct and future updates in sync.
     if (!requestedOrderId && payload.trip?.id && payload.client?.id) {
       const clientOrders = await this.repo.manager.getRepository(Order).find({
-        where: {
-          trip: { id: payload.trip.id },
-          client: { id: payload.client.id },
-          status: In(INVOICEABLE_ORDER_STATUSES),
-        },
+        where: [
+          {
+            trip: { id: payload.trip.id },
+            client: { id: payload.client.id },
+            status: In(INVOICEABLE_ORDER_STATUSES),
+          },
+          {
+            trip: { id: payload.trip.id },
+            client: { id: payload.client.id },
+            operationalStatus: 'COMPLETED',
+          },
+        ],
         select: ['id'],
       });
       if (clientOrders.length === 1) {
@@ -785,7 +793,8 @@ export class InvoicesService implements OnModuleInit {
     if (!order) return { invoice: null, created: false, reason: 'order_not_found' };
 
     const completedStatuses = ['delivered', 'pod_received', 'completed', 'ready_for_invoice'];
-    if (!completedStatuses.includes(String(order.status || '').toLowerCase())) {
+    const arrived = completedStatuses.includes(String(order.status || '').toLowerCase()) || orderOperationalCompleted(order as any);
+    if (!arrived) {
       return { invoice: null, created: false, reason: 'order_not_completed' };
     }
     if (!order.client?.id) {
@@ -855,9 +864,9 @@ export class InvoicesService implements OnModuleInit {
     if (inv.orderId) {
       const linkedOrder = await this.repo.manager.getRepository(Order).findOne({
         where: { id: inv.orderId },
-        select: ['id', 'orderNumber', 'status'],
+        select: ['id', 'orderNumber', 'status', 'operationalStatus'],
       });
-      if (!linkedOrder || !orderIsInvoiceable(linkedOrder.status)) {
+      if (!linkedOrder || !orderIsInvoiceable(linkedOrder)) {
         throw new BadRequestException(
           `Comanda ${linkedOrder?.orderNumber || inv.orderId} nu poate fi facturată până când livrarea nu este finalizată (status: ${linkedOrder?.status || 'unknown'}).`,
         );

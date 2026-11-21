@@ -44,8 +44,8 @@ export function orderStatusFollowsInvoice(status: string | null | undefined): bo
 }
 
 /**
- * An order may only be invoiced once its transport is finished. Planning,
- * loading and in-transit orders are refused, as is any cancelled one.
+ * Commercial statuses that describe a transport already finished under the
+ * older status model (rows whose operational status was never filled in).
  */
 export const INVOICEABLE_ORDER_STATUSES = [
   'delivered',
@@ -57,8 +57,28 @@ export const INVOICEABLE_ORDER_STATUSES = [
   'paid',
 ];
 
-export function orderIsInvoiceable(status: string | null | undefined): boolean {
-  return INVOICEABLE_ORDER_STATUSES.includes(String(status ?? '').toLowerCase().trim());
+/**
+ * The status shown in the TMS order list is the operational one, and it is the
+ * one the dispatcher trusts: a row reading "Completed" is invoiceable even
+ * when its stored commercial status still says planned/delivered. A row still
+ * showing planning, loading or transit is never invoiceable, whatever its
+ * stored status says. The commercial status is only used for legacy rows that
+ * never received an operational status at all.
+ */
+export function orderIsInvoiceable(order: {
+  status?: string | null;
+  operationalStatus?: string | null;
+} | null | undefined): boolean {
+  if (!order) return false;
+  const status = String(order.status ?? '').toLowerCase().trim();
+  if (['invoice_draft', 'invoiced', 'paid'].includes(status)) return true;
+  const operational = String(order.operationalStatus ?? '').trim().toUpperCase();
+  if (operational) return operational === 'COMPLETED';
+  return ['delivered', 'pod_received', 'completed', 'ready_for_invoice'].includes(status);
+}
+
+export function orderOperationalCompleted(order: { operationalStatus?: string | null } | null | undefined): boolean {
+  return String(order?.operationalStatus ?? '').trim().toUpperCase() === 'COMPLETED';
 }
 
 /**
