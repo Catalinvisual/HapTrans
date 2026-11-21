@@ -10,11 +10,21 @@ import { Session } from './entities/session.entity';
 
 /** Short-lived access token: renewed silently by the client through /auth/refresh. */
 // A dispatch shift is a working day: an expired access token every 15 minutes
-// forced the office to log in again mid-task. The refresh session (90 days,
-// rotated on every use) still bounds the real session.
+// forced the office to log in again mid-task.
 export const ACCESS_TOKEN_TTL = '11h';
+const ACCESS_TOKEN_TTL_SECONDS = 11 * 60 * 60;
 /** Driver devices stay signed in for 90 days without asking for credentials again. */
 export const REFRESH_TOKEN_TTL_DAYS = 90;
+/**
+ * The TMS is the office tool and gets an absolute 12-hour session from the
+ * moment of sign-in: a renewal carries that deadline instead of extending it,
+ * so the office signs in again the next day even if the tab stayed open.
+ * The mobile app (header `x-client-platform: mobile`) keeps its rolling
+ * 90-day session instead.
+ */
+export const TMS_SESSION_TTL_HOURS = 12;
+export const TMS_SESSION_TTL_MS = TMS_SESSION_TTL_HOURS * 60 * 60 * 1000;
+export type SessionClient = 'tms' | 'mobile';
 /**
  * A just-rotated token stays usable for a short grace window. The app and its
  * background location isolate can renew at the same instant; without this the
@@ -70,7 +80,13 @@ export class AuthService {
     return { success: true, message: 'User registered successfully. Please login.' };
   }
 
-  async login(email: string, password: string, deviceInfo?: string, ipAddress?: string) {
+  async login(
+    email: string,
+    password: string,
+    deviceInfo?: string,
+    ipAddress?: string,
+    client: SessionClient = 'tms',
+  ) {
     const cleanEmail = (email || '').trim().toLowerCase();
     const user = await this.usersRepo
       .createQueryBuilder('user')
@@ -89,19 +105,38 @@ export class AuthService {
       throw new UnauthorizedException('Emailul sau parola introduse sunt incorecte.');
     }
     
-    return this.createSessionAndTokens(user, deviceInfo, ipAddress);
+    return this.createSessionAndTokens(user, deviceInfo, ipAddress, client);
   }
 
-  async createSessionAndTokens(user: User, deviceInfo?: string, ipAddress?: string) {
+  /**
+   * `expiresAt` carries the absolute deadline of an existing TMS session through
+   * a rotation; mobile renewals leave it empty for a fresh 90-day window.
+   */
+  async createSessionAndTokens(
+    user: User,
+    deviceInfo?: string,
+    ipAddress?: string,
+    client: SessionClient = 'tms',
+    expiresAt?: Date,
+  ) {
+    const sessionExpiry = expiresAt ?? this.sessionExpiry(client);
+    const remainingMs = sessionExpiry.getTime() - Date.now();
+    if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
+      throw new UnauthorizedException('Session expired');
+    }
+    // A TMS token never outlives its 12-hour session; the mobile app keeps the
+    // 11-hour access token it renews in the background.
+    const accessTtlSeconds =
+      client === 'tms'
+        ? Math.max(1, Math.min(ACCESS_TOKEN_TTL_SECONDS, Math.floor(remainingMs / 1000)))
+        : ACCESS_TOKEN_TTL_SECONDS;
     const accessToken = this.jwtService.sign(
       { sub: user.id, email: user.email, role: user.role },
-      { expiresIn: ACCESS_TOKEN_TTL }
+      { expiresIn: accessTtlSeconds }
     );
 
     const refreshToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = await bcrypt.hash(refreshToken, 10);
-
-    const expiresAt = this.refreshTokenExpiry();
 
     const session = this.sessionsRepo.create({
       // Generate the id here instead of relying on the table default coming
@@ -114,7 +149,7 @@ export class AuthService {
       tokenHash,
       deviceInfo,
       ipAddress,
-      expiresAt,
+      expiresAt: sessionExpiry,
     });
     
     await this.sessionsRepo.save(session);
@@ -130,16 +165,42 @@ export class AuthService {
         language: user.language,
         allowedPages: user.allowedPages || [],
       },
-      expiresAt,
+      expiresAt: sessionExpiry,
     };
   }
 
-  /** Rolling 90-day window, counted from the moment the session is issued. */
-  private refreshTokenExpiry(): Date {
-    return new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
+  /** Mobile: a rolling 90-day window. TMS: 12 hours from sign-in. */
+  private sessionExpiry(client: SessionClient): Date {
+    return client === 'mobile'
+      ? new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + TMS_SESSION_TTL_MS);
   }
 
-  async refreshToken(tokenString: string, deviceInfo?: string, ipAddress?: string) {
+  /**
+   * A TMS renewal carries the deadline of the session it replaces instead of
+   * issuing a new one.
+   *
+   * A session with much more than the 12-hour window left was issued before
+   * this rule (its 90-day row) or by the mobile app. It cannot prove when the
+   * office signed in, so it ends now: a login from yesterday must not survive
+   * its remaining 90-day tail. The one-minute tolerance absorbs timestamp
+   * rounding on a session that was just issued.
+   */
+  private carriedTmsExpiry(session: Session): Date {
+    const expires = new Date(session.expiresAt).getTime();
+    const remaining = expires - Date.now();
+    if (!Number.isFinite(remaining) || remaining > TMS_SESSION_TTL_MS + 60 * 1000) {
+      return new Date(0);
+    }
+    return new Date(expires);
+  }
+
+  async refreshToken(
+    tokenString: string,
+    deviceInfo?: string,
+    ipAddress?: string,
+    client: SessionClient = 'tms',
+  ) {
     const [sessionId, tokenValue] = String(tokenString || '').split('.');
     // Reject malformed identifiers before they reach Postgres: casting "null"
     // (tokens issued by older builds) to uuid threw a QueryFailedError, which
@@ -185,13 +246,27 @@ export class AuthService {
       throw new UnauthorizedException('User inactive');
     }
 
+    // A TMS session is over 12 hours after the first sign-in, even when no
+    // request was made in the meantime and its 90-day row is still open.
+    const tmsExpiry = client === 'mobile' ? undefined : this.carriedTmsExpiry(session);
+    if (tmsExpiry && tmsExpiry.getTime() <= Date.now()) {
+      await this.revokeSession(session.id, 'Expired');
+      throw new UnauthorizedException('Session expired');
+    }
+
     // Refresh Token Rotation: Revoke old session, create a new one. A token in
     // the grace window is already revoked and only gets its replacement.
     if (!session.revokedAt) {
       await this.revokeSession(session.id, 'Rotated');
     }
 
-    return this.createSessionAndTokens(user, deviceInfo || session.deviceInfo, ipAddress || session.ipAddress);
+    return this.createSessionAndTokens(
+      user,
+      deviceInfo || session.deviceInfo,
+      ipAddress || session.ipAddress,
+      client,
+      tmsExpiry,
+    );
   }
 
   async revokeSession(sessionId: string, reason: string = 'User Logout') {

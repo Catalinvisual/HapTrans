@@ -280,4 +280,7 @@ Results tabs and their exports), which are independent of the consolidation work
 - Never soften a genuine blocker to a warning to make an assignment possible.
 - One verdict, one source of truth: the frontend renders the backend `feasibility` verbatim.
 - Seven locales: ro, en, nl, de, fr, es, pl. Orange `#FF5A00`. Chat and Website CMS preserved.
+- Session lifetimes: the mobile app keeps a rolling 90-day session (`x-client-platform: mobile`);
+  the TMS is an absolute 12-hour session from sign-in — a renewal carries the same deadline and
+  the browser signs itself out when it passes.
 - Commit footer: `Generated with Codebuff 🤖` + `Co-Authored-By: Codebuff <noreply@codebuff.com>`.

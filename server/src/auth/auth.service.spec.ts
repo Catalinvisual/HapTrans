@@ -1,6 +1,12 @@
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { AuthService, ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_DAYS, REFRESH_ROTATION_GRACE_MS } from './auth.service';
+import {
+  AuthService,
+  ACCESS_TOKEN_TTL,
+  REFRESH_TOKEN_TTL_DAYS,
+  REFRESH_ROTATION_GRACE_MS,
+  TMS_SESSION_TTL_HOURS,
+} from './auth.service';
 import { UserRole } from '../users/user.entity';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -93,7 +99,7 @@ describe('AuthService persistent sessions', () => {
     return { service, ...repos };
   }
 
-  it('issues an 11-hour access token and a 90-day refresh session', async () => {
+  it('gives the TMS an 11-hour access token inside a 12-hour session', async () => {
     const { service, sessions } = build();
 
     const result = await service.login('driver@example.com', 'DriverPass1');
@@ -102,15 +108,59 @@ describe('AuthService persistent sessions', () => {
     expect(payload.exp - payload.iat).toBe(11 * 60 * 60);
 
     expect(ACCESS_TOKEN_TTL).toBe('11h');
-    const lifetimeDays = (result.expiresAt.getTime() - Date.now()) / DAY_MS;
-    expect(lifetimeDays).toBeGreaterThan(REFRESH_TOKEN_TTL_DAYS - 0.01);
-    expect(lifetimeDays).toBeLessThanOrEqual(REFRESH_TOKEN_TTL_DAYS + 0.01);
+    const lifetimeHours = (result.expiresAt.getTime() - Date.now()) / (60 * 60 * 1000);
+    expect(lifetimeHours).toBeGreaterThan(TMS_SESSION_TTL_HOURS - 0.01);
+    expect(lifetimeHours).toBeLessThanOrEqual(TMS_SESSION_TTL_HOURS + 0.01);
     expect(sessions).toHaveLength(1);
     const [sessionId] = result.refreshToken.split('.');
     expect(sessionId).toBe(sessions[0].id);
     expect(sessionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
+  });
+
+  it('keeps a mobile login signed in for 90 days', async () => {
+    const { service } = build();
+
+    const result = await service.login('driver@example.com', 'DriverPass1', 'Pixel 8', '10.0.0.1', 'mobile');
+
+    const payload: any = jwt.decode(result.accessToken);
+    expect(payload.exp - payload.iat).toBe(11 * 60 * 60);
+
+    const lifetimeDays = (result.expiresAt.getTime() - Date.now()) / DAY_MS;
+    expect(lifetimeDays).toBeGreaterThan(REFRESH_TOKEN_TTL_DAYS - 0.01);
+    expect(lifetimeDays).toBeLessThanOrEqual(REFRESH_TOKEN_TTL_DAYS + 0.01);
+  });
+
+  it('never extends a TMS session past its 12-hour deadline', async () => {
+    const { service } = build();
+    const login = await service.login('driver@example.com', 'DriverPass1');
+
+    const rotated = await service.refreshToken(login.refreshToken);
+
+    expect(rotated.expiresAt.getTime()).toBe(login.expiresAt.getTime());
+    const renewed: any = jwt.decode(rotated.accessToken);
+    expect(renewed.exp - renewed.iat).toBeLessThanOrEqual(11 * 60 * 60);
+  });
+
+  it('lets a mobile renewal roll the session forward again', async () => {
+    const { service } = build();
+    const login = await service.login('driver@example.com', 'DriverPass1', 'Pixel 8', '10.0.0.1', 'mobile');
+
+    const rotated = await service.refreshToken(login.refreshToken, 'Pixel 8', '10.0.0.1', 'mobile');
+
+    expect(rotated.expiresAt.getTime()).toBeGreaterThan(login.expiresAt.getTime());
+  });
+
+  it('ends a TMS session that still carries an old 90-day window', async () => {
+    const { service, sessions } = build();
+    const login = await service.login('driver@example.com', 'DriverPass1');
+
+    // A session issued before the 12-hour rule: yesterday's login with 80 days left.
+    sessions[0].expiresAt = new Date(Date.now() + 80 * DAY_MS);
+
+    await expect(service.refreshToken(login.refreshToken)).rejects.toThrow('Session expired');
+    expect(sessions[0].revokedReason).toBe('Expired');
   });
 
   it('rotates the refresh token and allows a concurrent renewal inside the grace window', async () => {

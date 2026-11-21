@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, SESSION_EXPIRES_KEY } from '../store/authStore';
 import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing, Box, Globe, Container, Banknote, Wallet, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -360,6 +360,38 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const lang = (i18n.language || 'ro').slice(0, 2);
+
+  // The TMS session ends 12 hours after sign-in and the server refuses to renew
+  // it. Sign the browser out at the same moment, so an idle tab is closed
+  // instead of staying on a screen whose next request would fail.
+  useEffect(() => {
+    let timer: number | undefined;
+    const expire = () => {
+      logout();
+      navigate('/login', { replace: true });
+    };
+    const schedule = () => {
+      if (timer) window.clearTimeout(timer);
+      const raw = localStorage.getItem(SESSION_EXPIRES_KEY);
+      const expiresAt = raw ? Date.parse(raw) : NaN;
+      if (!Number.isFinite(expiresAt)) return;
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        expire();
+        return;
+      }
+      timer = window.setTimeout(expire, Math.min(remaining, 2_147_483_647));
+    };
+    schedule();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') schedule();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [logout, navigate]);
   const getPageTitle = (pathname: string, language: string) => {
     const norm = pathname.endsWith('/') && pathname.length > 1 ? pathname.slice(0, -1) : pathname;
     const direct = PAGE_TITLES[norm];

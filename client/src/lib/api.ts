@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { SESSION_EXPIRES_KEY } from '../store/authStore';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api',
@@ -67,6 +68,10 @@ api.interceptors.response.use(
         const newAccessToken = data.access_token;
         localStorage.setItem('hapcargo_token', newAccessToken);
         if (data.refresh_token) localStorage.setItem('hapcargo_refresh_token', data.refresh_token);
+        // The TMS deadline is absolute: a renewal keeps the same 12-hour end.
+        if (typeof data.refresh_token_expires_at === 'string') {
+          localStorage.setItem(SESSION_EXPIRES_KEY, data.refresh_token_expires_at);
+        }
         if (data.user) {
           localStorage.setItem('hapcargo_user', JSON.stringify(data.user));
         }
@@ -82,6 +87,7 @@ api.interceptors.response.use(
         localStorage.removeItem('hapcargo_token');
         localStorage.removeItem('hapcargo_refresh_token');
         localStorage.removeItem('hapcargo_user');
+        localStorage.removeItem(SESSION_EXPIRES_KEY);
         if (pathname !== '/login') {
           window.location.href = '/login';
         }

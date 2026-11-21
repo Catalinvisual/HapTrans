@@ -60,7 +60,10 @@ export class AuthController {
     const userAgent = req.headers['user-agent'] || 'Unknown Device';
     const ip = req.ip || req.connection.remoteAddress;
 
-    const result = await this.authService.login(dto.email, dto.password, userAgent, ip);
+    // The TMS is a 12-hour session; only the mobile app (which identifies
+    // itself) keeps the rolling 90-day session.
+    const client = this.isMobileClient(req) ? 'mobile' : 'tms';
+    const result = await this.authService.login(dto.email, dto.password, userAgent, ip, client);
     
     // Set HttpOnly Cookie for Refresh Token. The TMS runs on its own Railway
     // host, so the cookie is cross-site and must be SameSite=None to be stored
@@ -100,7 +103,12 @@ export class AuthController {
     const mobile = this.isMobileClient(req) || !!bodyToken;
 
     try {
-      const result = await this.authService.refreshToken(refreshToken, userAgent, ip);
+      const result = await this.authService.refreshToken(
+        refreshToken,
+        userAgent,
+        ip,
+        this.isMobileClient(req) ? 'mobile' : 'tms',
+      );
 
       // Set NEW HttpOnly Cookie (Token Rotation)
       res.cookie('refresh_token', result.refreshToken, {
@@ -113,12 +121,10 @@ export class AuthController {
       return res.json({
         access_token: result.accessToken,
         user: result.user,
-        ...(mobile
-          ? {
-              refresh_token: result.refreshToken,
-              refresh_token_expires_at: result.expiresAt.toISOString(),
-            }
-          : {}),
+        // The browser needs the deadline too, so an idle tab can sign out when
+        // the 12-hour TMS session ends.
+        refresh_token_expires_at: result.expiresAt.toISOString(),
+        ...(mobile ? { refresh_token: result.refreshToken } : {}),
       });
     } catch (e: any) {
       if (!(e instanceof UnauthorizedException)) {
