@@ -16,7 +16,7 @@ import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
 import KpiStrip from '../components/ui/KpiStrip';
 import DetailDrawer from '../components/ui/DetailDrawer';
-import AdvanceStopAction from '../components/trips/AdvanceStopAction';
+import AdvanceStopAction, { tripHasOpenCheckpoint } from '../components/trips/AdvanceStopAction';
 import type { TabDef } from '../components/ui/DetailDrawer';
 import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -924,7 +924,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
       onTabChange={setActiveTab}
       footer={
         <div className="flex items-center justify-between gap-3 w-full flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <AdvanceStopAction
               stops={stops}
               tripStatus={trip.status}
@@ -935,7 +935,10 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
                 <Send className="w-3.5 h-3.5" />{t('dispatch_trip', 'Dispatch trip')}
               </button>
             )}
-            {!['completed', 'closed'].includes(trip.status) && (
+            {/* Completing the trip by hand is only offered when no stop is left to
+                advance: with checkpoints open the stop control above is the source
+                of truth, and the manual write would close a trip still in progress. */}
+            {!['completed', 'closed'].includes(trip.status) && !tripHasOpenCheckpoint(stops) && (
               <button onClick={() => updateStatus('completed')} className="btn-secondary !px-3 !py-1.5 text-xs font-bold text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-500/10 flex items-center gap-1.5">
                 <CheckIcon className="w-3.5 h-3.5" />{t('mark_completed', 'Mark completed')}
               </button>

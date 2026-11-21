@@ -53,6 +53,13 @@ function currentStop(stops: any[]): any | null {
   return ordered.find((stop) => normalizeStopStatus(stop.status) !== 'pending') || ordered[0] || null;
 }
 
+/** True when the trip still has a checkpoint the operator can advance. */
+export function tripHasOpenCheckpoint(stops?: any[] | null): boolean {
+  const stop = currentStop(stops || []);
+  if (!stop) return false;
+  return Boolean(NEXT_ACTION[normalizeStopType(stop.type, stop.sequence)][normalizeStopStatus(stop.status)]);
+}
+
 interface AdvanceStopActionProps {
   stops?: any[] | null;
   tripStatus?: string | null;
