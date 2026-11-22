@@ -67,7 +67,8 @@ export default function EmissionsPage() {
     settings: t('emissions_tab_settings'),
   }), [t]);
 
-  if (!canSection(user, 'co2', 'fleet')) {
+  const allowed = canSection(user, 'co2', 'fleet') || canSection(user, 'trucks', 'fleet') || canSection(user, 'trailers', 'fleet');
+  if (!allowed) {
     return (
       <div className="bg-card border border-border rounded-xl p-6 text-sm text-text-secondary">
         {t('emissions_no_access')}

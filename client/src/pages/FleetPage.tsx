@@ -19,7 +19,9 @@ export default function FleetPage() {
 
   const showTrucks = canSection(user, 'trucks', 'fleet');
   const showTrailers = canSection(user, 'trailers', 'fleet');
-  const showCo2 = canSection(user, 'co2', 'fleet');
+  // Existing accounts were granted trucks/trailers before this section existed;
+  // any fleet section permission opens the CO2 tab as well.
+  const showCo2 = canSection(user, 'co2', 'fleet') || showTrucks || showTrailers;
   const editTruckRequested = !!searchParams.get('editTruck');
   if (editTruckRequested && !showTrucks) {
     return (

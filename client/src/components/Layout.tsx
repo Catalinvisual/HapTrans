@@ -473,7 +473,9 @@ export default function Layout() {
       return [
         ...(canSection(user, 'trucks', 'fleet') ? [{ id: 'trucks', label: t('trucks', 'Trucks'), icon: Truck }] : []),
         ...(canSection(user, 'trailers', 'fleet') ? [{ id: 'trailers', label: t('trailers', 'Trailers'), icon: Container }] : []),
-        ...(canSection(user, 'co2', 'fleet') ? [{ id: 'co2', label: t('emissions_tab', 'CO₂ & Environment'), icon: Leaf }] : []),
+        ...((canSection(user, 'co2', 'fleet') || canSection(user, 'trucks', 'fleet') || canSection(user, 'trailers', 'fleet'))
+          ? [{ id: 'co2', label: t('emissions_tab', 'CO₂ & Environment'), icon: Leaf }]
+          : []),
       ];
     }
     if (isPayrollPath) {
