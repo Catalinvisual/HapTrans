@@ -5,28 +5,15 @@
 // invented: empty fields print an em dash, and totals are only summed from the
 // values that actually exist.
 
-import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import type { CompanySettings } from '../store/settingsStore';
 import { fmtNumber } from './format';
 import { createBaseDocument } from './pdfGenerator';
+import { finishPdf, pdfSectionTitle, pdfSafe } from './pdfTheme';
 import { getCleanOrderFilename, getCleanTripFilename } from './filenameUtils';
 
-const normalizeText = (text: any): string => {
-  if (!text) return '';
-  return String(text)
-    .replace(/ș/g, 's')
-    .replace(/Ș/g, 'S')
-    .replace(/ț/g, 't')
-    .replace(/Ț/g, 'T')
-    .replace(/ă/g, 'a')
-    .replace(/Ă/g, 'A')
-    .replace(/î/g, 'i')
-    .replace(/Î/g, 'I')
-    .replace(/â/g, 'a')
-    .replace(/Â/g, 'A');
-};
+const normalizeText = (text: any): string => pdfSafe(text);
 
 const fmtDateTime = (value: any): string => {
   if (!value) return '—';
@@ -93,7 +80,7 @@ export async function generateCmrPdf(
     theme: 'grid',
     head: [['CMR', 'Details']],
     styles: { fontSize: 9, cellPadding: 5 },
-    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 140, fillColor: [248, 250, 252] },
       1: { cellWidth: 300 },
@@ -114,17 +101,14 @@ export async function generateCmrPdf(
 
   currentY = (doc as any).lastAutoTable.finalY + 16;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(30, 41, 59);
-  doc.text('10. Goods', 40, currentY);
+  pdfSectionTitle(doc, '10. Goods', 40, currentY, 'pt');
 
   autoTable(doc, {
     startY: currentY + 6,
     theme: 'grid',
     head: [['#', 'Description', 'Qty', 'Pallet type', 'Weight', 'Volume']],
     styles: { fontSize: 8.5, cellPadding: 4 },
-    headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 22, halign: 'center' },
       1: { cellWidth: 195 },
@@ -144,7 +128,7 @@ export async function generateCmrPdf(
     theme: 'grid',
     head: [['11. Instructions', 'Details']],
     styles: { fontSize: 9, cellPadding: 5 },
-    headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 140, fillColor: [248, 250, 252] },
       1: { cellWidth: 300 },
@@ -174,6 +158,7 @@ export async function generateCmrPdf(
   });
 
   const filename = getCleanOrderFilename(orderNum, order?.client?.name);
+  finishPdf(doc);
   if (options?.autoSave !== false) doc.save(filename);
   return { doc, blob: doc.output('blob'), filename };
 }
@@ -206,7 +191,7 @@ export async function generateDaySheetPdf(
     theme: 'grid',
     head: [['Trip', 'Details']],
     styles: { fontSize: 9, cellPadding: 5 },
-    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 150, fillColor: [248, 250, 252] },
       1: { cellWidth: 320 },
@@ -238,7 +223,7 @@ export async function generateDaySheetPdf(
     theme: 'grid',
     head: [['#', 'Type', 'Location', 'Window', 'ETA', 'Pallets', 'Weight', 'Notes']],
     styles: { fontSize: 8, cellPadding: 3.5 },
-    headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     // Let autoTable size these columns: fixed widths pushed the widest cell past
     // the printable area of a portrait page.
     columnStyles: {
@@ -274,6 +259,7 @@ export async function generateDaySheetPdf(
   doc.text('Dispatcher signature', 320, currentY + 11);
 
   const filename = getCleanTripFilename(tripNum, truckPlate);
+  finishPdf(doc);
   if (options?.autoSave !== false) doc.save(filename);
   return { doc, blob: doc.output('blob'), filename };
 }

@@ -27,13 +27,27 @@ function safeImageSource(value: any): string {
   return '';
 }
 
-export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en' | 'nl'): string {
+export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en' | 'nl', generatedBy?: string): string {
   const co: any = {
     ...escapeMarkup(rawCompany || {}),
     logo: safeImageSource(rawCompany?.logo),
   };
   const invoice: any = escapeMarkup(rawInvoice || {});
   const trip = invoice.trip || {};
+
+  function fmtDateTime(date: Date): string {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mi = String(date.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${date.getFullYear()} ${hh}:${mi}`;
+  }
+
+  // Small generation stamp in the top-right corner: when and by whom.
+  const generatedStamp = [fmtDateTime(new Date()), String(generatedBy || '').trim()]
+    .filter(Boolean)
+    .map((part) => escapeMarkup(part))
+    .join(' · ');
 
   function fmtDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
@@ -331,14 +345,14 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
   }
 
   .logo-mark {
-    color: #ff4b00;
+    color: #ff5a00;
     font-size: 80px;
     vertical-align: middle;
     margin-right: 8px;
   }
 
   .logo-orange {
-    color: #ff4b00;
+    color: #ff5a00;
     font-style: italic;
   }
 
@@ -347,8 +361,21 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
     font-style: italic;
   }
 
+  .top-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .generated {
+    font-size: 10px;
+    color: #6b7280;
+    margin-bottom: 8px;
+    letter-spacing: 0.2px;
+  }
+
   .invoice-meta {
-    border-left: 2px solid #ff4b00;
+    border-left: 2px solid #ff5a00;
     padding-left: 18px;
     font-size: 13px;
     line-height: 1.2;
@@ -367,7 +394,7 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
   }
 
   .draft-no {
-    color: #ff4b00;
+    color: #ff5a00;
     font-weight: 800;
   }
 
@@ -423,7 +450,7 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
   }
 
   .card-title {
-    color: #ff4b00;
+    color: #ff5a00;
     font-weight: 800;
     font-size: 14px;
     margin-bottom: 8px;
@@ -499,7 +526,7 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
   }
 
   .section-title {
-    color: #ff4b00;
+    color: #ff5a00;
     font-weight: 800;
     text-transform: uppercase;
     font-size: 13px;
@@ -562,7 +589,7 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
   }
 
   .total-amount {
-    color: #ff4b00;
+    color: #ff5a00;
     font-size: 22px;
   }
 
@@ -651,12 +678,15 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
   <div class="top">
     ${logoHtml}
 
+    <div class="top-right">
+    <div class="generated">${generatedStamp}</div>
     <div class="invoice-meta">
       <div class="row"><strong>${t.invoiceNo}</strong> ${draftInvoiceNoHtml}</div>
       <div class="row"><strong>${t.issueDate}</strong> <span>${fmtDate(invoice.issueDate)}</span></div>
       <div class="row"><strong>${t.dueDate}</strong> <span>${fmtDate(invoice.dueDate)}</span></div>
       <div class="row"><strong>${t.paymentTerms}</strong> <span>${termsStr}</span></div>
       ${trip.referenceNumber ? `<div class="row"><strong>${t.tripRef}</strong> <span>${trip.referenceNumber}</span></div>` : ''}
+    </div>
     </div>
   </div>
 

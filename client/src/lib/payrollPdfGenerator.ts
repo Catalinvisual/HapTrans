@@ -1,8 +1,12 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getCompanySettings } from "../store/settingsStore";
-import { formatDate } from './dateUtils';
+import { getCompanySettings } from '../store/settingsStore';
 import { sanitizeClientNameForFilename } from './filenameUtils';
+import i18n from './i18n';
+import {
+  drawPdfHeader, finishPdf, pdfSafe, pdfSectionTitle,
+  PDF_HEAD_STYLES, PDF_TABLE_STYLES, PDF_ORANGE_SOFT, PDF_INK, PDF_LINE, PDF_MUTED,
+} from './pdfTheme';
 
 export const generatePayrollPdf = async (
   payroll: any,
@@ -10,125 +14,120 @@ export const generatePayrollPdf = async (
 ): Promise<{ doc: jsPDF; blob: Blob; base64: string; filename: string }> => {
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const co = getCompanySettings();
-  
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const monthName = monthNames[payroll.month - 1];
-  const driverName = payroll.user?.name || 'Angajat';
+
+  const monthName = new Intl.DateTimeFormat(i18n.language || 'en', { month: 'long' })
+    .format(new Date(Number(payroll.year) || new Date().getFullYear(), Number(payroll.month) - 1 || 0, 1));
+  const driverName = payroll.user?.name || t('employee') || 'Employee';
   const driverEmail = payroll.user?.email || '';
   const driverPhone = payroll.user?.phone || '';
 
-  // HEADER: Company Info
-  if (co.logo) {
-    try {
-      doc.addImage(co.logo, 'PNG', 14, 15, 40, 15, undefined, 'FAST');
-    } catch (e) {
-      console.warn("Logo could not be added", e);
-    }
-  }
+  const header = await drawPdfHeader(doc, {
+    title: t('payroll_payslip', 'Payslip'),
+    subtitle: `${t('period', 'Period')}: ${monthName} ${payroll.year}`,
+    company: co,
+    unit: 'mm',
+  });
 
-  doc.setFontSize(22);
-  doc.setTextColor(33, 37, 41);
-  doc.text('Loonstrook', 196, 22, { align: 'right' }); // Payslip in Dutch
-  
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Periode: ${monthName} ${payroll.year}`, 196, 28, { align: 'right' });
-  doc.text(`Datum: ${formatDate(new Date().toISOString())}`, 196, 33, { align: 'right' });
+  let y = header.startY;
 
-  // Company Details
-  doc.setFontSize(10);
-  doc.setTextColor(50, 50, 50);
+  doc.setFontSize(9.5);
+  doc.setTextColor(...PDF_INK);
   doc.setFont('helvetica', 'bold');
-  doc.text(co.name || 'HapCargo', 14, 38);
+  doc.text(pdfSafe(co.name || 'HapCargo'), 14, y);
   doc.setFont('helvetica', 'normal');
-  doc.text(co.address || '', 14, 43);
-  if (co.cui) doc.text(`VAT/KVK: ${co.cui}`, 14, 48);
+  doc.setFontSize(8.5);
+  doc.setTextColor(70, 80, 95);
+  y += 4.4;
+  if (co.address) { doc.text(pdfSafe(co.address), 14, y); y += 4; }
+  if (co.cui) { doc.text(pdfSafe(`VAT: ${co.cui}`), 14, y); y += 4; }
 
-  // Employee Details (Driver)
-  doc.setFillColor(248, 249, 250);
-  doc.roundedRect(14, 55, 182, 30, 3, 3, 'F');
-  
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(33, 37, 41);
-  doc.text(t('employee') || 'Werknemer (Employee)', 18, 62);
-  
+  // Employee card: neutral panel with an orange edge.
+  y += 3;
+  doc.setFillColor(250, 250, 251);
+  doc.roundedRect(14, y, 182, 30, 2, 2, 'F');
+  doc.setFillColor(...PDF_ORANGE_SOFT);
+  doc.rect(14, y, 1.6, 30, 'F');
+
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${t('name') || 'Naam'}: ${driverName}`, 18, 69);
-  doc.text(`E-mail: ${driverEmail}`, 18, 74);
-  doc.text(`${t('phone') || 'Telefoon'}: ${driverPhone}`, 18, 79);
-
-  // PAYROLL DETAILS TABLE
-  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(t('salaryDetails') || 'Salarisspecificatie', 14, 95);
+  doc.setTextColor(...PDF_INK);
+  doc.text(`${t('employee') || 'Employee'}: ${pdfSafe(driverName)}`, 19, y + 8);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(70, 80, 95);
+  if (driverEmail) doc.text(`E-mail: ${pdfSafe(driverEmail)}`, 19, y + 15);
+  if (driverPhone) doc.text(`${t('phone') || 'Phone'}: ${pdfSafe(driverPhone)}`, 19, y + 21);
+
+  y += 38;
+  pdfSectionTitle(doc, t('salaryDetails', 'Salary details'), 14, y);
+  y += 4;
 
   const formatEuro = (val: number) => `€ ${Number(val || 0).toFixed(2)}`;
 
   autoTable(doc, {
-    startY: 100,
-    head: [[t('description') || 'Omschrijving', t('amount') || 'Bedrag']],
+    startY: y,
+    head: [[t('description') || 'Description', t('amount') || 'Amount']],
     body: [
-      [t('payroll_gross') || 'Brutosalaris', formatEuro(payroll.grossSalary)],
-      [t('payroll_tax') || 'Loonheffing', `-${formatEuro(payroll.taxAmount)}`],
-      [{ content: t('payroll_net') || 'Nettosalaris', styles: { fontStyle: 'bold' } }, { content: formatEuro(payroll.netSalary), styles: { fontStyle: 'bold' } }],
-      
-      ['', ''], // empty row
-
-      [t('daysWorked') || 'Dagen gewerkt', `${payroll.daysWorked} ${t('days') || 'days'}`],
-      [`${t('payroll_allowance') || 'Onbelaste vergoeding'} (@ ${formatEuro(payroll.dailyAllowance)}/${t('day') || 'day'})`, formatEuro(payroll.totalAllowance)],
-      
-      ['', ''], // empty row
-      
-      [t('bonuses') || 'Netto Bonussen', formatEuro(payroll.bonuses)],
-      [t('deductions') || 'Netto Inhoudingen', `-${formatEuro(payroll.deductions)}`]
+      [t('payroll_gross') || 'Gross salary', formatEuro(payroll.grossSalary)],
+      [t('payroll_tax') || 'Payroll tax', `-${formatEuro(payroll.taxAmount)}`],
+      [{ content: t('payroll_net') || 'Net salary', styles: { fontStyle: 'bold' } }, { content: formatEuro(payroll.netSalary), styles: { fontStyle: 'bold' } }],
+      ['', ''],
+      [t('daysWorked') || 'Days worked', `${payroll.daysWorked} ${t('days') || 'days'}`],
+      [`${t('payroll_allowance') || 'Tax-free allowance'} (@ ${formatEuro(payroll.dailyAllowance)}/${t('day') || 'day'})`, formatEuro(payroll.totalAllowance)],
+      ['', ''],
+      [t('bonuses') || 'Bonuses', formatEuro(payroll.bonuses)],
+      [t('deductions') || 'Deductions', `-${formatEuro(payroll.deductions)}`],
     ],
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+    headStyles: { ...PDF_HEAD_STYLES, fontSize: 9 },
     columnStyles: {
       0: { cellWidth: 120 },
-      1: { cellWidth: 'auto', halign: 'right' }
+      1: { cellWidth: 'auto', halign: 'right' },
     },
-    styles: { fontSize: 10, cellPadding: 4, lineColor: [220, 220, 220] },
-    alternateRowStyles: { fillColor: [250, 250, 250] },
-    didParseCell: function(data) {
-      if (data.row.index === 2) {
-         data.cell.styles.fillColor = [240, 248, 255];
-      }
-    }
+    styles: { ...PDF_TABLE_STYLES, fontSize: 9, cellPadding: 4 },
+    alternateRowStyles: { fillColor: [250, 250, 251] },
+    didParseCell: (data: any) => {
+      if (data.row.index === 2) data.cell.styles.fillColor = PDF_ORANGE_SOFT;
+    },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY || 160;
+  let finalY = (doc as any).lastAutoTable.finalY || y + 60;
+  if (finalY > 250) { doc.addPage(); finalY = 24; }
 
-  // Vakantiegeld Info
-  doc.setFillColor(245, 245, 245);
-  doc.roundedRect(14, finalY + 10, 80, 20, 2, 2, 'F');
-  doc.setFontSize(9);
+  // Holiday allowance
+  doc.setFillColor(250, 250, 251);
+  doc.roundedRect(14, finalY + 8, 84, 20, 2, 2, 'F');
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(80, 80, 80);
-  doc.text(t('payroll_holiday') || 'Opbouw Vakantiegeld', 18, finalY + 16);
+  doc.setTextColor(...PDF_INK);
+  doc.text(t('payroll_holiday') || 'Holiday allowance', 18, finalY + 14);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${t('thisMonth') || 'Deze maand'} (8%): ${formatEuro(payroll.holidayAllowance)}`, 18, finalY + 22);
+  doc.setTextColor(70, 80, 95);
+  doc.text(`${t('thisMonth') || 'This month'} (8%): ${formatEuro(payroll.holidayAllowance)}`, 18, finalY + 20);
 
-  // TOTAL NET TO PAY
-  doc.setFillColor(46, 204, 113); // Success Green
-  doc.roundedRect(116, finalY + 10, 80, 20, 2, 2, 'F');
-  doc.setFontSize(12);
-  doc.setTextColor(255, 255, 255);
+  // Total net to pay: the one strong orange block on the page.
+  doc.setFillColor(...PDF_ORANGE_SOFT);
+  doc.roundedRect(112, finalY + 8, 84, 20, 2, 2, 'F');
+  doc.setFillColor(255, 90, 0);
+  doc.rect(112, finalY + 8, 1.6, 20, 'F');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...PDF_INK);
   doc.setFont('helvetica', 'bold');
-  doc.text(t('payroll_totalNet') || 'Netto Uitbetaling', 120, finalY + 18); // Net to pay
-  doc.setFontSize(14);
-  doc.text(formatEuro(payroll.totalNetToPay), 190, finalY + 24, { align: 'right' });
+  doc.text(t('payroll_totalNet') || 'Net to pay', 117, finalY + 15);
+  doc.setFontSize(12);
+  doc.text(formatEuro(payroll.totalNetToPay), 191, finalY + 22, { align: 'right' });
 
-  // Footer Message
-  doc.setFontSize(9);
-  doc.setTextColor(150, 150, 150);
+  doc.setFontSize(8);
+  doc.setTextColor(...PDF_MUTED);
   doc.setFont('helvetica', 'italic');
-  doc.text(t('automatedPayslip') || 'Dit is een geautomatiseerde loonstrook.', 105, 280, { align: 'center' });
+  doc.text(t('automatedPayslip') || 'This is an automatically generated payslip.', 105, 278, { align: 'center' });
+
+  doc.setDrawColor(...PDF_LINE);
+  finishPdf(doc);
 
   const safeName = sanitizeClientNameForFilename(payroll.user?.name || 'Employee');
-  const filename = `Fluturas Salariu - ${safeName} - ${payroll.month}_${payroll.year}.pdf`;
+  const filename = `Payslip - ${safeName} - ${payroll.month}_${payroll.year}.pdf`;
   const base64 = doc.output('datauristring');
   const blob = doc.output('blob');
 

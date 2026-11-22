@@ -84,6 +84,7 @@ export class ReportsService {
     const payload = await def.build(this.analytics, filters, user);
     const logo = this.requestedLogo(opts) ?? await this.resolveLogoDataUri();
     if (logo) payload.companyLogo = logo;
+    payload.generatedBy = user?.name || user?.email || undefined;
     return localizePayload(payload, opts.locale);
   }
 
@@ -95,6 +96,7 @@ export class ReportsService {
       const payload = await def.build(this.analytics, parts as AnalyticsFilters, user);
       const logo = this.requestedLogo(opts) ?? await this.resolveLogoDataUri();
       if (logo) payload.companyLogo = logo;
+      payload.generatedBy = user?.name || user?.email || undefined;
       this.persistReportLogo(logo).catch((e) => this.logger.warn(`Logo persist failed: ${e.message}`));
       if (Array.isArray(opts.chartPngs) && opts.chartPngs.length) {
         payload.chartPngs = opts.chartPngs.filter(

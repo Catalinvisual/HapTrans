@@ -74,6 +74,8 @@ export interface ReportPayload {
   charts?: ReportChart[];
   chartPngs?: ReportChartPng[];
   companyLogo?: string;
+  /** Name of the user who generated the file, printed in the PDF header. */
+  generatedBy?: string;
 }
 
 export interface ReportDef {

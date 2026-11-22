@@ -32,7 +32,7 @@ export class InvoicesController {
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
 
   @Post('generate-pdf')
-  async generatePdf(@Body() body: { invoice: any, company: any, lang: 'en' | 'nl' }) {
+  async generatePdf(@Body() body: { invoice: any, company: any, lang: 'en' | 'nl' }, @Req() req: any) {
     // Saved invoices are always rendered from the database record. This keeps
     // the final PDF in sync with approval status and repairs old drafts that
     // predate the transport snapshot.
@@ -68,7 +68,8 @@ export class InvoicesController {
       body.company.logo = (await fetchLogoAsDataUri(body.company.logo)) || body.company.logo;
     }
 
-    const html = generateInvoiceHtml(body.invoice, body.company, body.lang);
+    const generatedBy = req?.user?.name || req?.user?.email || '';
+    const html = generateInvoiceHtml(body.invoice, body.company, body.lang, generatedBy);
     const pdfBuffer = await this.pdfService.generatePdfFromHtml(html);
     return { base64: pdfBuffer.toString('base64') };
   }

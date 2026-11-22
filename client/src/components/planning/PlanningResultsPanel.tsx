@@ -26,6 +26,10 @@ import CustomSelect from '../CustomSelect';
 import { appLocale, fmtMoney, fmtNumber } from '../../lib/format';
 import { buildTripMetrics, costBucket, minutesBetween, nameOfDriver, toMs, toNum } from '../../lib/planningResultsMetrics';
 import { planningApi } from '../../lib/planningApi';
+import {
+  drawPdfHeader, finishPdf, pdfSafe,
+  PDF_ALT_ROW_STYLES, PDF_HEAD_STYLES, PDF_TABLE_STYLES,
+} from '../../lib/pdfTheme';
 import { emissionUnavailableKey, fuelTypeLabel } from '../../lib/truckFuel';
 import { operationalStatusForDisplay } from '../../lib/operationalI18n';
 import { formatAppointmentInstants, OPERATIONAL_TIME_ZONE } from '../../lib/stopAppointment';
@@ -1106,27 +1110,26 @@ export default function PlanningResultsPanel({
           const autoTableModule: any = await import('jspdf-autotable');
           const autoTable = autoTableModule.default ?? autoTableModule;
           const doc = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-          const pageWidth = doc.internal.pageSize.getWidth();
-          doc.setFontSize(14);
-          doc.setTextColor(15, 23, 42);
-          doc.text(t('pr.title', 'Planning Calculation Results'), 40, 40);
-          doc.setFontSize(8);
-          doc.setTextColor(100, 116, 139);
-          doc.text(subtitle, 40, 56, { maxWidth: pageWidth - 80 });
+          const header = await drawPdfHeader(doc, {
+            title: t('pr.title', 'Planning Calculation Results'),
+            subtitle,
+            unit: 'pt',
+          });
           const columnStyles: Record<number, any> = {};
-          headers.forEach((header, index) => {
-            columnStyles[index] = { halign: header.align || 'left' };
+          headers.forEach((head, index) => {
+            columnStyles[index] = { halign: head.align || 'left' };
           });
           autoTable(doc, {
-            startY: 72,
-            head: [headers.map((header) => header.label)],
-            body: rows.map((row) => headers.map((header) => (row[header.key] === null || row[header.key] === undefined ? '' : String(row[header.key])))),
-            styles: { fontSize: 6.5, cellPadding: 3, overflow: 'linebreak', textColor: [30, 41, 59] },
-            headStyles: { fillColor: [249, 115, 22], textColor: 255, fontStyle: 'bold', fontSize: 7 },
-            alternateRowStyles: { fillColor: [255, 247, 240] },
+            startY: header.startY,
+            head: [headers.map((head) => pdfSafe(head.label))],
+            body: rows.map((row) => headers.map((head) => (row[head.key] === null || row[head.key] === undefined ? '' : pdfSafe(row[head.key])))),
+            styles: { ...PDF_TABLE_STYLES, fontSize: 6.5, cellPadding: 3, overflow: 'linebreak' },
+            headStyles: { ...PDF_HEAD_STYLES, fontSize: 7 },
+            alternateRowStyles: PDF_ALT_ROW_STYLES,
             columnStyles,
             margin: { left: 40, right: 40 },
           });
+          finishPdf(doc);
           doc.save(`${fileBase}.pdf`);
         }
       } catch {

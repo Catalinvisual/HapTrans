@@ -3,33 +3,16 @@ import autoTable from 'jspdf-autotable';
 import { exportWorkbook } from './exportExcel';
 import { getCompanySettings } from '../store/settingsStore';
 import { fmtNumber, fmtPercent } from './format';
+import {
+  drawPdfHeader, finishPdf, pdfSafe, pdfSectionTitle,
+  PDF_ALT_ROW_STYLES, PDF_HEAD_STYLES, PDF_INK, PDF_MUTED, PDF_TABLE_STYLES,
+} from './pdfTheme';
 import type { OverviewData, OverviewTrip } from '../components/dashboard/types';
 import {
   formatLongDate, formatShortDate, formatTime, humanizeStatus, routeText,
 } from '../components/dashboard/types';
 
 type Translator = any;
-
-const PRIMARY: [number, number, number] = [255, 90, 0];
-const PRIMARY_LIGHT: [number, number, number] = [255, 243, 234];
-const TEXT_DARK: [number, number, number] = [31, 41, 55];
-const TEXT_MUTED: [number, number, number] = [107, 114, 128];
-
-/** jsPDF's built-in fonts are WinAnsi; keep the PDF readable in every locale. */
-function clean(value: any): string {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/ł/g, 'l')
-    .replace(/Ł/g, 'L')
-    .replace(/ø/g, 'o')
-    .replace(/Ø/g, 'O')
-    .replace(/ß/g, 'ss');
-}
-
-function cleanCell(value: any): any {
-  return typeof value === 'number' ? value : clean(value);
-}
 
 function statusText(trip: OverviewTrip, t: Translator): string {
   return t(`status_${trip.status}`, humanizeStatus(trip.status));
@@ -222,42 +205,23 @@ export async function exportDashboardExcel(
   });
 }
 
-export function exportDashboardPdf(
+export async function exportDashboardPdf(
   data: OverviewData,
   t: Translator,
   lang: string,
-): void {
+): Promise<void> {
   const doc = new jsPDF('landscape', 'pt', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const company = getCompanySettings();
   const periodLabel = `${formatLongDate(data.meta.from, lang)} – ${formatLongDate(data.meta.to, lang)}`;
   const k = data.kpis || {};
 
-  // ── Header banner ────────────────────────────────────────────────────────
-  doc.setFillColor(...PRIMARY);
-  doc.rect(0, 0, pageWidth, 92, 'F');
-  doc.setFillColor(255, 255, 255);
-  doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
-  doc.circle(pageWidth - 80, 10, 78, 'F');
-  doc.setGState(new (doc as any).GState({ opacity: 1 }));
+  const header = await drawPdfHeader(doc, {
+    title: t('dbd_title'),
+    subtitle: `${periodLabel} · ${t('dbd_export_generated', { time: formatTime(data.meta.generatedAt, lang) })}`,
+    company,
+    unit: 'pt',
+  });
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text(clean(`${company.name || 'HAPCARGO'} · ${t('dbd_title')}`), 40, 42);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(clean(periodLabel), 40, 61);
-  doc.text(clean(t('dbd_export_generated', { time: formatTime(data.meta.generatedAt, lang) })), 40, 75);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(clean(t('dbd_live')), pageWidth - 40, 42, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(clean(t('dbd_subtitle')), pageWidth - 40, 61, { align: 'right', maxWidth: 280 });
-
-  // ── KPI pairs ────────────────────────────────────────────────────────────
   const kpiPairs: Array<[string, string]> = [
     [t('dbd_trips'), fmtNumber(k.tripsTotal || 0)],
     [t('dbd_kpi_completed'), fmtNumber(k.tripsCompleted || 0)],
@@ -274,45 +238,41 @@ export function exportDashboardPdf(
   for (let i = 0; i < kpiPairs.length; i += 2) {
     const first = kpiPairs[i];
     const second = kpiPairs[i + 1] || ['', ''];
-    kpiBody.push([clean(first[0]), clean(first[1]), clean(second[0]), clean(second[1])]);
+    kpiBody.push([pdfSafe(first[0]), pdfSafe(first[1]), pdfSafe(second[0]), pdfSafe(second[1])]);
   }
   autoTable(doc, {
-    startY: 108,
+    startY: header.startY,
     body: kpiBody,
     theme: 'plain',
     margin: { left: 40, right: 40 },
     styles: { fontSize: 9, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 } },
     columnStyles: {
-      0: { fontStyle: 'bold', textColor: TEXT_MUTED, cellWidth: 130 },
-      1: { fontStyle: 'bold', fontSize: 12, textColor: TEXT_DARK, cellWidth: 120 },
-      2: { fontStyle: 'bold', textColor: TEXT_MUTED, cellWidth: 130 },
-      3: { fontStyle: 'bold', fontSize: 12, textColor: TEXT_DARK },
+      0: { fontStyle: 'bold', textColor: PDF_MUTED, cellWidth: 130 },
+      1: { fontStyle: 'bold', fontSize: 12, textColor: PDF_INK, cellWidth: 120 },
+      2: { fontStyle: 'bold', textColor: PDF_MUTED, cellWidth: 130 },
+      3: { fontStyle: 'bold', fontSize: 12, textColor: PDF_INK },
     },
   });
 
-  let cursorY = ((doc as any).lastAutoTable?.finalY || 150) + 16;
+  let cursorY = ((doc as any).lastAutoTable?.finalY || 150) + 18;
 
   const section = (title: string, head: string[], body: any[], widths?: Record<number, any>) => {
     if (!body.length) return;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...TEXT_DARK);
-    doc.text(clean(title), 40, cursorY);
+    pdfSectionTitle(doc, title, 40, cursorY, 'pt');
     autoTable(doc, {
-      startY: cursorY + 6,
-      head: [head.map((cell) => clean(cell))],
-      body: body.map((row) => row.map(cleanCell)),
+      startY: cursorY + 8,
+      head: [head.map((cell: any) => pdfSafe(cell))],
+      body: body.map((row) => row.map((cell: any) => (typeof cell === 'number' ? cell : pdfSafe(cell)))),
       theme: 'grid',
       margin: { left: 40, right: 40 },
-      headStyles: { fillColor: PRIMARY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      styles: { fontSize: 8, cellPadding: 4, textColor: TEXT_DARK, lineColor: [235, 235, 235] },
-      alternateRowStyles: { fillColor: PRIMARY_LIGHT },
+      headStyles: { ...PDF_HEAD_STYLES, fontSize: 8 },
+      styles: { ...PDF_TABLE_STYLES, fontSize: 8, lineColor: [235, 235, 235] },
+      alternateRowStyles: PDF_ALT_ROW_STYLES,
       columnStyles: widths,
     });
-    cursorY = ((doc as any).lastAutoTable?.finalY || cursorY) + 22;
+    cursorY = ((doc as any).lastAutoTable?.finalY || cursorY) + 24;
   };
 
-  // ── Today's operations ───────────────────────────────────────────────────
   const operations = operationRows(data, t, lang);
   section(
     t('dbd_export_ops_today'),
@@ -329,7 +289,6 @@ export function exportDashboardPdf(
     { 0: { cellWidth: 48 }, 1: { cellWidth: 70 }, 2: { cellWidth: 70 }, 4: { cellWidth: 150 }, 6: { cellWidth: 64 } },
   );
 
-  // ── Country workload ─────────────────────────────────────────────────────
   section(
     t('dbd_country_title'),
     [t('ifta_country', 'Country'), t('dbd_pickups'), t('dbd_deliveries'), t('dbd_total')],
@@ -337,7 +296,6 @@ export function exportDashboardPdf(
     { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } },
   );
 
-  // ── Fleet, drivers and statuses ──────────────────────────────────────────
   section(
     `${t('dbd_fleet_title')} · ${t('dbd_drivers_title')}`,
     [t('fin_metric', 'Indicator'), t('fin_value', 'Value')],
@@ -363,7 +321,6 @@ export function exportDashboardPdf(
     { 1: { halign: 'right', fontStyle: 'bold' } },
   );
 
-  // ── Top routes ───────────────────────────────────────────────────────────
   section(
     t('dbd_routes_title'),
     [t('origin', 'Origin'), t('destination', 'Destination'), t('dbd_trips'), t('dbd_kpi_km')],
@@ -371,7 +328,6 @@ export function exportDashboardPdf(
     { 2: { halign: 'right' }, 3: { halign: 'right' } },
   );
 
-  // ── Next 7 days ──────────────────────────────────────────────────────────
   section(
     t('dbd_upcoming_title'),
     [t('jsx_pickupDate', 'Date'), t('dbd_departures')],
@@ -379,7 +335,6 @@ export function exportDashboardPdf(
     { 1: { halign: 'right', fontStyle: 'bold' } },
   );
 
-  // ── Unassigned orders ────────────────────────────────────────────────────
   section(
     t('dbd_unassigned_title'),
     [t('ref_table_header', 'Ref'), t('jsx_client', 'Client'), t('jsx_route', 'Route'), t('jsx_priority', 'Priority'), t('jsx_status', 'Status')],
@@ -392,33 +347,20 @@ export function exportDashboardPdf(
     ]),
   );
 
-  // ── Footers ──────────────────────────────────────────────────────────────
-  const pageCount = doc.getNumberOfPages();
-  for (let page = 1; page <= pageCount; page++) {
-    doc.setPage(page);
-    doc.setDrawColor(235, 235, 235);
-    doc.line(40, pageHeight - 28, pageWidth - 40, pageHeight - 28);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...TEXT_MUTED);
-    doc.text(clean(`${t('dbd_title')} · ${periodLabel}`), 40, pageHeight - 16);
-    doc.text(`${page} / ${pageCount}`, pageWidth - 40, pageHeight - 16, { align: 'right' });
-  }
-
+  finishPdf(doc);
   doc.save(`dashboard-${data.meta.from.slice(0, 10)}-${data.meta.to.slice(0, 10)}.pdf`);
 }
 
 /** Compact portrait handover sheet for the next dispatcher shift. */
-export function exportHandoverPdf(
+export async function exportHandoverPdf(
   data: OverviewData,
   t: Translator,
   lang: string,
   resolvedIds: Set<string> = new Set(),
-): void {
+): Promise<void> {
   const doc = new jsPDF('portrait', 'pt', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 36;
+  const margin = 40;
+  const company = getCompanySettings();
   const alerts = data.alerts.filter((alert) => !resolvedIds.has(alert.id));
   const incidents = alerts.filter((alert) => alert.type === 'incident');
   const documents = alerts.filter((alert) => alert.type === 'document');
@@ -432,56 +374,49 @@ export function exportHandoverPdf(
     return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
   };
 
-  doc.setFillColor(...PRIMARY);
-  doc.rect(0, 0, pageWidth, 96, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text(clean(t('dbd_handover_title')), margin, 42);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(clean(`${formatLongDate(data.today.date, lang)} · ${data.today.date}`), margin, 62);
-  doc.text(clean(t('dbd_handover_sub')), margin, 77);
+  const header = await drawPdfHeader(doc, {
+    title: t('dbd_handover_title'),
+    subtitle: `${formatLongDate(data.today.date, lang)} · ${t('dbd_handover_sub')}`,
+    company,
+    unit: 'pt',
+  });
 
-  let cursor = 118;
+  let cursor = header.startY;
   const section = (title: string, head: string[], body: any[]) => {
     if (!body.length) return;
-    if (cursor > pageHeight - 150) {
+    if (cursor > doc.internal.pageSize.getHeight() - 150) {
       doc.addPage();
       cursor = 50;
     }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...TEXT_DARK);
-    doc.text(clean(title), margin, cursor);
+    pdfSectionTitle(doc, title, margin, cursor, 'pt');
     autoTable(doc, {
-      startY: cursor + 6,
-      head: [head.map((cell) => clean(cell))],
-      body: body.map((row) => row.map(cleanCell)),
+      startY: cursor + 8,
+      head: [head.map((cell: any) => pdfSafe(cell))],
+      body: body.map((row) => row.map((cell: any) => (typeof cell === 'number' ? cell : pdfSafe(cell)))),
       theme: 'grid',
       margin: { left: margin, right: margin },
-      headStyles: { fillColor: PRIMARY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      styles: { fontSize: 8, cellPadding: 4, textColor: TEXT_DARK, lineColor: [235, 235, 235] },
-      alternateRowStyles: { fillColor: PRIMARY_LIGHT },
+      headStyles: { ...PDF_HEAD_STYLES, fontSize: 8 },
+      styles: { ...PDF_TABLE_STYLES, fontSize: 8, lineColor: [235, 235, 235] },
+      alternateRowStyles: PDF_ALT_ROW_STYLES,
     });
-    cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 22;
+    cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 24;
   };
 
   autoTable(doc, {
     startY: cursor,
     body: [
-      [clean(t('dbd_handover_delayed')), String(data.today.counts.delayed)],
-      [clean(t('dbd_handover_unassigned')), String(data.kpis.ordersUnassigned || 0)],
-      [clean(t('dbd_handover_incidents')), String(incidents.length)],
-      [clean(t('dbd_handover_docs')), String(documents.length)],
+      [pdfSafe(t('dbd_handover_delayed')), String(data.today.counts.delayed)],
+      [pdfSafe(t('dbd_handover_unassigned')), String(data.kpis.ordersUnassigned || 0)],
+      [pdfSafe(t('dbd_handover_incidents')), String(incidents.length)],
+      [pdfSafe(t('dbd_handover_docs')), String(documents.length)],
     ],
     theme: 'grid',
     margin: { left: margin, right: margin },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 220 }, 1: { fontStyle: 'bold', halign: 'right' } },
-    styles: { fontSize: 9, cellPadding: 5, textColor: TEXT_DARK },
-    alternateRowStyles: { fillColor: PRIMARY_LIGHT },
+    styles: { ...PDF_TABLE_STYLES, fontSize: 9, cellPadding: 5 },
+    alternateRowStyles: PDF_ALT_ROW_STYLES,
   });
-  cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 24;
+  cursor = ((doc as any).lastAutoTable?.finalY || cursor) + 26;
 
   section(
     t('dbd_handover_delayed'),
@@ -528,17 +463,6 @@ export function exportHandoverPdf(
     offline.map((row) => [row.plate, row.lastSeenAt ? formatTime(row.lastSeenAt, lang) : '—', row.status]),
   );
 
-  const pageCount = doc.getNumberOfPages();
-  for (let page = 1; page <= pageCount; page++) {
-    doc.setPage(page);
-    doc.setDrawColor(235, 235, 235);
-    doc.line(margin, pageHeight - 28, pageWidth - margin, pageHeight - 28);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...TEXT_MUTED);
-    doc.text(clean(`${t('dbd_handover_title')} · ${data.today.date}`), margin, pageHeight - 16);
-    doc.text(`${page} / ${pageCount}`, pageWidth - margin, pageHeight - 16, { align: 'right' });
-  }
-
+  finishPdf(doc);
   doc.save(`handover-${data.today.date}.pdf`);
 }

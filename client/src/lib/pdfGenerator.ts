@@ -1,7 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { CompanySettings } from '../store/settingsStore';
-import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 import { fmtNumber } from './format';
 import i18n from './i18n';
@@ -9,22 +8,12 @@ import { fuelTypeLabel, getTruckFuelProfile } from './truckFuel';
 import { getCleanOrderFilename, getCleanProfileFilename, getCleanTripFilename } from './filenameUtils';
 import { composeAddress } from './address';
 import { transportTypeLabel } from './transportType';
+import { drawPdfHeader, finishPdf, pdfSafe, pdfSectionTitle } from './pdfTheme';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
 function normalizeText(text: string): string {
-  if (!text) return '';
-  return text
-    .replace(/ș/g, 's')
-    .replace(/Ș/g, 'S')
-    .replace(/ț/g, 't')
-    .replace(/Ț/g, 'T')
-    .replace(/ă/g, 'a')
-    .replace(/Ă/g, 'A')
-    .replace(/î/g, 'i')
-    .replace(/Î/g, 'I')
-    .replace(/â/g, 'a')
-    .replace(/Â/g, 'A');
+  return pdfSafe(text);
 }
 
 function formatStatus(status: string): string {
@@ -46,100 +35,24 @@ const fmtDateTime = (d: any) => {
 
 // ─── Base Document Setup ─────────────────────────────────────────────────────
 
-async function addImageToDoc(doc: jsPDF, url: string, x: number, y: number, maxWidth: number, maxHeight: number) {
-  return new Promise<void>((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-      const w = img.width * ratio;
-      const h = img.height * ratio;
-      doc.addImage(img, 'PNG', x, y, w, h);
-      resolve();
-    };
-    img.onerror = () => resolve();
-    img.src = url;
-  });
-}
-
 export async function createBaseDocument(title: string, company: CompanySettings | null, orientation: 'portrait' | 'landscape' = 'landscape') {
   const doc = new jsPDF(orientation, 'pt', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  
-  // Calculate dynamic header height
-  let headerHeight = 120; // default
-  if (company) {
-    let detailsCount = [company.address, company.cui, company.iban, company.email, company.phone].filter(Boolean).length;
-    headerHeight = 40 + (company.logo ? 60 : 0) + 15 + (detailsCount * 12) + 15;
-    if (headerHeight < 100) headerHeight = 100;
-  }
-
-  let cursorY = 40;
-
-  // Header Background
-  doc.setFillColor(248, 250, 252);
-  doc.rect(0, 0, pageWidth, headerHeight, 'F');
-
-  let leftCursorY = cursorY;
-
-  // Left Side: Logo & Company Details
-  if (company) {
-    if (company.logo) {
-      const logoMaxWidth = 180;
-      const logoMaxHeight = 60;
-      await addImageToDoc(doc, company.logo, 40, 20, logoMaxWidth, logoMaxHeight);
-      leftCursorY = 20 + logoMaxHeight + 15; // Move below logo
-    } else {
-      leftCursorY = cursorY;
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(15, 23, 42);
-    doc.text(normalizeText(company.name || 'Company'), 40, leftCursorY);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    const details = [
-      company.address ? normalizeText(`${company.address}, ${company.city || ''} ${company.country || ''}`.trim()) : null,
-      company.cui ? `VAT: ${company.cui}` : null,
-      company.iban ? `IBAN: ${company.iban}` : null,
-      company.email ? `Email: ${company.email}` : null,
-      company.phone ? `Phone: ${company.phone}` : null,
-    ].filter(Boolean) as string[];
-
-    details.forEach(det => {
-      leftCursorY += 12;
-      doc.text(det, 40, leftCursorY);
-    });
-  }
-
-  // Right Side: Title & Date
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18); // Slightly smaller
-  doc.setTextColor(30, 41, 59); // text-slate-800
-  
-  const titleWidth = doc.getStringUnitWidth(normalizeText(title)) * 18;
-  doc.text(normalizeText(title), pageWidth - 40 - titleWidth, cursorY + 15);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(100, 116, 139); // text-slate-500
-  
-  const user = useAuthStore.getState().user;
-  const userName = user?.name || user?.email || '';
-  const datePrefix = userName ? `${normalizeText(userName)} : Generated: ` : 'Generated: ';
-  const dateStr = `${datePrefix}${fmtDateTime(new Date())}`;
-  const dateWidth = doc.getStringUnitWidth(dateStr) * 10;
-  doc.text(dateStr, pageWidth - 40 - dateWidth, cursorY + 32);
-
-  // Draw separator line
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.setLineWidth(1);
-  doc.line(40, headerHeight, pageWidth - 40, headerHeight);
-
-  return { doc, pageWidth, startY: headerHeight + 30 };
+  const header = await drawPdfHeader(doc, {
+    title,
+    company,
+    unit: 'pt',
+    details: company
+      ? [
+          company.name || '',
+          company.address ? `${company.address}, ${company.city || ''} ${company.country || ''}`.trim() : '',
+          company.cui ? `VAT: ${company.cui}` : '',
+          company.iban ? `IBAN: ${company.iban}` : '',
+          company.email ? `Email: ${company.email}` : '',
+          company.phone ? `Phone: ${company.phone}` : '',
+        ].filter(Boolean)
+      : [],
+  });
+  return { doc, pageWidth: header.pageWidth, startY: header.startY, title };
 }
 
 // ─── Generators ──────────────────────────────────────────────────────────────
@@ -149,10 +62,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   let currentY = startY;
 
   // Order Info Section
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(30, 41, 59);
-  doc.text('General Information', 40, currentY);
+  pdfSectionTitle(doc, 'General Information', 40, currentY, 'pt');
   currentY += 15;
 
   autoTable(doc, {
@@ -173,10 +83,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   currentY = (doc as any).lastAutoTable.finalY + 30;
 
   // Stops Section
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(30, 41, 59);
-  doc.text('Route & Stops', 40, currentY);
+  pdfSectionTitle(doc, 'Route & Stops', 40, currentY, 'pt');
   currentY += 10;
 
   const stopsData = (order?.stops || []).sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0)).map((s: any, i: number) => {
@@ -213,7 +120,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       head: [['#', 'Type', 'Location', 'Date/Time', 'Reference']],
       body: stopsData,
       theme: 'grid',
-      headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 9, textColor: [71, 85, 105] },
       alternateRowStyles: { fillColor: [250, 252, 253] },
       margin: { left: 40, right: 40 },
@@ -222,10 +129,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   }
 
   // Cargo Section
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(30, 41, 59);
-  doc.text('Cargo Details', 40, currentY);
+  pdfSectionTitle(doc, 'Cargo Details', 40, currentY, 'pt');
   currentY += 10;
 
   const cargoData = (order?.cargoItems || []).map((c: any) => {
@@ -245,7 +149,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       head: [['Description', 'Qty', 'Unit', 'Weight', 'LDM', 'ADR']],
       body: cargoData,
       theme: 'grid',
-      headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 9, textColor: [71, 85, 105] },
       margin: { left: 40, right: 40 },
     });
@@ -283,7 +187,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       head: [['#', 'UN #', 'Proper Shipping Name', 'Class', 'PG', 'Tunnel', 'Cat', 'Points', 'ADR 5.4 Declaration']],
       body: adrTableData,
       theme: 'grid',
-      headStyles: { fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold', fontSize: 8 },
+      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
       columnStyles: { 8: { fontStyle: 'bold', cellWidth: 220 } },
       margin: { left: 40, right: 40 },
@@ -293,6 +197,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   const rawNum = (order?.orderNumber || order?.customerReference || '').trim();
   const clientName = order?.client?.name || order?.clientName;
   const filename = getCleanOrderFilename(rawNum, clientName);
+  finishPdf(doc);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
@@ -325,6 +230,7 @@ export async function generateClientPdf(client: any, company: CompanySettings | 
   });
 
   const filename = getCleanProfileFilename('Client', client?.name);
+  finishPdf(doc);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
@@ -360,6 +266,7 @@ export async function generateTruckPdf(truck: any, company: CompanySettings | nu
   });
 
   const filename = getCleanProfileFilename('Truck', truck?.plateNumber);
+  finishPdf(doc);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
@@ -391,6 +298,7 @@ export async function generateTrailerPdf(trailer: any, company: CompanySettings 
   });
 
   const filename = getCleanProfileFilename('Trailer', trailer?.plateNumber);
+  finishPdf(doc);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
@@ -426,6 +334,7 @@ export async function generateDriverPdf(driver: any, company: CompanySettings | 
   });
 
   const filename = getCleanProfileFilename('Driver', driverName);
+  finishPdf(doc);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
@@ -450,7 +359,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
     theme: 'grid',
     head: [['Trip Specification', 'Details', 'Planning & Timing', 'Schedule']],
     styles: { fontSize: 9, cellPadding: 4 },
-    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 120, fillColor: [248, 250, 252] },
       1: { cellWidth: 260 },
@@ -473,10 +382,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
   // 2. Stops / Route Schedule Table
   const stops = (trip?.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
   if (stops.length > 0) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(30, 41, 59);
-    doc.text('Route & Itinerary Stops', 40, currentY);
+    pdfSectionTitle(doc, 'Route & Itinerary Stops', 40, currentY, 'pt');
     currentY += 6;
 
     const stopRows = stops.map((s: any, idx: number) => {
@@ -498,7 +404,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
       theme: 'grid',
       head: [['#', 'Type', 'Location & Address', 'Scheduled Time', 'Instructions / Notes']],
       styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
+      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 25, halign: 'center' },
         1: { cellWidth: 65, fontStyle: 'bold' },
@@ -516,10 +422,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
   // 3. Attached Transport Orders Table
   const orders = trip?.orders || [];
   if (orders.length > 0) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(30, 41, 59);
-    doc.text('Assigned Transport Orders', 40, currentY);
+    pdfSectionTitle(doc, 'Assigned Transport Orders', 40, currentY, 'pt');
     currentY += 6;
 
     const orderRows = orders.map((o: any, idx: number) => {
@@ -541,7 +444,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
       theme: 'grid',
       head: [['#', 'Order Reference', 'Client', 'Cargo Summary', 'Revenue']],
       styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 25, halign: 'center' },
         1: { cellWidth: 140, fontStyle: 'bold' },
@@ -557,6 +460,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
   const rawTripNum = trip?.tripNumber || (trip?.id ? `TRP-${String(trip.id).slice(0, 8)}` : 'Trip');
   const tripIdentifier = trip?.truck?.plateNumber || driverName;
   const filename = getCleanTripFilename(rawTripNum, tripIdentifier);
+  finishPdf(doc);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }

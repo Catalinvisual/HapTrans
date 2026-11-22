@@ -87,7 +87,7 @@ export default function ReportsTab({
   const download = async (report: EmissionReportRecord, format: 'csv' | 'xlsx' | 'pdf') => {
     try {
       if (format === 'pdf') {
-        const doc = generateEmissionReportPdf(report, (user as any)?.company?.name || '');
+        const doc = await generateEmissionReportPdf(report, (user as any)?.company?.name || '');
         doc.save(`${report.reportNumber}.pdf`);
         return;
       }
