@@ -50,6 +50,7 @@ import { ReportsModule } from './reports/reports.module';
 import { PdfArchivingModule } from './archiving/pdf-archiving.module';
 import { AdrModule } from './adr/adr.module';
 import { AgendaModule } from './agenda/agenda.module';
+import { EmissionsModule } from './emissions/emissions.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { AgendaModule } from './agenda/agenda.module';
     PdfArchivingModule,
     AdrModule,
     AgendaModule,
+    EmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

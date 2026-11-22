@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore, SESSION_EXPIRES_KEY } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing, Box, Globe, Container, Banknote, Wallet, BookOpen } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing, Box, Globe, Container, Banknote, Wallet, BookOpen, Leaf } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -473,6 +473,7 @@ export default function Layout() {
       return [
         ...(canSection(user, 'trucks', 'fleet') ? [{ id: 'trucks', label: t('trucks', 'Trucks'), icon: Truck }] : []),
         ...(canSection(user, 'trailers', 'fleet') ? [{ id: 'trailers', label: t('trailers', 'Trailers'), icon: Container }] : []),
+        ...(canSection(user, 'co2', 'fleet') ? [{ id: 'co2', label: t('emissions_tab', 'CO₂ & Environment'), icon: Leaf }] : []),
       ];
     }
     if (isPayrollPath) {
@@ -601,7 +602,7 @@ export default function Layout() {
     if (!user) return;
     const segment = location.pathname.split('/').filter(Boolean)[0] || 'dashboard';
     const legacyPage: Record<string, string> = {
-      trucks: 'fleet', trailers: 'fleet', settlements: 'payroll', ifta: 'euTransit',
+      trucks: 'fleet', trailers: 'fleet', co2: 'fleet', settlements: 'payroll', ifta: 'euTransit',
       tracking: 'liveMap', track: 'liveMap', 'website-quotes': 'orders',
     };
     const page = legacyPage[segment] || segment;

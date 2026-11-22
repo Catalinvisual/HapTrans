@@ -1,4 +1,4 @@
-import { Package, Truck, FileText, LayoutDashboard, HelpCircle, LogOut, Moon, Sun, Menu, X, FileCheck2 } from 'lucide-react';
+import { Package, Truck, FileText, LayoutDashboard, HelpCircle, LogOut, Moon, Sun, Menu, X, FileCheck2, Leaf } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 
@@ -56,6 +56,7 @@ export default function PortalLayout() {
     { icon: Truck, label: t('jsx_tripsTracking') || 'Trips & Tracking', path: '/portal/trips' },
     { icon: FileCheck2, label: t('jsx_invoices') || 'Invoices', path: '/portal/invoices' },
     { icon: FileText, label: t('jsx_documents') || 'Documents', path: '/portal/documents' },
+    { icon: Leaf, label: t('emissions_portal_nav') || 'Environmental performance', path: '/portal/emissions' },
     { icon: HelpCircle, label: t('jsx_support') || 'Support', path: '/portal/support' },
   ];
 

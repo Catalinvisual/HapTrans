@@ -50,6 +50,7 @@ const PortalOrderDetailsPage = lazy(() => import('./pages/portal/PortalOrderDeta
 const PortalTripsPage        = lazy(() => import('./pages/portal/PortalTripsPage'));
 const PortalInvoicesPage     = lazy(() => import('./pages/portal/PortalInvoicesPage'));
 const PortalDocumentsPage    = lazy(() => import('./pages/portal/PortalDocumentsPage'));
+const PortalEmissionsPage    = lazy(() => import('./pages/portal/PortalEmissionsPage'));
 const PortalSupportPage      = lazy(() => import('./pages/portal/PortalSupportPage'));
 
 // ─── Loading fallback ─────────────────────────────────────────────────────
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="trips" element={<Suspense fallback={<PageLoader />}><PortalTripsPage /></Suspense>} />
             <Route path="invoices" element={<Suspense fallback={<PageLoader />}><PortalInvoicesPage /></Suspense>} />
             <Route path="documents" element={<Suspense fallback={<PageLoader />}><PortalDocumentsPage /></Suspense>} />
+            <Route path="emissions" element={<Suspense fallback={<PageLoader />}><PortalEmissionsPage /></Suspense>} />
             <Route path="support" element={<Suspense fallback={<PageLoader />}><PortalSupportPage /></Suspense>} />
           </Route>
 

@@ -24,6 +24,11 @@ import { usersRolesResources } from './usersRolesI18n';
 import { helpResources } from './help';
 import { agendaResources } from './agendaI18n';
 import { completenessResources } from './i18nCompleteness';
+import { emissionsResources } from './emissionsI18n';
+import { emissionsMoreResources } from './emissionsI18nMore';
+import { emissionsReportResources } from './emissionsI18nReports';
+import { emissionsSettingsResources } from './emissionsI18nSettings';
+import { emissionsExtraResources } from './emissionsI18nExtra';
 
 const resources = {
   ro: { translation: {
@@ -12159,6 +12164,14 @@ for (const lng of Object.keys(agendaResources)) {
     (resources as any)[lng].translation,
     (agendaResources as any)[lng].translation,
   );
+}
+
+// CO2 & Environmental Management, in all seven locales.
+for (const set of [emissionsResources, emissionsMoreResources, emissionsReportResources, emissionsSettingsResources, emissionsExtraResources]) {
+  for (const lng of Object.keys(set)) {
+    if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+    Object.assign((resources as any)[lng].translation, set[lng]);
+  }
 }
 
 const getInitialLanguage = (): string => {

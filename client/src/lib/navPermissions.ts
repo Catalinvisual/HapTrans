@@ -59,7 +59,7 @@ export const navItems: NavItem[] = [
 
 // Module key -> legacy allowedPages keys that grant access to it
 export const MODULE_LEGACY_KEYS: Record<string, string[]> = {
-  fleet: ['fleet', 'trucks', 'trailers'],
+  fleet: ['fleet', 'trucks', 'trailers', 'co2'],
   payroll: ['payroll', 'settlements'],
   orders: ['orders', 'websiteQuotes'],
   settings: ['settings', 'telematics'],

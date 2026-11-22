@@ -16,6 +16,7 @@ const PAGE_ALIASES: Record<string, string[]> = {
   settings: ['settings'],
   websiteCms: ['websiteCms'],
   telematics: ['telematics', 'settings'],
+  fleet: ['fleet', 'trucks', 'trailers', 'co2'],
 };
 
 /**
@@ -73,6 +74,7 @@ const PAGE_RULES: Array<[RegExp, string]> = [
   [/^\/api\/settings(?:\/|$)/, 'settings'],
   [/^\/api\/website-cms(?:\/|$)/, 'websiteCms'],
   [/^\/api\/telematics(?:\/|$)/, 'telematics'],
+  [/^\/api\/emissions(?:\/|$)/, 'fleet'],
 ];
 
 export function requiredPageForRequest(path: string): string | null {
