@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { fmtNumber } from '../lib/format';
+import { cityWithCountry } from '../lib/address';
 
 const fmtDate = (value: any, locale: string) => {
   if (!value) return '—';
@@ -74,13 +75,13 @@ export default function CargoAllocationsPanel({ trip }: { trip: any }) {
                     {t('alloc_order', 'Order')}: {task.order?.orderNumber || task.order?.id || '—'}
                   </div>
                   <div className="text-[11px] text-text-secondary mt-0.5">
-                    {t('alloc_stop', 'Stop')}: {task.stop?.sequence ? `${task.stop.sequence} · ` : ''}{task.stop?.companyName || task.stop?.city || task.stop?.address || '—'}
+                    {t('alloc_stop', 'Stop')}: {task.stop?.sequence ? `${task.stop.sequence} · ` : ''}{task.stop?.companyName || (task.stop?.city ? cityWithCountry(task.stop.city, task.stop.country) : task.stop?.address) || '—'}
                     {' · '}{t(task.type === 'unload' ? 'unloading_stop' : 'loading_stop', task.type === 'unload' ? 'Unloading' : 'Loading')}
                     {' · '}{t('alloc_unit', 'Unit')}: <b className="text-text">{unit}</b>
                   </div>
                   <div className="text-[10px] text-text-muted mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                    <span>{t('alloc_pickup', 'Pickup')}: <b className="text-text-secondary">{pickup?.city || pickup?.companyName || '—'}</b></span>
-                    <span>{t('alloc_delivery_stop', 'Delivery')}: <b className="text-text-secondary">{delivery?.city || delivery?.companyName || '—'}</b></span>
+                    <span>{t('alloc_pickup', 'Pickup')}: <b className="text-text-secondary">{pickup?.city ? cityWithCountry(pickup.city, pickup.country) : (pickup?.companyName || '—')}</b></span>
+                    <span>{t('alloc_delivery_stop', 'Delivery')}: <b className="text-text-secondary">{delivery?.city ? cityWithCountry(delivery.city, delivery.country) : (delivery?.companyName || '—')}</b></span>
                   </div>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase border ${

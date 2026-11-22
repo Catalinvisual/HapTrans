@@ -10,7 +10,7 @@ import { TripCost } from './trip-cost.entity';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
-import { tripNotificationText, tripStatusLabel } from '../notifications/notification-context';
+import { stopPlaceLabel, tripNotificationText, tripStatusLabel } from '../notifications/notification-context';
 import { InvoicesService } from '../invoices/invoices.service';
 import { ResendService } from '../email/resend.service';
 import { RoutingService } from '../routing/routing.service';
@@ -755,7 +755,7 @@ export class TripsService {
     const label = this.stopEventLabel(previous, next, stopType);
     const eventId = this.notificationKey('stop', trip?.id, stop?.id, previous, next);
     if (source === 'mobile') {
-      const notification = tripNotificationText(trip, [label, stop?.city].filter(Boolean).join(' · '));
+      const notification = tripNotificationText(trip, [label, stopPlaceLabel(stop)].filter(Boolean).join(' · '));
       try {
         await this.notificationsService.createOnce({
           type: 'trip',
@@ -778,11 +778,12 @@ export class TripsService {
       const token = driverUser?.fcmToken;
       if (!token) return;
       const driverLabel = localizeStopEvent(previous, next, stopType, driverUser?.language);
+      const stopLabel = stopPlaceLabel(stop);
       try {
         const delivered = await this.notificationsService.createOnce({
           type: 'trip',
           title: driverLabel,
-          message: `${trip?.tripNumber || 'Trip'}${stop?.city ? ` · ${stop.city}` : ''}: ${driverLabel}.`,
+          message: `${trip?.tripNumber || 'Trip'}${stopLabel ? ` · ${stopLabel}` : ''}: ${driverLabel}.`,
           relatedId: trip?.id,
           eventId: this.notificationKey('tms-stop', trip?.id, stop?.id, previous, next),
           origin: 'TMS_DISPATCH',
@@ -792,7 +793,7 @@ export class TripsService {
         await this.firebaseService.sendPushNotification(
           token,
           driverLabel,
-          `${trip?.tripNumber || 'Trip'}${stop?.city ? ` · ${stop.city}` : ''}: ${driverLabel}.`,
+          `${trip?.tripNumber || 'Trip'}${stopLabel ? ` · ${stopLabel}` : ''}: ${driverLabel}.`,
           { tripId: trip?.id, stopId: stop?.id },
         );
       } catch (e: any) {
@@ -2013,7 +2014,7 @@ export class TripsService {
             const delivered = await this.notificationsService.createOnce({
               type: 'trip',
               title: label,
-              message: `${trip.tripNumber || 'Trip'}${stop.city ? ` · ${stop.city}` : ''}: ${label}`,
+              message: `${trip.tripNumber || 'Trip'}${stopPlaceLabel(stop) ? ` · ${stopPlaceLabel(stop)}` : ''}: ${label}`,
               relatedId: trip.id,
               eventId,
               origin: 'TMS_DISPATCH',

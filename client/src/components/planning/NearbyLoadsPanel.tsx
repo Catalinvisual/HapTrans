@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Loader2, MapPin, Navigation, Plus, X } from 'lucide-react';
 import { fmtNumber } from '../../lib/format';
+import { cityWithCountry } from '../../lib/address';
 
 export interface NearbyData {
   candidates?: any[];
@@ -129,9 +130,9 @@ export default function NearbyLoadsPanel({
 
                   <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-text-secondary">
                     <MapPin className="h-2.5 w-2.5 shrink-0 text-blue-500" />
-                    <span className="truncate">{candidate.pickup?.city || '—'}</span>
+                    <span className="truncate">{candidate.pickup?.city ? cityWithCountry(candidate.pickup.city, candidate.pickup.country) : '—'}</span>
                     <ArrowRight className="h-2.5 w-2.5 shrink-0 text-text-muted" />
-                    <span className="truncate">{candidate.delivery?.city || '—'}</span>
+                    <span className="truncate">{candidate.delivery?.city ? cityWithCountry(candidate.delivery.city, candidate.delivery.country) : '—'}</span>
                   </div>
 
                   <div className="mt-1 flex flex-wrap items-center gap-1 text-[9px] text-text-muted">

@@ -4,6 +4,7 @@ import { Clock, Loader2, RefreshCw } from 'lucide-react';
 import { planningApi } from '../../lib/planningApi';
 import { appLocale, fmtNumber } from '../../lib/format';
 import { formatDelay } from '../../lib/formatDuration';
+import { cityWithCountry } from '../../lib/address';
 
 /**
  * Live ETA for one trip, fetched from the planning endpoint that derives it
@@ -189,7 +190,7 @@ export function TripEtaPanel({ eta, loading, failed, onRefresh, tripId, focusSto
                 <div key={stop.stopId || stop.sequence} className="rounded-lg border border-border/50 bg-card/60 px-2 py-1.5">
                   <div className="flex items-center justify-between gap-2 text-[11px]">
                     <span className="truncate text-text-secondary">
-                      #{stop.sequence} {stop.city || stop.companyName || t('up_eta_stop', 'Stop')}
+                      #{stop.sequence} {stop.city ? cityWithCountry(stop.city, stop.country) : (stop.companyName || t('up_eta_stop', 'Stop'))}
                     </span>
                     <span className="tabular-nums font-black text-text-primary">{when(stop.liveEta)}</span>
                   </div>

@@ -1,3 +1,5 @@
+import { resolveCountryCode } from '../emissions/country-database';
+
 /**
  * Compact dispatcher-facing context for TMS notifications.
  *
@@ -65,6 +67,18 @@ export function tripNotificationText(
   };
 }
 
+/**
+ * Stop place as it appears in a toast: `București (RO)`. The city keeps the
+ * name stored on the trip (drivers and paperwork use it verbatim); the ISO
+ * code is what tells two same-named cities in different countries apart.
+ */
+export function stopPlaceLabel(stop: any): string {
+  const city = text(stop?.city);
+  if (!city) return '';
+  const iso = resolveCountryCode(stop?.country);
+  return iso ? `${city} (${iso})` : city;
+}
+
 /** Readable label for a raw trip status (`driver_accepted` → `Trip accepted`). */
 export function tripStatusLabel(status: unknown): string {
   const key = text(status).toLowerCase();
@@ -100,8 +114,8 @@ function tripRoute(trip: any): string {
     (stop?.tasks || []).some((task: any) => text(task?.type).toLowerCase() === type);
   const pickup = stops.find((stop) => hasTask(stop, 'load'));
   const dropoff = [...stops].reverse().find((stop) => hasTask(stop, 'unload'));
-  const from = text(pickup?.city) || text(stops[0]?.city);
-  const to = text(dropoff?.city) || text(stops[stops.length - 1]?.city);
+  const from = stopPlaceLabel(pickup) || stopPlaceLabel(stops[0]);
+  const to = stopPlaceLabel(dropoff) || stopPlaceLabel(stops[stops.length - 1]);
   if (from && to && from !== to) return `${from} → ${to}`;
   return from || to;
 }

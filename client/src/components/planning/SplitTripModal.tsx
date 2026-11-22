@@ -4,6 +4,7 @@ import { X, SplitSquareHorizontal, CheckSquare, Square, AlertTriangle, ArrowRigh
 import { useTranslation } from 'react-i18next';
 import { fmtNumber, fmtMoney } from '../../lib/format';
 import { useConfirm } from '../SaveConfirmProvider';
+import { cityWithCountry } from '../../lib/address';
 
 interface SplitTripModalProps {
   isOpen: boolean;
@@ -189,11 +190,11 @@ export default function SplitTripModal({ isOpen, onClose, trip, onSplit, isLoadi
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-text-secondary mt-1 truncate">
                         <span className="font-medium text-text-primary">
-                          {pickup?.city || pickup?.address?.split(',')[0] || 'Pickup'}
+                          {pickup?.city ? cityWithCountry(pickup.city, pickup.country) : (pickup?.address?.split(',')[0] || 'Pickup')}
                         </span>
                         <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
                         <span className="font-medium text-text-primary">
-                          {dropoff?.city || dropoff?.address?.split(',')[0] || 'Delivery'}
+                          {dropoff?.city ? cityWithCountry(dropoff.city, dropoff.country) : (dropoff?.address?.split(',')[0] || 'Delivery')}
                         </span>
                       </div>
                     </div>

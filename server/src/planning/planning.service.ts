@@ -8985,6 +8985,7 @@ export class PlanningService {
         stopId: stop.id,
         sequence: stop.sequence,
         city: stop.city,
+        country: stop.country || null,
         companyName: stop.companyName,
         plannedEta: plannedEta ? plannedEta.toISOString() : null,
         liveEta: liveEta.toISOString(),

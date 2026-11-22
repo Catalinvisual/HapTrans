@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { groupConflicts, presentConflict } from '../lib/conflictPresentation';
+import { cityWithCountry } from '../lib/address';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -290,7 +291,7 @@ export default function ConsolidationWizard({
                           </span>
                           <span className="flex min-w-0 items-center gap-1 font-bold text-text-primary">
                             <MapPin className="h-3 w-3 shrink-0 text-text-muted" />
-                            <span className="truncate">{stop.city || '—'}</span>
+                            <span className="truncate">{stop.city ? cityWithCountry(stop.city, stop.country) : '—'}</span>
                           </span>
                           {(stop.isNew || stop.orderNumber) && (
                             <span className="shrink-0 rounded bg-primary/10 px-1 text-[8px] font-black uppercase text-primary">

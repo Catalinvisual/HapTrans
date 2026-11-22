@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import api from '../lib/api';
+import { cityWithCountry } from '../lib/address';
 
 const RESOLUTIONS = [
   'RETURN_TO_ORIGIN', 'DELIVER_REMAINING', 'REDELIVERY',
@@ -112,7 +113,7 @@ export default function DeliveryIncidentsPanel({ tripId }: { tripId: string }) {
               <div>
                 <b>{t('incident_stop', 'Delivery stop')}:</b>{' '}
                 {incident.stop
-                  ? `${incident.stop.sequence ?? ''} · ${incident.stop.city || incident.stop.address || '—'}`
+                  ? `${incident.stop.sequence ?? ''} · ${incident.stop.city ? cityWithCountry(incident.stop.city, incident.stop.country) : (incident.stop.address || '—')}`
                   : incident.stopId || '—'}
               </div>
               <div><b>{t('incident_driver', 'Driver')}:</b> {incident.driver?.name || '—'}</div>

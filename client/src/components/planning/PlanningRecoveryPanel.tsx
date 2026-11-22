@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, LifeBuoy, Split, Truck, UserX, X } from 'lucide-react';
 import { fmtNumber } from '../../lib/format';
+import { cityWithCountry } from '../../lib/address';
 
 const cargoPallets = (trip: any): number =>
   (trip?.orders || []).reduce(
@@ -130,7 +131,7 @@ export default function PlanningRecoveryPanel({
                 <li key={stop?.id || index} className="flex items-center gap-1.5 text-[10px]">
                   <span className="w-4 shrink-0 font-black text-text-muted">{index + 1}</span>
                   <span className="min-w-0 flex-1 truncate font-bold text-text-primary">
-                    {stop?.companyName || stop?.city || '—'}
+                    {stop?.companyName || (stop?.city ? cityWithCountry(stop.city, stop.country) : '—')}
                   </span>
                   <span className="shrink-0 rounded border border-rose-500/30 bg-rose-500/10 px-1 text-[8px] font-black text-rose-600">
                     +{fmtNumber(lateMin, 0)} min

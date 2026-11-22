@@ -44,7 +44,7 @@ import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
-import { composeAddress, composeCityLine } from '../lib/address';
+import { cityWithCountry, composeAddress, composeCityLine } from '../lib/address';
 import ConsolidationWizard from '../components/ConsolidationWizard';
 import { providerStatusMessage } from '../lib/providerStatus';
 import { statusTone, statusInlineStyle, statusToneName, TONE_HEX } from '../lib/statusColors';
@@ -294,8 +294,11 @@ function tripOriginDestination(trip: any) {
   const stops = (trip?.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
   const first = stops[0];
   const last = stops[stops.length - 1];
-  const origin = first?.city || first?.address?.split(',')[0] || (trip.orders?.[0]?.stops?.find((s: any) => s.type === 'pickup')?.city) || '—';
-  const dest = last?.city || last?.address?.split(',')[0] || (trip.orders?.[0]?.stops?.filter((s: any) => s.type === 'delivery').pop()?.city) || '—';
+  const orderStops = trip.orders?.[0]?.stops || [];
+  const originCity = first?.city || first?.address?.split(',')[0] || (orderStops.find((s: any) => s.type === 'pickup')?.city);
+  const destCity = last?.city || last?.address?.split(',')[0] || (orderStops.filter((s: any) => s.type === 'delivery').pop()?.city);
+  const origin = originCity ? cityWithCountry(originCity, first?.country) : '—';
+  const dest = destCity ? cityWithCountry(destCity, last?.country) : '—';
   return { origin, dest };
 }
 
@@ -746,7 +749,7 @@ function TripBlock({
     revenue > 0 ? `${t('revenue', 'Revenue')}: ${fmtMoney(revenue, 'EUR')}` : null,
     driverName ? `${t('driver', 'Driver')}: ${driverName}` : null,
     trailerPlate ? `${t('trailer', 'Trailer')}: ${trailerPlate}` : null,
-    stops.length ? `${t('timeline_stop_sequence', 'Stop sequence')}: ${stops.slice(0, 8).map((s: any, idx: number) => `${idx + 1}. ${s.city || s.address || s.type || ''}`).join(' → ')}` : null,
+    stops.length ? `${t('timeline_stop_sequence', 'Stop sequence')}: ${stops.slice(0, 8).map((s: any, idx: number) => `${idx + 1}. ${s.city ? cityWithCountry(s.city, s.country) : (s.address || s.type || '')}`).join(' → ')}` : null,
     ['planning', 'planned', 'assigned'].includes(legacySt) ? t('drag_trip_to_unassign', 'Trage spre Order Pool pentru a dezasocia, sau click pentru detalii') : null,
   ].filter(Boolean).join('\n');
 
@@ -892,7 +895,7 @@ function TripBlock({
                   key={s.id || idx}
                   className={`h-1 rounded-full ${isDelivery ? 'bg-emerald-500' : 'bg-blue-500'}`}
                   style={{ width: `${100 / Math.min(stops.length, 10)}%` }}
-                  title={`${idx + 1}. ${s.city || s.address || s.type || ''}`}
+                  title={`${idx + 1}. ${s.city ? cityWithCountry(s.city, s.country) : (s.address || s.type || '')}`}
                 />
               );
             })}
@@ -2017,7 +2020,7 @@ function TripDetailDrawer({
                   {(etaInfo.stops || []).slice(0, 3).map((stop: any) => (
                     <div key={stop.stopId} className="rounded-lg border border-border/50 bg-surface/40 px-2 py-1">
                       <div className="flex items-center justify-between gap-2 text-[10px]">
-                        <span className="truncate text-text-secondary">#{stop.sequence} {stop.city || stop.companyName || t('up_eta_stop', 'Stop')}</span>
+                        <span className="truncate text-text-secondary">#{stop.sequence} {stop.city ? cityWithCountry(stop.city, stop.country) : (stop.companyName || t('up_eta_stop', 'Stop'))}</span>
                         <span className="tabular-nums font-black text-text-primary">{fmtTime(stop.liveEta)}</span>
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[9px]">

@@ -348,7 +348,8 @@ export function routeText(
 ): string {
   const place = (city?: string | null, country?: string | null) => {
     const cityLabel = String(city ?? '').trim();
-    if (cityLabel) return cityLabel;
+    const iso = canonicalCountryCode(country);
+    if (cityLabel) return iso && !cityLabel.toUpperCase().endsWith(`(${iso})`) ? `${cityLabel} (${iso})` : cityLabel;
     const countryLabel = countryName(country, lang);
     return countryLabel === '—' ? '' : countryLabel;
   };

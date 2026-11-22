@@ -7,7 +7,7 @@ import { Truck } from '../trucks/truck.entity';
 import { RoutingService } from '../routing/routing.service';
 import { ResendService } from '../email/resend.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { tripNotificationContext } from '../notifications/notification-context';
+import { stopPlaceLabel, tripNotificationContext } from '../notifications/notification-context';
 
 @Injectable()
 export class EtaCronService {
@@ -46,9 +46,10 @@ export class EtaCronService {
       const context = tripNotificationContext(trip);
       // The body names the affected stop, but the route already ends there in
       // most cases; repeating the same city twice reads like a second field.
+      const stopLabel = stopPlaceLabel(nextStop);
       const etaLine = [
         context.line || trip.id,
-        nextStop?.city && !context.route.includes(nextStop.city) ? nextStop.city : '',
+        stopLabel && !context.route.includes(stopLabel) ? stopLabel : '',
       ].filter(Boolean).join(' · ');
       if (!nextStop || !nextStop.latitude || !nextStop.longitude) {
         continue;

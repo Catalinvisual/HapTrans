@@ -118,6 +118,19 @@ export function composeCityLine({ address, postalCode, city, country }: Pick<Add
   return iso ? `${place} (${iso})` : place;
 }
 
+/**
+ * A place as the office reads it: "București (RO)". The city keeps its local
+ * name (it is trip data, not a UI label); the ISO code is what makes two
+ * same-named cities in different countries distinguishable at a glance.
+ */
+export function cityWithCountry(city?: string | null, country?: string | null): string {
+  const cityName = String(city || '').trim();
+  const iso = countryIso(country);
+  if (!cityName) return iso || '—';
+  if (!iso || cityName.toUpperCase().endsWith(`(${iso})`)) return cityName;
+  return `${cityName} (${iso})`;
+}
+
 /** Everything a search box should match for one stop. */
 export function addressSearchText(stop?: AddressParts | null): string {
   if (!stop) return '';
