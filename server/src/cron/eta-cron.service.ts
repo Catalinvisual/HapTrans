@@ -44,6 +44,12 @@ export class EtaCronService {
       const sortedStops = [...trip.stops].sort((a, b) => a.sequence - b.sequence);
       const nextStop = sortedStops.find(s => s.status !== 'completed');
       const context = tripNotificationContext(trip);
+      // The body names the affected stop, but the route already ends there in
+      // most cases; repeating the same city twice reads like a second field.
+      const etaLine = [
+        context.line || trip.id,
+        nextStop?.city && !context.route.includes(nextStop.city) ? nextStop.city : '',
+      ].filter(Boolean).join(' · ');
       if (!nextStop || !nextStop.latitude || !nextStop.longitude) {
         continue;
       }
@@ -67,7 +73,7 @@ export class EtaCronService {
               await this.notificationsService.create({
                 type: 'eta',
                 title: 'notif_eta_delayed_title',
-                message: [context.line || trip.id, nextStop.city].filter(Boolean).join(' · '),
+                message: etaLine,
                 relatedId: trip.id,
               });
             } catch (e) { this.logger.error('Failed to create ETA delay notification: ' + e.message); }
@@ -98,7 +104,7 @@ export class EtaCronService {
               await this.notificationsService.create({
                 type: 'eta',
                 title: 'notif_eta_recovered_title',
-                message: [context.line || trip.id, nextStop.city].filter(Boolean).join(' · '),
+                message: etaLine,
                 relatedId: trip.id,
               });
             } catch (e) { this.logger.error('Failed to create ETA recovery notification: ' + e.message); }

@@ -47,7 +47,10 @@ export default function EmissionsPage() {
   useEffect(() => {
     emissionsApi.filterOptions()
       .then((data) => setOptions(data || {}))
-      .catch(() => setOptions({}));
+      .catch((error) => {
+        console.warn('CO2 filter options could not be loaded', error);
+        setOptions({});
+      });
   }, []);
 
   const setTab = (id: string) => {

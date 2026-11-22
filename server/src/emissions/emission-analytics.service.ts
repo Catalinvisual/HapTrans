@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { TripEmissionRecord } from './emission-trip.entity';
 import { TripEmissionSegment } from './emission-trip.entity';
+import { resolveCountryCode } from './country-database';
 
 export interface EmissionFilters {
   from?: string;
@@ -27,16 +28,48 @@ const round = (v: number, d = 3): number => {
   return Math.round((v + Number.EPSILON) * f) / f;
 };
 
+/** Keeps one row per id and sorts by the visible label. */
+function uniqueOptions(rows: Array<{ id: string | null; label: string | null }>) {
+  const byId = new Map<string, { id: string; label: string }>();
+  for (const row of rows || []) {
+    const id = String(row?.id || '').trim();
+    if (!id || byId.has(id)) continue;
+    byId.set(id, { id, label: String(row?.label || '').trim() || id });
+  }
+  return [...byId.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function uniqueCodes(values: Array<string | null | undefined>) {
+  return [...new Set(values.map((v) => String(v || '').trim().toUpperCase()).filter(Boolean))].sort();
+}
+
 /**
  * Dashboard and drill-down aggregation. Every number is derived from stored
  * trip emission records; there are no hardcoded KPIs and no demo rows.
  */
 @Injectable()
 export class EmissionAnalyticsService {
+  private readonly logger = new Logger(EmissionAnalyticsService.name);
+
   constructor(
     @InjectRepository(TripEmissionRecord) private readonly records: Repository<TripEmissionRecord>,
     @InjectRepository(TripEmissionSegment) private readonly segments: Repository<TripEmissionSegment>,
   ) {}
+
+  /**
+   * One broken option source must never empty every dropdown: each dimension is
+   * queried on its own and a failure is logged instead of rejecting the call.
+   */
+  private async option<T>(label: string, run: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      this.logger.warn(
+        `Emission filter option "${label}" unavailable: ${(error as Error)?.message || error}`,
+      );
+      return fallback;
+    }
+  }
 
   private applyFilters(qb: SelectQueryBuilder<any>, alias: string, f: EmissionFilters) {
     if (f.from) qb.andWhere(`${alias}."executionDate" >= :from`, { from: f.from });
@@ -368,52 +401,132 @@ export class EmissionAnalyticsService {
     }));
   }
 
-  /** Filter option sources, so dropdowns only list values that really exist. */
+  /**
+   * Filter option sources.
+   *
+   * A dropdown lists a value when it exists in the company's own data. Emission
+   * records are the first source, but a record calculated before a truck, driver
+   * or customer was attached carries no id for it, so each dimension falls back
+   * to the real fleet/customer master data instead of showing an empty list.
+   */
   async filterOptions(companyId?: string | null) {
-    const trucks = await this.records.createQueryBuilder('r')
-      .leftJoin('trucks', 't', 't.id = r."truckId"')
-      .select('DISTINCT r."truckId"', 'id')
-      .addSelect('t."plateNumber"', 'label')
-      .where('r."truckId" IS NOT NULL')
-      .getRawMany();
-    const drivers = await this.records.createQueryBuilder('r')
-      .leftJoin('drivers', 'd', 'd.id = r."driverId"')
-      .leftJoin('users', 'u', 'u.id = d."userId"')
-      .select('DISTINCT r."driverId"', 'id')
-      .addSelect('u.name', 'label')
-      .where('r."driverId" IS NOT NULL')
-      .getRawMany();
-    const customers = await this.records.query(
-      `SELECT DISTINCT a."clientId" AS id, a."clientName" AS label
-         FROM trip_emission_allocations a
-         JOIN trip_emission_records r ON r.id = a."recordId"
-        WHERE a."clientId" IS NOT NULL
-          ${companyId ? 'AND r."companyId" = $1' : ''}
-        ORDER BY a."clientName"`,
-      companyId ? [companyId] : [],
-    );
-    const countries = await this.records.query(
-      `SELECT DISTINCT s."countryCode" AS code
-         FROM trip_emission_segments s
-         JOIN trip_emission_records r ON r.id = s."recordId"
-        ${companyId ? 'WHERE r."companyId" = $1' : ''}
-        ORDER BY s."countryCode"`,
-      companyId ? [companyId] : [],
-    );
-    const fuels = await this.records.createQueryBuilder('r')
-      .select('DISTINCT r."fuelType"', 'fuelType')
-      .where('r."fuelType" IS NOT NULL')
-      .getRawMany();
-    const range = await this.records.createQueryBuilder('r')
-      .select('MIN(r."executionDate")', 'min')
-      .addSelect('MAX(r."executionDate")', 'max')
-      .getRawOne();
+    const company = companyId || null;
+    const inCompany = (qb: SelectQueryBuilder<any>, alias: string) =>
+      company ? qb.andWhere(`${alias}."companyId" = :companyId`, { companyId: company }) : qb;
+
+    const trucks = await this.option('trucks', async () => {
+      const rows = await inCompany(
+        this.records.createQueryBuilder('r')
+          .leftJoin('trucks', 't', 't.id = r."truckId"')
+          .select('DISTINCT r."truckId"', 'id')
+          .addSelect('t."plateNumber"', 'label')
+          .where('r."truckId" IS NOT NULL'),
+        'r',
+      ).orderBy('t."plateNumber"', 'ASC').getRawMany();
+      if (rows.length) return rows;
+      return inCompany(
+        this.records.manager.createQueryBuilder()
+          .select('t.id', 'id')
+          .addSelect('t."plateNumber"', 'label')
+          .from('trucks', 't')
+          .where('t."plateNumber" IS NOT NULL'),
+        't',
+      ).orderBy('t."plateNumber"', 'ASC').limit(500).getRawMany();
+    }, [] as Array<{ id: string | null; label: string | null }>);
+
+    const drivers = await this.option('drivers', async () => {
+      const rows = await inCompany(
+        this.records.createQueryBuilder('r')
+          .leftJoin('drivers', 'd', 'd.id = r."driverId"')
+          .leftJoin('users', 'u', 'u.id = d."userId"')
+          .select('DISTINCT r."driverId"', 'id')
+          .addSelect('u.name', 'label')
+          .where('r."driverId" IS NOT NULL'),
+        'r',
+      ).orderBy('u.name', 'ASC').getRawMany();
+      if (rows.length) return rows;
+      return inCompany(
+        this.records.manager.createQueryBuilder()
+          .select('d.id', 'id')
+          .addSelect('u.name', 'label')
+          .from('drivers', 'd')
+          .innerJoin('users', 'u', 'u.id = d."userId"')
+          .where('u.name IS NOT NULL'),
+        'u',
+      ).orderBy('u.name', 'ASC').limit(500).getRawMany();
+    }, [] as Array<{ id: string | null; label: string | null }>);
+
+    const customers = await this.option('customers', async () => {
+      const rows = await inCompany(
+        this.records.createQueryBuilder('r')
+          .innerJoin('trip_emission_allocations', 'a', 'a."recordId" = r.id')
+          .select('DISTINCT a."clientId"', 'id')
+          .addSelect('a."clientName"', 'label')
+          .where('a."clientId" IS NOT NULL'),
+        'r',
+      ).orderBy('a."clientName"', 'ASC').getRawMany();
+      if (rows.length) return rows;
+      return inCompany(
+        this.records.manager.createQueryBuilder()
+          .select('c.id', 'id')
+          .addSelect('c.name', 'label')
+          .from('clients', 'c')
+          .where('c.name IS NOT NULL'),
+        'c',
+      ).orderBy('c.name', 'ASC').limit(500).getRawMany();
+    }, [] as Array<{ id: string | null; label: string | null }>);
+
+    const countries = await this.option('countries', async () => {
+      const rows = await inCompany(
+        this.segments.createQueryBuilder('s')
+          .innerJoin(TripEmissionRecord, 'r', 'r.id = s."recordId"')
+          .select('DISTINCT s."countryCode"', 'code')
+          .where('s."countryCode" IS NOT NULL'),
+        'r',
+      ).orderBy('s."countryCode"', 'ASC').getRawMany();
+      const fromSegments = rows.map((row: { code: string }) => row.code);
+      if (fromSegments.length) return uniqueCodes(fromSegments);
+      // Records without country segments still belong to trips whose stops know
+      // their country; resolve those to ISO codes instead of an empty list.
+      const stopRows = await inCompany(
+        this.records.createQueryBuilder('r')
+          .innerJoin('trips', 'tr', 'tr.id = r."tripId"')
+          .innerJoin('stops', 'st', 'st."tripId" = tr.id')
+          .select('DISTINCT st."country"', 'country')
+          .where('st."country" IS NOT NULL'),
+        'r',
+      ).getRawMany();
+      return uniqueCodes(
+        (stopRows as Array<{ country: string }>).map((row) => resolveCountryCode(row.country)),
+      );
+    }, [] as string[]);
+
+    const fuels = await this.option('fuelTypes', async () => {
+      const rows = await inCompany(
+        this.records.createQueryBuilder('r')
+          .select('DISTINCT r."fuelType"', 'fuelType')
+          .where('r."fuelType" IS NOT NULL'),
+        'r',
+      ).getRawMany();
+      return (rows as Array<{ fuelType: string }>)
+        .map((row) => String(row.fuelType || '').trim())
+        .filter(Boolean)
+        .sort();
+    }, [] as string[]);
+
+    const range = await this.option('dateRange', async () => inCompany(
+      this.records.createQueryBuilder('r')
+        .select('MIN(r."executionDate")', 'min')
+        .addSelect('MAX(r."executionDate")', 'max'),
+      'r',
+    ).getRawOne(), {} as { min?: string | null; max?: string | null });
+
     return {
-      trucks: trucks.filter((t) => t.id),
-      drivers: drivers.filter((d) => d.id),
-      customers: (customers as Array<{ id: string; label: string }>).filter((c) => c.id),
-      countries: (countries as Array<{ code: string }>).map((c) => c.code),
-      fuelTypes: (fuels as Array<{ fuelType: string }>).map((f) => f.fuelType),
+      trucks: uniqueOptions(trucks),
+      drivers: uniqueOptions(drivers),
+      customers: uniqueOptions(customers),
+      countries,
+      fuelTypes: fuels,
       dateRange: { min: range?.min || null, max: range?.max || null },
     };
   }
