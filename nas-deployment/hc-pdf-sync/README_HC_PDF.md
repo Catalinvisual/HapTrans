@@ -115,7 +115,26 @@ docker exec -it hapcargo-hc-pdf-sync touch /hc-pdf/.test && docker exec -it hapc
 
 ---
 
-## 5. Procedura de Oprire / Rollback
+## 5. Actualizarea worker-ului (obligatoriu pentru numele fișierelor)
+
+Numele sub care ajung PDF-urile în `/Volume3/HC-PDF` sunt scrise de **worker**, nu de aplicație. Build-urile vechi ale worker-ului înlocuiau spațiile cu `_`, de aceea pe NAS apăreau nume ca `TRP-2026-0007_-_AR_67X_WT.pdf`, chiar dacă aplicația trimitea `TRP-2026-0007 - AR 67X WT.pdf`. Build-ul actual păstrează spațiile, așa că worker-ul de pe TerraMaster trebuie actualizat o singură dată după deploy-ul aplicației:
+
+```bash
+# de pe stația locală, din rădăcina proiectului
+scp nas-deployment/hc-pdf-sync/hc-pdf-sync.js admin@<IP_NAS>:/Volume3/docker/hc-pdf-sync/
+
+# pe NAS
+ssh admin@<IP_NAS>
+cd /Volume3/docker/hc-pdf-sync
+docker compose up -d --build
+docker logs --tail 50 hapcargo-hc-pdf-sync
+```
+
+La prima pornire, worker-ul afișează `HC-PDF Sync Worker v1.3 (Readable filenames)` și redenumește automat fișierele vechi cu underscore în forma citibilă (`ORD-2026-000035_-_GammaLog_SRL.pdf` → `ORD-2026-000035 - GammaLog SRL.pdf`). Rezultatul este marcat cu `.legacy-underscore-migration` în directorul de receipts, deci operația nu se repetă. Fișierele regenerate după actualizare primesc direct numele corect.
+
+---
+
+## 6. Procedura de Oprire / Rollback
 
 Dacă doriți oprirea sau revenirea:
 ```bash

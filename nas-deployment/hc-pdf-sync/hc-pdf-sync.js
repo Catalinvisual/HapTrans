@@ -440,11 +440,47 @@ async function runSyncCycle(
 }
 
 /**
+ * One-time cleanup for files written by worker builds that replaced spaces with
+ * underscores ("TRP-2026-0007_-_AR_67X_WT.pdf"). Those builds produced the
+ * filenames the user sees on the NAS; this build keeps spaces, so legacy names
+ * are healed once at startup into the readable form.
+ */
+function migrateLegacyFilenames(targetDir = TARGET_DIR, receiptsDir = RECEIPTS_DIR) {
+  const marker = path.join(receiptsDir, '.legacy-underscore-migration');
+  if (fs.existsSync(marker)) return { renamed: 0, skipped: true };
+
+  let renamed = 0;
+  try {
+    for (const entry of fs.readdirSync(targetDir)) {
+      if (!entry.toLowerCase().endsWith('.pdf') || !entry.includes('_-_')) continue;
+      const healed = sanitizeTargetFilename(entry);
+      if (!healed || healed === entry) continue;
+      const from = path.join(targetDir, entry);
+      const to = path.join(targetDir, healed);
+      if (fs.existsSync(to)) continue;
+      try {
+        fs.renameSync(from, to);
+        renamed++;
+        console.log(`[MIGRATED] ${entry} -> ${healed}`);
+      } catch (err) {
+        console.warn(`[WARN] Could not rename ${entry}: ${err.message}`);
+      }
+    }
+    try { fs.writeFileSync(marker, new Date().toISOString()); } catch (_) {}
+  } catch (err) {
+    console.warn(`[WARN] Legacy filename migration skipped: ${err.message}`);
+  }
+
+  if (renamed > 0) console.log(`[OK] Renamed ${renamed} legacy file(s) to readable names`);
+  return { renamed };
+}
+
+/**
  * Main daemon loop.
  */
 async function startDaemon() {
   console.log(`====================================================`);
-  console.log(`HapCargo TerraMaster HC-PDF Sync Worker v1.2 (Safe Replacement)`);
+  console.log(`HapCargo TerraMaster HC-PDF Sync Worker v1.3 (Readable filenames)`);
   console.log(`Worker ID: ${WORKER_ID}`);
   console.log(`Destination: ${TARGET_DIR} (Root only, no subfolders)`);
   console.log(`Receipts Dir: ${RECEIPTS_DIR}`);
@@ -455,6 +491,7 @@ async function startDaemon() {
   try {
     checkTargetDirectory(TARGET_DIR, RECEIPTS_DIR, TMP_DIR);
     console.log(`[OK] Write access & storage confirmed (Target: ${TARGET_DIR}, Receipts: ${RECEIPTS_DIR})`);
+    migrateLegacyFilenames(TARGET_DIR, RECEIPTS_DIR);
   } catch (err) {
     console.error(`[FATAL] ${err.message}`);
     process.exit(1);
@@ -487,6 +524,7 @@ module.exports = {
   replaceFileSafely,
   commitFileExclusively,
   checkTargetDirectory,
+  migrateLegacyFilenames,
   getJobReceipt,
   processArchiveJob,
   runSyncCycle,
