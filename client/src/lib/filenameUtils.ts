@@ -6,15 +6,15 @@
  * - Limits length to 35 characters
  */
 /**
- * Document names read as a sentence: one hyphen between the reference and the
- * name, spaces between the words, and never an underscore (the NAS, the browser
- * download and Excel all receive the same name).
+ * Document names read as a sentence: spaces between the words and never an
+ * underscore (the NAS, the browser download and Excel all receive the same
+ * name). Hyphens inside references stay untouched, so "ORD-2026-000035" and
+ * "AR-67-XWT" are never broken into "ORD - 2026 - 000035".
  */
 export function normalizeDocumentName(value?: string | null): string {
   return String(value ?? '')
-    .replace(/_/g, ' ')
+    .replace(/_+/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/\s*-\s*/g, ' - ')
     .trim();
 }
 
