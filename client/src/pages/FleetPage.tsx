@@ -9,13 +9,13 @@ const TrucksPage = lazy(() => import('./TrucksPage'));
 const TrailersPage = lazy(() => import('./TrailersPage'));
 const EmissionsPage = lazy(() => import('./EmissionsPage'));
 
-// Section switching (Trucks / Trailers / CO2) is mirrored in the topbar
-// (Layout.tsx) and in the in-page strip below; both use ?tab= so browser
-// history, refresh and deep links land on the same section.
+// Section switching (Trucks / Trailers / CO2) lives in the topbar
+// (Layout.tsx module tabs) and reads ?tab= from the URL, so browser history,
+// refresh and deep links land on the same section without a duplicate in-page strip.
 export default function FleetPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const showTrucks = canSection(user, 'trucks', 'fleet');
   const showTrailers = canSection(user, 'trailers', 'fleet');
@@ -45,32 +45,8 @@ export default function FleetPage() {
   const requested = searchParams.get('tab');
   const active = tabs.some(x => x.id === requested) ? requested! : tabs[0].id;
 
-  const selectTab = (id: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (id === 'trucks') next.delete('tab'); else next.set('tab', id);
-    setSearchParams(next, { replace: false });
-  };
-
   return (
     <div className="max-w-[1600px] mx-auto space-y-3 animate-fade-in">
-      {tabs.length > 1 && (
-        <div className="flex items-center gap-1 bg-surface/70 border border-border rounded-full p-1 w-fit shadow-sm overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => selectTab(tab.id)}
-              aria-current={active === tab.id ? 'page' : undefined}
-              className={`px-3 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                active === tab.id ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text hover:bg-surface/70'
-              }`}
-            >
-              <tab.icon className="w-3.5 h-3.5" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <Suspense fallback={null}>
         {active === 'co2' ? <EmissionsPage /> : active === 'trailers' ? <TrailersPage /> : <TrucksPage />}
       </Suspense>
