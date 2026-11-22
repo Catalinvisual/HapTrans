@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import type { CompanySettings } from '../store/settingsStore';
 import { fmtNumber } from './format';
+import { driverDisplayName } from './driverName';
 import { createBaseDocument } from './pdfGenerator';
 import { finishPdf, pdfSectionTitle, pdfSafe } from './pdfTheme';
 import { getCleanOrderFilename, getCleanTripFilename } from './filenameUtils';
@@ -110,12 +111,12 @@ export async function generateCmrPdf(
     styles: { fontSize: 8.5, cellPadding: 4 },
     headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
-      0: { cellWidth: 22, halign: 'center' },
+      0: { cellWidth: 22 },
       1: { cellWidth: 195 },
-      2: { cellWidth: 50, halign: 'right' },
+      2: { cellWidth: 50 },
       3: { cellWidth: 65 },
-      4: { cellWidth: 55, halign: 'right' },
-      5: { cellWidth: 55, halign: 'right' },
+      4: { cellWidth: 55 },
+      5: { cellWidth: 55 },
     },
     body: cargoRows(order),
     margin: { left: 40, right: 40 },
@@ -179,9 +180,9 @@ export async function generateDaySheetPdf(
   const { doc, startY } = await createBaseDocument(`Day sheet: ${tripNum}`, company, 'portrait');
   let currentY = startY;
 
-  const driverName = trip?.driver?.name || trip?.driver?.user?.name || '—';
-  const truckPlate = trip?.truck?.plateNumber || '—';
-  const trailerPlate = trip?.trailer?.plateNumber || '—';
+  const driverName = driverDisplayName(trip) || trip?.driverName || '—';
+  const truckPlate = trip?.truck?.plateNumber || trip?.truckPlate || trip?.carrierTruckPlate || '—';
+  const trailerPlate = trip?.trailer?.plateNumber || trip?.truck?.trailer?.plateNumber || trip?.trailerPlate || trip?.carrierTrailerPlate || '—';
   const stops = (trip?.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
   const pallets = stops.reduce((sum: number, stop: any) => sum + (Number(stop?.pallets) || 0), 0);
   const weightKg = stops.reduce((sum: number, stop: any) => sum + (Number(stop?.weightKg) || 0), 0);
@@ -227,10 +228,7 @@ export async function generateDaySheetPdf(
     // Let autoTable size these columns: fixed widths pushed the widest cell past
     // the printable area of a portrait page.
     columnStyles: {
-      0: { halign: 'center' },
       1: { fontStyle: 'bold' },
-      5: { halign: 'right' },
-      6: { halign: 'right' },
     },
     body: stops.length
       ? stops.map((stop: any, index: number) => [

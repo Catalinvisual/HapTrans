@@ -83,7 +83,7 @@ export const generatePayrollPdf = async (
     headStyles: { ...PDF_HEAD_STYLES, fontSize: 9 },
     columnStyles: {
       0: { cellWidth: 120 },
-      1: { cellWidth: 'auto', halign: 'right' },
+      1: { cellWidth: 'auto' },
     },
     styles: { ...PDF_TABLE_STYLES, fontSize: 9, cellPadding: 4 },
     alternateRowStyles: { fillColor: [250, 250, 251] },
@@ -116,7 +116,7 @@ export const generatePayrollPdf = async (
   doc.setFont('helvetica', 'bold');
   doc.text(t('payroll_totalNet') || 'Net to pay', 117, finalY + 15);
   doc.setFontSize(12);
-  doc.text(formatEuro(payroll.totalNetToPay), 191, finalY + 22, { align: 'right' });
+  doc.text(formatEuro(payroll.totalNetToPay), 117, finalY + 22);
 
   doc.setFontSize(8);
   doc.setTextColor(...PDF_MUTED);

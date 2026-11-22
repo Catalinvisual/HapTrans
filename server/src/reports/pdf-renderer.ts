@@ -121,8 +121,8 @@ export function renderReportHtml(p: ReportPayload, locale?: string): string {
   .chart-box { border: 1px solid #ffd9c7; border-radius: 8px; padding: 8px; background: #fff; }
   .chart-box svg { width: 100%; height: auto; display: block; }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { background: #ffe9de; color: #111827; text-align: center; padding: 6px 8px; font-weight: 600; }
-  td { padding: 5px 8px; border-bottom: 1px solid #ffd9c7; vertical-align: middle; text-align: center; }
+  th { background: #ffe9de; color: #111827; text-align: left; padding: 6px 8px; font-weight: 600; }
+  td { padding: 5px 8px; border-bottom: 1px solid #ffd9c7; vertical-align: middle; text-align: left; }
   tr:nth-child(even) td { background: #fffaf7; }
   td.t-currency, td.t-number, td.t-percent { font-variant-numeric: tabular-nums; }
   td.t-date { white-space: nowrap; }

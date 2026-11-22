@@ -293,7 +293,7 @@ export async function exportDashboardPdf(
     t('dbd_country_title'),
     [t('ifta_country', 'Country'), t('dbd_pickups'), t('dbd_deliveries'), t('dbd_total')],
     data.byCountry.slice(0, 10).map((row) => [row.country, row.pickups, row.deliveries, row.total]),
-    { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } },
+    { 3: { fontStyle: 'bold' } },
   );
 
   section(
@@ -311,28 +311,28 @@ export async function exportDashboardPdf(
       [t('dbd_driver_sick'), data.drivers.sick],
       [t('dbd_driver_vacation'), data.drivers.vacation],
     ],
-    { 1: { halign: 'right', fontStyle: 'bold' } },
+    { 1: { fontStyle: 'bold' } },
   );
 
   section(
     t('dbd_status_title'),
     [t('jsx_status', 'Status'), t('dbd_trips')],
     data.statusDistribution.map((row) => [t(`status_${row.status}`, humanizeStatus(row.status)), row.count]),
-    { 1: { halign: 'right', fontStyle: 'bold' } },
+    { 1: { fontStyle: 'bold' } },
   );
 
   section(
     t('dbd_routes_title'),
     [t('origin', 'Origin'), t('destination', 'Destination'), t('dbd_trips'), t('dbd_kpi_km')],
     data.topRoutes.map((row) => [row.from || '—', row.to || '—', row.trips, row.km]),
-    { 2: { halign: 'right' }, 3: { halign: 'right' } },
+    {},
   );
 
   section(
     t('dbd_upcoming_title'),
     [t('jsx_pickupDate', 'Date'), t('dbd_departures')],
     data.upcoming.days.map((day) => [formatShortDate(day.date, lang), day.count]),
-    { 1: { halign: 'right', fontStyle: 'bold' } },
+    { 1: { fontStyle: 'bold' } },
   );
 
   section(
@@ -412,7 +412,7 @@ export async function exportHandoverPdf(
     ],
     theme: 'grid',
     margin: { left: margin, right: margin },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 220 }, 1: { fontStyle: 'bold', halign: 'right' } },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 220 }, 1: { fontStyle: 'bold' } },
     styles: { ...PDF_TABLE_STYLES, fontSize: 9, cellPadding: 5 },
     alternateRowStyles: PDF_ALT_ROW_STYLES,
   });

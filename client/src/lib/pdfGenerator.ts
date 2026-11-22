@@ -8,6 +8,7 @@ import { fuelTypeLabel, getTruckFuelProfile } from './truckFuel';
 import { getCleanOrderFilename, getCleanProfileFilename, getCleanTripFilename } from './filenameUtils';
 import { composeAddress } from './address';
 import { transportTypeLabel } from './transportType';
+import { driverDisplayName, driverEntityDisplayName } from './driverName';
 import { drawPdfHeader, finishPdf, pdfSafe, pdfSectionTitle } from './pdfTheme';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
@@ -65,6 +66,14 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   pdfSectionTitle(doc, 'General Information', 40, currentY, 'pt');
   currentY += 15;
 
+  // The order number is already the document title; only print a reference row
+  // when the customer's own reference is something else.
+  const titleReference = String(order?.orderNumber || '').trim();
+  const customerReference = String(order?.customerReference || '').trim();
+  const referenceRows: string[][] = customerReference && customerReference !== titleReference
+    ? [['Customer Reference', normalizeText(customerReference)]]
+    : [];
+
   autoTable(doc, {
     startY: currentY,
     theme: 'plain',
@@ -73,7 +82,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
     body: [
       ['Status', formatStatus(order?.status)],
       ['Client', normalizeText(order?.client?.name || '—')],
-      ['Reference', normalizeText(order?.orderNumber || order?.referenceNumber || order?.customerReference || '—')],
+      ...referenceRows,
       ['Price', `€ ${order?.price || 0}`],
       ['Transport Type', transportTypeLabel(order?.transportType)],
       ['ADR Status', (order?.isAdr || (order?.adrStatus && order?.adrStatus !== 'none')) ? `${(order?.adrStatus || 'ADR').toUpperCase()} (${order?.adrTotalPoints || 0} pts${order?.adrExemptionApplied ? ` - ${order?.adrExemptionApplied}` : ''})` : 'Not Applicable (Non-hazardous)'],
@@ -259,7 +268,7 @@ export async function generateTruckPdf(truck: any, company: CompanySettings | nu
       [i18n.t('truck_fuel_type', 'Fuel / energy type'), truck?.fuelType ? fuelTypeLabel(truck.fuelType, i18n.t.bind(i18n)) : i18n.t('truck_fuel_not_configured', 'Fuel type not configured')],
       [i18n.t('truck_fuel_consumption', 'Consumption'), truck?.fuelConsumption ? `${fmtNumber(truck.fuelConsumption, 1)} ${getTruckFuelProfile(truck.fuelType)?.unit || ''}`.trim() : '—'],
       [i18n.t('euronorm', 'Emission Standard'), truck?.euronorm || '—'],
-      ['Current Driver', truck?.driver?.name || '—'],
+      ['Current Driver', driverEntityDisplayName(truck?.driver)],
       ['Odometer', truck?.currentOdometer ? `${fmtNumber(truck.currentOdometer)} km` : '—'],
     ],
     margin: { left: 40, right: 40 },
@@ -307,7 +316,7 @@ export async function generateTrailerPdf(trailer: any, company: CompanySettings 
 }
 
 export async function generateDriverPdf(driver: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
-  const driverName = driver?.user?.name || driver?.name || 'Driver';
+  const driverName = driverEntityDisplayName(driver) || 'Driver';
   const { doc, startY } = await createBaseDocument(`Driver Profile: ${driverName}`, company, 'landscape');
   let currentY = startY;
 
@@ -347,9 +356,13 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
   const { doc, startY } = await createBaseDocument(`Trip Sheet: ${tripNum}`, company, 'landscape');
   let currentY = startY;
 
-  const driverName = trip?.driver?.name || trip?.driver?.user?.name || trip?.carrierDriverName || '—';
-  const truckPlate = trip?.truck?.plateNumber || trip?.carrierTruckPlate || '—';
-  const trailerPlate = trip?.trailer?.plateNumber || trip?.carrierTrailerPlate || '—';
+  // Same resolver the trip page uses, so a driver attached to the truck or a
+  // subcontractor driver is never printed as "—".
+  const driverName = driverDisplayName(trip) || trip?.driverName || '—';
+  const truckPlate = trip?.truck?.plateNumber || trip?.truckPlate || trip?.carrierTruckPlate || '—';
+  // The trailer can hang on the trip or, when it was hooked to the truck, on
+  // the truck record itself — the same fallback the trip page shows.
+  const trailerPlate = trip?.trailer?.plateNumber || trip?.truck?.trailer?.plateNumber || trip?.trailerPlate || trip?.carrierTrailerPlate || '—';
   const dispatcherName = trip?.dispatcher?.name || trip?.dispatcher?.email || '—';
   const carrierName = trip?.carrierName || '—';
 
@@ -367,12 +380,12 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
       3: { cellWidth: 260 },
     },
     body: [
-      ['Trip Reference', tripNum, 'Status', formatStatus(trip?.status)],
-      ['Truck Plate', truckPlate, 'Planned Departure', fmtDateTime(trip?.plannedDeparture)],
-      ['Trailer Plate', trailerPlate, 'Planned Arrival', fmtDateTime(trip?.plannedArrival)],
-      ['Assigned Driver', driverName, 'Actual Departure', fmtDateTime(trip?.actualDeparture)],
-      ['Carrier (Subcontractor)', carrierName, 'Actual Arrival', fmtDateTime(trip?.actualArrival)],
-      ['Dispatcher', dispatcherName, 'Total Distance', trip?.distanceKm ? `${fmtNumber(trip.distanceKm)} km` : '—'],
+      ['Status', formatStatus(trip?.status), 'Planned Departure', fmtDateTime(trip?.plannedDeparture)],
+      ['Truck Plate', truckPlate, 'Planned Arrival', fmtDateTime(trip?.plannedArrival)],
+      ['Trailer Plate', trailerPlate, 'Actual Departure', fmtDateTime(trip?.actualDeparture)],
+      ['Assigned Driver', driverName, 'Actual Arrival', fmtDateTime(trip?.actualArrival)],
+      ['Carrier (Subcontractor)', carrierName, 'Total Distance', trip?.distanceKm ? `${fmtNumber(trip.distanceKm)} km` : '—'],
+      ['Dispatcher', dispatcherName, 'Orders', String((trip?.orders || []).length)],
     ],
     margin: { left: 40, right: 40 },
   });
@@ -406,7 +419,7 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
       styles: { fontSize: 8.5, cellPadding: 4 },
       headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 25, halign: 'center' },
+        0: { cellWidth: 25 },
         1: { cellWidth: 65, fontStyle: 'bold' },
         2: { cellWidth: 320 },
         3: { cellWidth: 120 },
@@ -446,11 +459,11 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
       styles: { fontSize: 8.5, cellPadding: 4 },
       headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 25, halign: 'center' },
+        0: { cellWidth: 25 },
         1: { cellWidth: 140, fontStyle: 'bold' },
         2: { cellWidth: 200 },
         3: { cellWidth: 300 },
-        4: { cellWidth: 95, halign: 'right' },
+        4: { cellWidth: 95 },
       },
       body: orderRows,
       margin: { left: 40, right: 40 },

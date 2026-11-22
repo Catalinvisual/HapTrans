@@ -476,29 +476,18 @@ export function generateInvoiceHtml(rawInvoice: any, rawCompany: any, lang: 'en'
   }
 
   .service-table th {
-    background: #061a3a;
-    color: white;
+    background: #ffe9de;
+    color: #111827;
     text-align: left;
     padding: 9px 10px;
     font-size: 12px;
-  }
-
-  .service-table th:nth-child(2),
-  .service-table th:nth-child(3),
-  .service-table th:nth-child(4) {
-    text-align: center;
   }
 
   .service-table td {
     border: 1px solid #e2e7ef;
     padding: 10px 10px;
     vertical-align: middle;
-  }
-
-  .service-table td:nth-child(2),
-  .service-table td:nth-child(3),
-  .service-table td:nth-child(4) {
-    text-align: center;
+    text-align: left;
   }
 
   .service-title {

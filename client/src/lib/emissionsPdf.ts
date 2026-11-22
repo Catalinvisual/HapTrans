@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
-  drawPdfHeader, finishPdf, pdfDate, pdfDateTime, pdfSafe, pdfSectionTitle,
+  drawPdfHeader, finishPdf, pdfDate, pdfSafe, pdfSectionTitle,
   PDF_HEAD_STYLES, PDF_TABLE_STYLES,
 } from './pdfTheme';
 
@@ -18,23 +18,23 @@ export async function generateEmissionReportPdf(report: any, companyName?: strin
   const period = `${pdfDate(report.periodStart)} - ${pdfDate(report.periodEnd)}`;
   const header = await drawPdfHeader(doc, {
     title,
-    subtitle: [report.reportNumber, period].filter(Boolean).join(' · '),
+    subtitle: String(report.reportNumber || ''),
     unit: 'mm',
     meta: companyName ? [companyName] : [],
   });
   let y = header.startY;
 
-  const status = String(report.status || '').replace(/_/g, ' ');
+  const rawMethodology = String(report.methodology || snapshot.methodology || '').trim();
+  // Engine codes like en_iso_14083_wtw read better as EN ISO 14083 WTW.
+  const methodology = rawMethodology
+    ? rawMethodology.replace(/_/g, ' ').replace(/\b(en|iso|wtw|ttw)\b/gi, (token) => token.toUpperCase())
+    : '—';
   const metaRows: Array<[string, string]> = [
     ['Report ID', String(report.reportNumber || '—')],
     ['Period', period],
-    ['Methodology', String(report.methodology || snapshot.methodology || '—')],
+    ['Methodology', methodology],
     ['Engine version', String(report.engineVersion || '—')],
     ['Unit', String(snapshot.unit || 'kg CO2e')],
-    ['Created', report.createdAt ? pdfDateTime(report.createdAt) : '—'],
-    ['Status', status ? status.charAt(0).toUpperCase() + status.slice(1) : '—'],
-    ['Finalized', report.finalizedAt ? pdfDateTime(report.finalizedAt) : '—'],
-    ['Checksum', String(report.checksum || '—')],
   ];
   autoTable(doc, {
     startY: y,
@@ -70,7 +70,7 @@ export async function generateEmissionReportPdf(report: any, companyName?: strin
     styles: PDF_TABLE_STYLES,
     headStyles: { ...PDF_HEAD_STYLES, fontSize: 8 },
     alternateRowStyles: { fillColor: [250, 250, 251] },
-    columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { cellWidth: 28 } },
+    columnStyles: { 1: { fontStyle: 'bold' }, 2: { cellWidth: 28 } },
     margin: { left: 14, right: 14 },
   });
   y = (doc as any).lastAutoTable.finalY + 9;

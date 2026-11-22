@@ -1116,8 +1116,8 @@ export default function PlanningResultsPanel({
             unit: 'pt',
           });
           const columnStyles: Record<number, any> = {};
-          headers.forEach((head, index) => {
-            columnStyles[index] = { halign: head.align || 'left' };
+          headers.forEach((_head, index) => {
+            columnStyles[index] = { halign: 'left' };
           });
           autoTable(doc, {
             startY: header.startY,
