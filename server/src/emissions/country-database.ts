@@ -15,6 +15,8 @@
  *   needs_review  — system/basis known, details or tariff require re-checking
  *   unverified    — recorded as a jurisdiction only; no requirement assumed
  */
+import { ISO3_TO_ISO2, ISO_COUNTRY_CODES, isIsoCountryCode } from '../common/iso-countries';
+
 export type EmissionLanguage = 'ro' | 'en' | 'nl' | 'de' | 'fr' | 'es' | 'pl';
 
 export type CountryNames = Record<EmissionLanguage, string>;
@@ -497,32 +499,129 @@ export const COUNTRY_BY_CODE: Record<string, CountrySeed> = Object.fromEntries(
   EUROPEAN_COUNTRIES.map((c) => [c.code, c]),
 );
 
+/** Codes carriers and authorities use that ISO 3166-1 does not assign. */
+const COUNTRY_ALIASES: Record<string, string> = {
+  uk: 'GB',
+  greatbritain: 'GB',
+  holland: 'NL',
+  thenetherlands: 'NL',
+  usa: 'US',
+  unitedstates: 'US',
+  unitedstatesofamerica: 'US',
+  uae: 'AE',
+  unitedarabemirates: 'AE',
+  southkorea: 'KR',
+  republicofkorea: 'KR',
+  northkorea: 'KP',
+  czechrepublic: 'CZ',
+  macedonia: 'MK',
+  northmacedonia: 'MK',
+  bosnia: 'BA',
+  ivorycoast: 'CI',
+  cotedivoire: 'CI',
+  russia: 'RU',
+  russianfederation: 'RU',
+  vaticancity: 'VA',
+  holysee: 'VA',
+  turkiye: 'TR',
+};
+
+/** Case-, accent- and punctuation-insensitive key for a country name. */
+function countryKey(value: string): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+let countryNameIndex: Map<string, string> | null = null;
+
+/**
+ * Country names in the seven interface languages, mapped to their ISO-2 code.
+ * Built once from the ICU region data (Intl.DisplayNames), the same source the
+ * interface uses, so a name typed in any of those languages finds its country
+ * without a hand-maintained list.
+ */
+function getCountryNameIndex(): Map<string, string> {
+  if (countryNameIndex) return countryNameIndex;
+  const index = new Map<string, string>();
+  const languages: EmissionLanguage[] = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
+  const DisplayNames = (Intl as any).DisplayNames;
+  if (DisplayNames) {
+    for (const language of languages) {
+      try {
+        const display = new DisplayNames([language], { type: 'region' });
+        for (const code of ISO_COUNTRY_CODES) {
+          const name = display.of(code);
+          if (!name) continue;
+          const key = countryKey(name);
+          if (!key) continue;
+          if (!index.has(key)) index.set(key, code);
+        }
+      } catch { /* runtime without ICU region data */ }
+    }
+  }
+  countryNameIndex = index;
+  return index;
+}
+
 export function isKnownCountry(code: string | null | undefined): boolean {
   if (!code) return false;
   return !!COUNTRY_BY_CODE[String(code).toUpperCase()];
 }
 
-/** Normalizes an ISO-2/ISO-3 code or a name in any supported language to ISO-2. */
+/**
+ * Normalizes an ISO-2/ISO-3 code or a country name in any supported language
+ * to ISO-2. Only officially assigned ISO 3166-1 codes (and the documented
+ * aliases) are returned, so a value that is not a country — an empty field,
+ * "Unknown", "UN", "EU" — resolves to null instead of being cut into a fake
+ * two-letter code.
+ */
 export function resolveCountryCode(value: string | null | undefined): string | null {
   if (value === null || value === undefined) return null;
   const raw = String(value).trim();
   if (!raw) return null;
   const upper = raw.toUpperCase();
   if (COUNTRY_BY_CODE[upper]) return upper;
-  const byIso3 = EUROPEAN_COUNTRIES.find((c) => c.iso3.toUpperCase() === upper);
-  if (byIso3) return byIso3.code;
-  const needle = raw.toLowerCase();
-  const byName = EUROPEAN_COUNTRIES.find((c) =>
-    Object.values(c.names).some((name) => String(name).toLowerCase() === needle),
+  const registryIso3 = EUROPEAN_COUNTRIES.find((c) => c.iso3.toUpperCase() === upper);
+  if (registryIso3) return registryIso3.code;
+  if (upper === 'XKX') return 'XK';
+  if (isIsoCountryCode(upper)) return upper;
+  const iso3 = ISO3_TO_ISO2[upper];
+  if (iso3) return iso3;
+  const needle = countryKey(raw);
+  if (!needle) return null;
+  const byRegistryName = EUROPEAN_COUNTRIES.find((c) =>
+    Object.values(c.names).some((name) => countryKey(name) === needle),
   );
-  if (byName) return byName.code;
-  // Country names longer than two letters are never forced into a code.
-  if (raw.length === 2) return upper;
-  return null;
+  if (byRegistryName) return byRegistryName.code;
+  return COUNTRY_ALIASES[needle] || getCountryNameIndex().get(needle) || null;
+}
+
+const regionDisplays = new Map<EmissionLanguage, any>();
+
+function regionDisplay(language: EmissionLanguage) {
+  if (!regionDisplays.has(language)) {
+    let display: any = null;
+    try {
+      const DisplayNames = (Intl as any).DisplayNames;
+      display = DisplayNames ? new DisplayNames([language], { type: 'region' }) : null;
+    } catch {
+      display = null;
+    }
+    regionDisplays.set(language, display);
+  }
+  return regionDisplays.get(language);
 }
 
 export function countryName(code: string | null | undefined, language: EmissionLanguage = 'en'): string | null {
   if (!code) return null;
-  const country = COUNTRY_BY_CODE[String(code).toUpperCase()];
-  return country ? country.names[language] || country.names.en : null;
+  const iso = resolveCountryCode(code);
+  if (!iso) return null;
+  const country = COUNTRY_BY_CODE[iso];
+  if (country) return country.names[language] || country.names.en;
+  const localized = regionDisplay(language)?.of(iso);
+  if (localized && localized !== iso && localized !== 'Unknown Region') return localized;
+  return null;
 }

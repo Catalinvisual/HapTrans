@@ -62,10 +62,35 @@ describe('European country registry', () => {
     expect(resolveCountryCode('')).toBeNull();
   });
 
+  it('resolves countries outside Europe from their code or name', () => {
+    expect(resolveCountryCode('US')).toBe('US');
+    expect(resolveCountryCode('usa')).toBe('US');
+    expect(resolveCountryCode('United States')).toBe('US');
+    expect(resolveCountryCode('United States of America')).toBe('US');
+    expect(resolveCountryCode('Morocco')).toBe('MA');
+    expect(resolveCountryCode('Maroc')).toBe('MA');
+    expect(resolveCountryCode('Japón')).toBe('JP');
+    expect(resolveCountryCode('Brasil')).toBe('BR');
+    expect(resolveCountryCode('UK')).toBe('GB');
+    expect(resolveCountryCode('Kosovo')).toBe('XK');
+  });
+
+  it('never invents a code for a value that is not a country', () => {
+    expect(resolveCountryCode('UN')).toBeNull();
+    expect(resolveCountryCode('United Nations')).toBeNull();
+    expect(resolveCountryCode('EU')).toBeNull();
+    expect(resolveCountryCode('XX')).toBeNull();
+    expect(resolveCountryCode('Unknown')).toBeNull();
+    expect(resolveCountryCode('N/A')).toBeNull();
+    expect(resolveCountryCode('1')).toBeNull();
+  });
+
   it('localises country names', () => {
     expect(countryName('DE', 'ro')).toBe('Germania');
     expect(countryName('DE', 'pl')).toBe('Niemcy');
     expect(countryName('NL', 'nl')).toBe('Nederland');
+    expect(countryName('US', 'en')).toBeTruthy();
     expect(countryName('XX', 'en')).toBeNull();
+    expect(countryName('UN', 'en')).toBeNull();
   });
 });

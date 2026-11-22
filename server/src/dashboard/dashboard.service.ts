@@ -7,6 +7,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { resolveCreatedAtExpr } from '../analytics/analytics.utils';
+import { ISO3_TO_ISO2, ISO_COUNTRY_CODES, isIsoCountryCode } from '../common/iso-countries';
 
 export interface AnalyticsQuery {
   from?: string;
@@ -166,66 +167,51 @@ function daysUntil(d: Date): number {
   return Math.ceil((startOfDay(d).getTime() - startOfDay(new Date()).getTime()) / 86400000);
 }
 
-const ISO3_TO_ISO2: Record<string, string> = {
-  AFG: 'AF', ALB: 'AL', DZA: 'DZ', AND: 'AD', AGO: 'AO', ARG: 'AR', ARM: 'AM', AUS: 'AU', AUT: 'AT', AZE: 'AZ',
-  BHS: 'BS', BHR: 'BH', BGD: 'BD', BRB: 'BB', BLR: 'BY', BEL: 'BE', BLZ: 'BZ', BEN: 'BJ', BTN: 'BT', BOL: 'BO',
-  BIH: 'BA', BWA: 'BW', BRA: 'BR', BRN: 'BN', BGR: 'BG', BFA: 'BF', BDI: 'BI', KHM: 'KH', CMR: 'CM', CAN: 'CA',
-  CPV: 'CV', CAF: 'CF', TCD: 'TD', CHL: 'CL', CHN: 'CN', COL: 'CO', COM: 'KM', COG: 'CG', COD: 'CD', CRI: 'CR',
-  HRV: 'HR', CUB: 'CU', CYP: 'CY', CZE: 'CZ', DNK: 'DK', DJI: 'DJ', DMA: 'DM', DOM: 'DO', ECU: 'EC', EGY: 'EG',
-  SLV: 'SV', GNQ: 'GQ', ERI: 'ER', EST: 'EE', SWZ: 'SZ', ETH: 'ET', FJI: 'FJ', FIN: 'FI', FRA: 'FR', GAB: 'GA',
-  GMB: 'GM', GEO: 'GE', DEU: 'DE', GHA: 'GH', GRC: 'GR', GRD: 'GD', GTM: 'GT', GIN: 'GN', GNB: 'GW', GUY: 'GY',
-  HTI: 'HT', HND: 'HN', HUN: 'HU', ISL: 'IS', IND: 'IN', IDN: 'ID', IRN: 'IR', IRQ: 'IQ', IRL: 'IE', ISR: 'IL',
-  ITA: 'IT', JAM: 'JM', JPN: 'JP', JOR: 'JO', KAZ: 'KZ', KEN: 'KE', KIR: 'KI', KWT: 'KW', KGZ: 'KG', LAO: 'LA',
-  LVA: 'LV', LBN: 'LB', LSO: 'LS', LBR: 'LR', LBY: 'LY', LIE: 'LI', LTU: 'LT', LUX: 'LU', MDG: 'MG', MWI: 'MW',
-  MYS: 'MY', MDV: 'MV', MLI: 'ML', MLT: 'MT', MHL: 'MH', MRT: 'MR', MUS: 'MU', MEX: 'MX', FSM: 'FM', MDA: 'MD',
-  MCO: 'MC', MNG: 'MN', MNE: 'ME', MAR: 'MA', MOZ: 'MZ', MMR: 'MM', NAM: 'NA', NRU: 'NR', NPL: 'NP', NLD: 'NL',
-  NZL: 'NZ', NIC: 'NI', NER: 'NE', NGA: 'NG', PRK: 'KP', MKD: 'MK', NOR: 'NO', OMN: 'OM', PAK: 'PK', PLW: 'PW',
-  PAN: 'PA', PNG: 'PG', PRY: 'PY', PER: 'PE', PHL: 'PH', POL: 'PL', PRT: 'PT', QAT: 'QA', ROU: 'RO', RUS: 'RU',
-  RWA: 'RW', KNA: 'KN', LCA: 'LC', VCT: 'VC', WSM: 'WS', SMR: 'SM', STP: 'ST', SAU: 'SA', SEN: 'SN', SRB: 'RS',
-  SYC: 'SC', SLE: 'SL', SGP: 'SG', SVK: 'SK', SVN: 'SI', SLB: 'SB', SOM: 'SO', ZAF: 'ZA', KOR: 'KR', SSD: 'SS',
-  ESP: 'ES', LKA: 'LK', SDN: 'SD', SUR: 'SR', SWE: 'SE', CHE: 'CH', SYR: 'SY', TWN: 'TW', TJK: 'TJ', TZA: 'TZ',
-  THA: 'TH', TLS: 'TL', TGO: 'TG', TON: 'TO', TTO: 'TT', TUN: 'TN', TUR: 'TR', TKM: 'TM', TUV: 'TV', UGA: 'UG',
-  UKR: 'UA', ARE: 'AE', GBR: 'GB', USA: 'US', URY: 'UY', UZB: 'UZ', VUT: 'VU', VAT: 'VA', VEN: 'VE', VNM: 'VN',
-  YEM: 'YE', ZMB: 'ZM', ZWE: 'ZW',
-};
-
+/** Normalized spellings the office and the geocoder use instead of the ICU name. */
 const COUNTRY_ALIASES: Record<string, string> = {
-  uk: 'GB', 'great britain': 'GB', 'united states of america': 'US', usa: 'US', holland: 'NL',
-  'czech republic': 'CZ', macedonia: 'MK', bosnia: 'BA', 'ivory coast': 'CI', 'south korea': 'KR',
-  'north korea': 'KP', russia: 'RU', 'vatican city': 'VA', uae: 'AE',
+  uk: 'GB', greatbritain: 'GB', holland: 'NL', thenetherlands: 'NL',
+  usa: 'US', unitedstates: 'US', unitedstatesofamerica: 'US',
+  czechrepublic: 'CZ', macedonia: 'MK', northmacedonia: 'MK', bosnia: 'BA',
+  ivorycoast: 'CI', cotedivoire: 'CI', southkorea: 'KR', republicofkorea: 'KR',
+  northkorea: 'KP', russia: 'RU', russianfederation: 'RU', vaticancity: 'VA',
+  holysee: 'VA', uae: 'AE', unitedarabemirates: 'AE', turkiye: 'TR',
 };
 
 const ALPHA2_ALIASES: Record<string, string> = {
   FX: 'FR', // Metropolitan France; Intl displays it as France
   UK: 'GB',
+  XK: 'XK',
 };
 
 const COUNTRY_LOCALES = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
 
 function countryKey(value: string): string {
-  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
 let countryNameIndex: Map<string, string> | null = null;
 
+/**
+ * Country names in the seven interface languages, mapped to their ISO-2 code.
+ * Only officially assigned ISO 3166-1 codes are indexed, so a value such as
+ * "United Nations" never becomes a country in the dashboard breakdown.
+ */
 function getCountryNameIndex(): Map<string, string> {
   if (countryNameIndex) return countryNameIndex;
   const index = new Map<string, string>();
-  for (const locale of COUNTRY_LOCALES) {
-    try {
-      const DisplayNames = (Intl as any).DisplayNames;
-      if (!DisplayNames) continue;
-      const display = new DisplayNames([locale], { type: 'region' });
-      for (let first = 0; first < 26; first++) {
-        for (let second = 0; second < 26; second++) {
-          const code = String.fromCharCode(65 + first, 65 + second);
-          try {
-            const name = display.of(code);
-            if (name && name !== code) index.set(countryKey(name), code);
-          } catch { /* invalid region code */ }
+  const DisplayNames = (Intl as any).DisplayNames;
+  if (DisplayNames) {
+    for (const locale of COUNTRY_LOCALES) {
+      try {
+        const display = new DisplayNames([locale], { type: 'region' });
+        for (const code of ISO_COUNTRY_CODES) {
+          const name = display.of(code);
+          if (!name) continue;
+          const key = countryKey(name);
+          if (key) index.set(key, code);
         }
-      }
-    } catch { /* Intl.DisplayNames unavailable */ }
+      } catch { /* Intl.DisplayNames unavailable */ }
+    }
   }
   countryNameIndex = index;
   return index;
@@ -237,12 +223,14 @@ function normalizeCountryCode(value: string | null | undefined): string | null {
   const upper = raw.toUpperCase();
   const alpha2Alias = ALPHA2_ALIASES[upper];
   if (alpha2Alias) return alpha2Alias;
-  if (/^[A-Za-z]{2}$/.test(raw)) return upper;
+  if (isIsoCountryCode(upper)) return upper;
   const iso3 = ISO3_TO_ISO2[upper];
   if (iso3) return iso3;
-  const aliased = COUNTRY_ALIASES[countryKey(raw)];
+  const key = countryKey(raw);
+  if (!key) return null;
+  const aliased = COUNTRY_ALIASES[key];
   if (aliased) return aliased;
-  const byName = getCountryNameIndex().get(countryKey(raw));
+  const byName = getCountryNameIndex().get(key);
   return byName ? (ALPHA2_ALIASES[byName] || byName) : null;
 }
 

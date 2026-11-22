@@ -1,5 +1,7 @@
 // Shared shapes and formatting helpers for the dispatcher dashboard.
 
+import { canonicalCountryCode } from '../../lib/countries';
+
 export interface OverviewTrip {
   id: string;
   tripNumber: string | null;
@@ -234,88 +236,23 @@ export function bucketLabel(key: string, granularity: string, lang: string, week
   return new Intl.DateTimeFormat(locale, weekday ? { weekday: 'short' } : { day: '2-digit', month: 'short' }).format(date);
 }
 
-const ISO3_TO_ISO2: Record<string, string> = {
-  AFG: 'AF', ALB: 'AL', DZA: 'DZ', AND: 'AD', AGO: 'AO', ARG: 'AR', ARM: 'AM', AUS: 'AU', AUT: 'AT', AZE: 'AZ',
-  BHS: 'BS', BHR: 'BH', BGD: 'BD', BRB: 'BB', BLR: 'BY', BEL: 'BE', BLZ: 'BZ', BEN: 'BJ', BTN: 'BT', BOL: 'BO',
-  BIH: 'BA', BWA: 'BW', BRA: 'BR', BRN: 'BN', BGR: 'BG', BFA: 'BF', BDI: 'BI', KHM: 'KH', CMR: 'CM', CAN: 'CA',
-  CPV: 'CV', CAF: 'CF', TCD: 'TD', CHL: 'CL', CHN: 'CN', COL: 'CO', COM: 'KM', COG: 'CG', COD: 'CD', CRI: 'CR',
-  HRV: 'HR', CUB: 'CU', CYP: 'CY', CZE: 'CZ', DNK: 'DK', DJI: 'DJ', DMA: 'DM', DOM: 'DO', ECU: 'EC', EGY: 'EG',
-  SLV: 'SV', GNQ: 'GQ', ERI: 'ER', EST: 'EE', SWZ: 'SZ', ETH: 'ET', FJI: 'FJ', FIN: 'FI', FRA: 'FR', GAB: 'GA',
-  GMB: 'GM', GEO: 'GE', DEU: 'DE', GHA: 'GH', GRC: 'GR', GRD: 'GD', GTM: 'GT', GIN: 'GN', GNB: 'GW', GUY: 'GY',
-  HTI: 'HT', HND: 'HN', HUN: 'HU', ISL: 'IS', IND: 'IN', IDN: 'ID', IRN: 'IR', IRQ: 'IQ', IRL: 'IE', ISR: 'IL',
-  ITA: 'IT', JAM: 'JM', JPN: 'JP', JOR: 'JO', KAZ: 'KZ', KEN: 'KE', KIR: 'KI', KWT: 'KW', KGZ: 'KG', LAO: 'LA',
-  LVA: 'LV', LBN: 'LB', LSO: 'LS', LBR: 'LR', LBY: 'LY', LIE: 'LI', LTU: 'LT', LUX: 'LU', MDG: 'MG', MWI: 'MW',
-  MYS: 'MY', MDV: 'MV', MLI: 'ML', MLT: 'MT', MHL: 'MH', MRT: 'MR', MUS: 'MU', MEX: 'MX', FSM: 'FM', MDA: 'MD',
-  MCO: 'MC', MNG: 'MN', MNE: 'ME', MAR: 'MA', MOZ: 'MZ', MMR: 'MM', NAM: 'NA', NRU: 'NR', NPL: 'NP', NLD: 'NL',
-  NZL: 'NZ', NIC: 'NI', NER: 'NE', NGA: 'NG', PRK: 'KP', MKD: 'MK', NOR: 'NO', OMN: 'OM', PAK: 'PK', PLW: 'PW',
-  PAN: 'PA', PNG: 'PG', PRY: 'PY', PER: 'PE', PHL: 'PH', POL: 'PL', PRT: 'PT', QAT: 'QA', ROU: 'RO', RUS: 'RU',
-  RWA: 'RW', KNA: 'KN', LCA: 'LC', VCT: 'VC', WSM: 'WS', SMR: 'SM', STP: 'ST', SAU: 'SA', SEN: 'SN', SRB: 'RS',
-  SYC: 'SC', SLE: 'SL', SGP: 'SG', SVK: 'SK', SVN: 'SI', SLB: 'SB', SOM: 'SO', ZAF: 'ZA', KOR: 'KR', SSD: 'SS',
-  ESP: 'ES', LKA: 'LK', SDN: 'SD', SUR: 'SR', SWE: 'SE', CHE: 'CH', SYR: 'SY', TWN: 'TW', TJK: 'TJ', TZA: 'TZ',
-  THA: 'TH', TLS: 'TL', TGO: 'TG', TON: 'TO', TTO: 'TT', TUN: 'TN', TUR: 'TR', TKM: 'TM', TUV: 'TV', UGA: 'UG',
-  UKR: 'UA', ARE: 'AE', GBR: 'GB', USA: 'US', URY: 'UY', UZB: 'UZ', VUT: 'VU', VAT: 'VA', VEN: 'VE', VNM: 'VN',
-  YEM: 'YE', ZMB: 'ZM', ZWE: 'ZW',
-};
+export { canonicalCountryCode };
 
-const COUNTRY_ALIASES: Record<string, string> = {
-  uk: 'GB', 'great britain': 'GB', 'united states of america': 'US', usa: 'US', holland: 'NL',
-  'czech republic': 'CZ', macedonia: 'MK', bosnia: 'BA', 'ivory coast': 'CI', 'south korea': 'KR',
-  'north korea': 'KP', russia: 'RU', 'vatican city': 'VA', uae: 'AE',
-};
+const regionDisplays = new Map<string, any>();
 
-// FX is the legacy ISO code for Metropolitan France. Intl renders it as
-// "France", so without this alias the list showed France twice and the
-// second copy had no flag asset. UK is kept here for the same reason.
-const ALPHA2_ALIASES: Record<string, string> = {
-  FX: 'FR',
-  UK: 'GB',
-};
-
-const COUNTRY_LOCALES = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
-
-function countryKey(value: string): string {
-  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
-}
-
-let countryNameIndex: Map<string, string> | null = null;
-
-function getCountryNameIndex(): Map<string, string> {
-  if (countryNameIndex) return countryNameIndex;
-  const index = new Map<string, string>();
-  for (const locale of COUNTRY_LOCALES) {
+/** One Intl.DisplayNames per locale: country lists ask for a name per row. */
+function regionDisplay(locale: string) {
+  if (!regionDisplays.has(locale)) {
+    let display: any = null;
     try {
       const DisplayNames = (Intl as any).DisplayNames;
-      if (!DisplayNames) continue;
-      const display = new DisplayNames([locale], { type: 'region' });
-      for (let first = 0; first < 26; first++) {
-        for (let second = 0; second < 26; second++) {
-          const code = String.fromCharCode(65 + first, 65 + second);
-          try {
-            const name = display.of(code);
-            if (name && name !== code) index.set(countryKey(name), code);
-          } catch { /* invalid region code */ }
-        }
-      }
-    } catch { /* Intl.DisplayNames unavailable */ }
+      display = DisplayNames ? new DisplayNames([locale], { type: 'region' }) : null;
+    } catch {
+      display = null;
+    }
+    regionDisplays.set(locale, display);
   }
-  countryNameIndex = index;
-  return index;
-}
-
-/** One canonical 2-letter code for ISO2, ISO3 and localized country names. */
-export function canonicalCountryCode(value: string | null | undefined): string | null {
-  const raw = String(value ?? '').trim();
-  if (!raw) return null;
-  const upper = raw.toUpperCase();
-  const alpha2Alias = ALPHA2_ALIASES[upper];
-  if (alpha2Alias) return alpha2Alias;
-  if (/^[A-Za-z]{2}$/.test(raw)) return upper;
-  const iso3 = ISO3_TO_ISO2[upper];
-  if (iso3) return iso3;
-  const aliased = COUNTRY_ALIASES[countryKey(raw)];
-  if (aliased) return aliased;
-  const byName = getCountryNameIndex().get(countryKey(raw));
-  return byName ? (ALPHA2_ALIASES[byName] || byName) : null;
+  return regionDisplays.get(locale);
 }
 
 export function countryName(code: string | null | undefined, lang: string): string {
@@ -323,13 +260,8 @@ export function countryName(code: string | null | undefined, lang: string): stri
   if (!raw) return '—';
   const iso = canonicalCountryCode(raw);
   if (!iso) return raw;
-  try {
-    const DisplayNames = (Intl as any).DisplayNames;
-    if (DisplayNames) {
-      const name = new DisplayNames([localeFor(lang)], { type: 'region' }).of(iso);
-      if (name && name !== iso) return name;
-    }
-  } catch { /* fall back to the code */ }
+  const name = regionDisplay(localeFor(lang))?.of(iso);
+  if (name && name !== iso && name !== 'Unknown Region') return name;
   return iso;
 }
 

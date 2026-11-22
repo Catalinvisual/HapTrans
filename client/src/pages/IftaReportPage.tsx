@@ -5,7 +5,7 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 import DateField from '../components/dashboard/DateField';
 import { matchesSearch } from '../lib/search';
-import { countryIso, countryName, countryNames } from '../lib/countries';
+import { countryIso, countryName } from '../lib/countries';
 import { fmtNumber, fmtPercent, fmtKm } from '../lib/format';
 import KpiStrip from '../components/ui/KpiStrip';
 import ExportModal from '../components/ExportModal';
@@ -18,12 +18,11 @@ function flagEmoji(iso: string): string {
 }
 
 function formatCountry(raw: string, lang: string): { iso: string; label: string; flag: string } {
-  const iso = countryIso(raw) || String(raw).slice(0, 2).toUpperCase();
-  const indexed = countryNames as Record<string, Record<string, string>>;
-  if (indexed[iso]) {
-    return { iso, flag: flagEmoji(iso), label: `${iso} (${countryName(iso, (lang || 'ro') as any)})` };
-  }
-  return { iso, flag: flagEmoji(iso), label: String(raw) };
+  const iso = countryIso(raw);
+  if (!iso) return { iso: '', flag: '🌍', label: String(raw) };
+  const localized = countryName(iso, (lang || 'ro') as any);
+  const label = localized && localized !== iso ? `${iso} (${localized})` : iso;
+  return { iso, flag: flagEmoji(iso), label };
 }
 
 export default function IftaReportPage() {
@@ -176,7 +175,7 @@ export default function IftaReportPage() {
                     const f = formatCountry(c.country, i18n.language);
                     return (
                       <span key={c.country} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-surface border border-border px-1.5 py-0.5 rounded-md">
-                        <span>{f.flag}</span> {f.iso}: <b>{fmtNumber(c.km)} km</b>
+                        <span>{f.flag}</span> {f.label}: <b>{fmtNumber(c.km)} km</b>
                       </span>
                     );
                   })}

@@ -1,3 +1,5 @@
+import { ISO3_TO_ISO2, ISO_COUNTRY_CODES, isIsoCountryCode } from './isoCountries';
+
 export const countryNames: Record<string, Record<string, string>> = {
   RO: { ro: 'România', en: 'Romania', nl: 'Roemenië', de: 'Rumänien', fr: 'Roumanie', es: 'Rumanía', pl: 'Rumunia' },
   DE: { ro: 'Germania', en: 'Germany', nl: 'Duitsland', de: 'Deutschland', fr: 'Allemagne', es: 'Alemania', pl: 'Niemcy' },
@@ -37,34 +39,137 @@ export const countryNames: Record<string, Record<string, string>> = {
 
 export type CountryLang = 'ro' | 'en' | 'nl' | 'de' | 'fr' | 'es' | 'pl';
 
-export function countryName(code: string, lang: CountryLang = 'ro'): string {
-  return countryNames[code]?.[lang] || code;
-}
-
-const nameToCode: Record<string, string> = {};
-Object.entries(countryNames).forEach(([code, names]) => {
-  nameToCode[code.toLowerCase()] = code;
-  Object.values(names).forEach(n => { nameToCode[n.toLowerCase()] = code; });
-});
-
-/** ISO 3166-1 alpha-3 codes that show up in imported orders and stop addresses. */
-const iso3ToIso2: Record<string, string> = {
-  ROU: 'RO', DEU: 'DE', NLD: 'NL', FRA: 'FR', BEL: 'BE', POL: 'PL', HUN: 'HU', ITA: 'IT',
-  AUT: 'AT', ESP: 'ES', CZE: 'CZ', HRV: 'HR', SVK: 'SK', BGR: 'BG', SVN: 'SI', SRB: 'RS',
-  BIH: 'BA', MKD: 'MK', ALB: 'AL', GRC: 'GR', TUR: 'TR', UKR: 'UA', CHE: 'CH', LUX: 'LU',
-  DNK: 'DK', SWE: 'SE', NOR: 'NO', FIN: 'FI', LTU: 'LT', LVA: 'LV', EST: 'EE', IRL: 'IE',
-  PRT: 'PT', GBR: 'GB',
+const LOCALES: Record<CountryLang, string> = {
+  ro: 'ro-RO', en: 'en-GB', nl: 'nl-NL', de: 'de-DE', fr: 'fr-FR', es: 'es-ES', pl: 'pl-PL',
 };
-Object.entries(iso3ToIso2).forEach(([iso3, iso2]) => { nameToCode[iso3.toLowerCase()] = iso2; });
 
 /**
- * Normalize a country value (ISO code or localized name) to a 2-letter ISO code.
- * Returns null for empty input.
+ * Codes carriers and authorities use that ISO 3166-1 does not assign:
+ * UK is the everyday alpha-2 for the United Kingdom, EL the EU-institution
+ * code for Greece, FX the legacy code for metropolitan France and XK Kosovo.
  */
+const ALPHA2_ALIASES: Record<string, string> = {
+  UK: 'GB', FX: 'FR', EL: 'GR', XK: 'XK',
+};
+
+const ISO3_ALIASES: Record<string, string> = { XKX: 'XK' };
+
+/** Spellings the office and the geocoder use instead of the ICU/ISO name. Keys are normalized. */
+const COUNTRY_ALIASES: Record<string, string> = {
+  uk: 'GB',
+  greatbritain: 'GB',
+  holland: 'NL',
+  thenetherlands: 'NL',
+  usa: 'US',
+  unitedstates: 'US',
+  unitedstatesofamerica: 'US',
+  uae: 'AE',
+  unitedarabemirates: 'AE',
+  southkorea: 'KR',
+  republicofkorea: 'KR',
+  northkorea: 'KP',
+  czechrepublic: 'CZ',
+  macedonia: 'MK',
+  northmacedonia: 'MK',
+  bosnia: 'BA',
+  ivorycoast: 'CI',
+  cotedivoire: 'CI',
+  russia: 'RU',
+  russianfederation: 'RU',
+  vaticancity: 'VA',
+  holysee: 'VA',
+  turkiye: 'TR',
+};
+
+/** Case-, accent- and punctuation-insensitive key for a country name. */
+function countryKey(value: string): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+const displays = new Map<string, any>();
+
+/** One Intl.DisplayNames per language: building it is not free and lists call this per row. */
+function regionDisplay(lang: CountryLang) {
+  if (!displays.has(lang)) {
+    let display: any = null;
+    try {
+      const DisplayNames = (Intl as any).DisplayNames;
+      display = DisplayNames ? new DisplayNames([LOCALES[lang] || 'en-GB'], { type: 'region' }) : null;
+    } catch {
+      display = null;
+    }
+    displays.set(lang, display);
+  }
+  return displays.get(lang);
+}
+
+/** Localized country name; the hand-written table wins, ICU covers every other country. */
+export function countryName(code: string, lang: CountryLang = 'ro'): string {
+  const iso = canonicalCountryCode(code);
+  if (!iso) return String(code ?? '').trim();
+  const handwritten = countryNames[iso]?.[lang];
+  if (handwritten) return handwritten;
+  const display = regionDisplay(lang);
+  const localized = display?.of(iso);
+  return localized && localized !== iso && localized !== 'Unknown Region' ? localized : iso;
+}
+
+let countryNameIndex: Map<string, string> | null = null;
+
+/** Every name we accept for a country, in the seven interface languages, mapped to its ISO-2 code. */
+function getCountryNameIndex(): Map<string, string> {
+  if (countryNameIndex) return countryNameIndex;
+  const index = new Map<string, string>();
+  for (const [code, names] of Object.entries(countryNames)) {
+    for (const name of Object.values(names)) {
+      const key = countryKey(name);
+      if (key) index.set(key, code);
+    }
+  }
+  for (const [alias, code] of Object.entries(COUNTRY_ALIASES)) index.set(alias, code);
+  for (const lang of Object.keys(LOCALES) as CountryLang[]) {
+    const display = regionDisplay(lang);
+    if (!display) continue;
+    for (const code of ISO_COUNTRY_CODES) {
+      const name = display.of(code);
+      if (!name) continue;
+      const key = countryKey(name);
+      if (!key || key === code.toLowerCase()) continue;
+      if (!index.has(key)) index.set(key, code);
+    }
+  }
+  countryNameIndex = index;
+  return index;
+}
+
+/**
+ * One canonical 2-letter code for an ISO2/ISO3 code or a country name in any
+ * of the seven languages. Only officially assigned ISO 3166-1 codes (plus the
+ * documented aliases above) are returned: an unknown place name such as
+ * "Unknown", "UN" or "Nowhere" resolves to null instead of being cut into a
+ * fake code such as "UN" or "NO".
+ */
+export function canonicalCountryCode(value: string | null | undefined): string | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const upper = raw.toUpperCase();
+  const alpha2Alias = ALPHA2_ALIASES[upper];
+  if (alpha2Alias) return alpha2Alias;
+  if (isIsoCountryCode(upper)) return upper;
+  const iso3Alias = ISO3_ALIASES[upper];
+  if (iso3Alias) return iso3Alias;
+  const iso3 = ISO3_TO_ISO2[upper];
+  if (iso3) return iso3;
+  const key = countryKey(raw);
+  if (!key) return null;
+  return COUNTRY_ALIASES[key] || getCountryNameIndex().get(key) || null;
+}
+
+/** Normalize a country value (ISO code or localized name) to a 2-letter ISO code. */
 export function countryIso(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const v = String(value).trim();
-  if (!v) return null;
-  if (/^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
-  return nameToCode[v.toLowerCase()] || v.slice(0, 2).toUpperCase();
+  return canonicalCountryCode(value);
 }
