@@ -104,7 +104,7 @@ export class TripsService {
 
   async findAll(status?: string, truckId?: string, activeOnly = false) {
     const findOptions: any = { 
-      relations: ['truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
+      relations: ['truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
       order: { createdAt: 'DESC' }
     };
     const where: any = {};
@@ -1129,7 +1129,7 @@ export class TripsService {
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
     return this.repo.findOne({
       where: { trackingToken },
-      relations: ['truck', 'driver', 'driver.user', 'trailer', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops', 'company']
+      relations: ['truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trailer', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops', 'company']
     });
   }
 

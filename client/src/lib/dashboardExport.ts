@@ -245,7 +245,7 @@ export async function exportDashboardPdf(
     body: kpiBody,
     theme: 'plain',
     margin: { left: 40, right: 40 },
-    styles: { fontSize: 9, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 } },
+    styles: { halign: 'left', fontSize: 9, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 } },
     columnStyles: {
       0: { fontStyle: 'bold', textColor: PDF_MUTED, cellWidth: 130 },
       1: { fontStyle: 'bold', fontSize: 12, textColor: PDF_INK, cellWidth: 120 },

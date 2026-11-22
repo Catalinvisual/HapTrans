@@ -141,7 +141,7 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
     expect(record.status).toBe(ArchiveStatus.PENDING);
     expect(record.targetShare).toBe('HC-PDF');
     expect(record.tnasDownloaded).toBe(false);
-    expect(record.targetFilename).toBe('Order_ORD-2026-001.pdf');
+    expect(record.targetFilename).toBe('Order - ORD-2026-001.pdf');
     expect(record.fileName).toBeDefined();
     expect(record.companyId).toBe('comp-1');
   });
@@ -510,10 +510,10 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       sourceType: 'truck',
       sourceId: 'truck-uuid-1',
       sourceReference: 'B-123-XYZ',
-      requestedFilename: 'Truck_B-123-XYZ.pdf',
+      requestedFilename: 'Truck - B-123-XYZ.pdf',
     });
 
-    expect(truckRecord.targetFilename).toBe('Truck_B-123-XYZ.pdf');
+    expect(truckRecord.targetFilename).toBe('Truck - B-123-XYZ.pdf');
     expect(truckRecord.targetFilename).not.toMatch(/_\d{8}_\d{6}/);
     expect(truckRecord.targetFilename).not.toMatch(/_[a-f0-9]{4}\.pdf$/);
 
@@ -521,10 +521,10 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       sourceType: 'order',
       sourceId: 'order-uuid-1',
       sourceReference: 'ORD-2026-999',
-      requestedFilename: 'Order_ORD-2026-999.pdf',
+      requestedFilename: 'Order - ORD-2026-999.pdf',
     });
 
-    expect(orderRecord.targetFilename).toBe('Order_ORD-2026-999.pdf');
+    expect(orderRecord.targetFilename).toBe('Order - ORD-2026-999.pdf');
   });
 
   // 22. Regenerating a Truck PDF Enqueues New Content and Targets the Same Stable Filename
@@ -534,12 +534,12 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       sourceType: 'truck',
       sourceId: 'truck-uuid-10',
       sourceReference: 'B-100-AAA',
-      requestedFilename: 'Truck_B-100-AAA.pdf',
+      requestedFilename: 'Truck - B-100-AAA.pdf',
     });
-    expect(gen1.targetFilename).toBe('Truck_B-100-AAA.pdf');
+    expect(gen1.targetFilename).toBe('Truck - B-100-AAA.pdf');
 
     // NAS worker confirms Job 1
-    await tnasController.ackHcPdfDownloaded(gen1.id, { committedFilename: 'Truck_B-100-AAA.pdf' }, 'Bearer test-secret-key-123');
+    await tnasController.ackHcPdfDownloaded(gen1.id, { committedFilename: 'Truck - B-100-AAA.pdf' }, 'Bearer test-secret-key-123');
     const gen1Archived = await mockRepo.findOne({ where: { id: gen1.id } });
     expect(gen1Archived.status).toBe(ArchiveStatus.ARCHIVED);
 
@@ -549,37 +549,37 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       sourceType: 'truck',
       sourceId: 'truck-uuid-10',
       sourceReference: 'B-100-AAA',
-      requestedFilename: 'Truck_B-100-AAA.pdf',
+      requestedFilename: 'Truck - B-100-AAA.pdf',
     });
 
     // Gen 2 is enqueued as a NEW pending job
     expect(gen2.id).not.toBe(gen1.id);
     expect(gen2.status).toBe(ArchiveStatus.PENDING);
     // Gen 2 targets the EXACT same stable filename
-    expect(gen2.targetFilename).toBe('Truck_B-100-AAA.pdf');
+    expect(gen2.targetFilename).toBe('Truck - B-100-AAA.pdf');
 
     // Pending jobs list contains gen2 with targetFilename Truck_B-100-AAA.pdf
     const pendingJobs = await service.getPendingHcPdfJobs('test-worker');
     const jobInQueue = pendingJobs.find((j) => j.id === gen2.id);
     expect(jobInQueue).toBeDefined();
-    expect(jobInQueue?.filename).toBe('Truck_B-100-AAA.pdf');
+    expect(jobInQueue?.filename).toBe('Truck - B-100-AAA.pdf');
 
     // Worker acknowledges Gen 2
-    const ack2 = await tnasController.ackHcPdfDownloaded(gen2.id, { committedFilename: 'Truck_B-100-AAA.pdf' }, 'Bearer test-secret-key-123');
+    const ack2 = await tnasController.ackHcPdfDownloaded(gen2.id, { committedFilename: 'Truck - B-100-AAA.pdf' }, 'Bearer test-secret-key-123');
     expect(ack2.success).toBe(true);
-    expect(ack2.filename).toBe('Truck_B-100-AAA.pdf');
+    expect(ack2.filename).toBe('Truck - B-100-AAA.pdf');
 
     const gen2Archived = await mockRepo.findOne({ where: { id: gen2.id } });
     expect(gen2Archived.status).toBe(ArchiveStatus.ARCHIVED);
-    expect(gen2Archived.committedFileName).toBe('Truck_B-100-AAA.pdf');
+    expect(gen2Archived.committedFileName).toBe('Truck - B-100-AAA.pdf');
   });
 
   // 23. Regeneration Behavior Works for Trailers, Clients, and Orders
   it('23. regeneration works for trailers, clients, and orders targeting the same stable filename', async () => {
     const documentTypes = [
-      { type: 'trailer', id: 'trl-1', ref: 'B-555-XYZ', filename: 'Trailer_B-555-XYZ.pdf' },
-      { type: 'order', id: 'ord-1', ref: 'ORD-777', filename: 'Order_ORD-777.pdf' },
-      { type: 'client', id: 'cl-1', ref: 'Trans_Euro', filename: 'Client_Trans_Euro.pdf' },
+      { type: 'trailer', id: 'trl-1', ref: 'B-555-XYZ', filename: 'Trailer - B-555-XYZ.pdf' },
+      { type: 'order', id: 'ord-1', ref: 'ORD-777', filename: 'Order - ORD-777.pdf' },
+      { type: 'client', id: 'cl-1', ref: 'Trans_Euro', filename: 'Client - Trans Euro.pdf' },
     ];
 
     for (const doc of documentTypes) {
@@ -611,30 +611,30 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       sourceType: 'client',
       sourceId: 'client-A-uuid',
       sourceReference: 'Acme Logistics',
-      requestedFilename: 'Client_Acme_Logistics.pdf',
+      requestedFilename: 'Client - Acme Logistics.pdf',
     });
-    expect(clientA.targetFilename).toBe('Client_Acme_Logistics.pdf');
+    expect(clientA.targetFilename).toBe('Client - Acme Logistics.pdf');
 
     // Client B: also named "Acme Logistics", id "client-B-uuid"
     const clientB = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
       sourceType: 'client',
       sourceId: 'client-B-uuid',
       sourceReference: 'Acme Logistics',
-      requestedFilename: 'Client_Acme_Logistics.pdf',
+      requestedFilename: 'Client - Acme Logistics.pdf',
     });
 
     // Client B must NOT overwrite Client A's filename! It is disambiguated by its document identity (sourceId)
     expect(clientB.targetFilename).not.toBe(clientA.targetFilename);
-    expect(clientB.targetFilename).toBe('Client_Acme_Logistics_client-B-uuid.pdf');
+    expect(clientB.targetFilename).toBe('Client - Acme Logistics - client-B-uuid.pdf');
 
     // Repeated generation of Client A still targets Client A's filename
     const clientARegen = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
       sourceType: 'client',
       sourceId: 'client-A-uuid',
       sourceReference: 'Acme Logistics',
-      requestedFilename: 'Client_Acme_Logistics.pdf',
+      requestedFilename: 'Client - Acme Logistics.pdf',
     });
-    expect(clientARegen.targetFilename).toBe('Client_Acme_Logistics.pdf');
+    expect(clientARegen.targetFilename).toBe('Client - Acme Logistics.pdf');
   });
 
   // 25. Database Unique Constraint on fileName is Preserved Without Conflict
@@ -643,21 +643,21 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       sourceType: 'order',
       sourceId: 'ord-unique-test',
       sourceReference: 'ORD-STABLE',
-      requestedFilename: 'Order_ORD-STABLE.pdf',
+      requestedFilename: 'Order - ORD-STABLE.pdf',
     });
 
     const gen2 = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
       sourceType: 'order',
       sourceId: 'ord-unique-test',
       sourceReference: 'ORD-STABLE',
-      requestedFilename: 'Order_ORD-STABLE.pdf',
+      requestedFilename: 'Order - ORD-STABLE.pdf',
     });
 
     // Internal fileName values must remain distinct to satisfy DB unique constraints
     expect(gen1.fileName).not.toBe(gen2.fileName);
     // While targetFilename is identical
-    expect(gen1.targetFilename).toBe('Order_ORD-STABLE.pdf');
-    expect(gen2.targetFilename).toBe('Order_ORD-STABLE.pdf');
+    expect(gen1.targetFilename).toBe('Order - ORD-STABLE.pdf');
+    expect(gen2.targetFilename).toBe('Order - ORD-STABLE.pdf');
   });
 
   // 26. Clean Filename Formatting with Spaces and Hyphens (Preserves Spaces, Heals _-_)
@@ -704,6 +704,6 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       sourceId: 'truck-fb-1',
       sourceReference: 'CJ-35-ZTF',
     });
-    expect(fallbackRecord.targetFilename).toBe('Truck_CJ-35-ZTF.pdf');
+    expect(fallbackRecord.targetFilename).toBe('Truck - CJ-35-ZTF.pdf');
   });
 });

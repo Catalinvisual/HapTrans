@@ -80,7 +80,7 @@ export async function generateCmrPdf(
     startY: currentY,
     theme: 'grid',
     head: [['CMR', 'Details']],
-    styles: { fontSize: 9, cellPadding: 5 },
+    styles: { halign: 'left', fontSize: 9, cellPadding: 5 },
     headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 140, fillColor: [248, 250, 252] },
@@ -108,7 +108,7 @@ export async function generateCmrPdf(
     startY: currentY + 6,
     theme: 'grid',
     head: [['#', 'Description', 'Qty', 'Pallet type', 'Weight', 'Volume']],
-    styles: { fontSize: 8.5, cellPadding: 4 },
+    styles: { halign: 'left', fontSize: 8.5, cellPadding: 4 },
     headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 22 },
@@ -128,7 +128,7 @@ export async function generateCmrPdf(
     startY: currentY,
     theme: 'grid',
     head: [['11. Instructions', 'Details']],
-    styles: { fontSize: 9, cellPadding: 5 },
+    styles: { halign: 'left', fontSize: 9, cellPadding: 5 },
     headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 140, fillColor: [248, 250, 252] },
@@ -191,7 +191,7 @@ export async function generateDaySheetPdf(
     startY: currentY,
     theme: 'grid',
     head: [['Trip', 'Details']],
-    styles: { fontSize: 9, cellPadding: 5 },
+    styles: { halign: 'left', fontSize: 9, cellPadding: 5 },
     headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 150, fillColor: [248, 250, 252] },
@@ -223,7 +223,7 @@ export async function generateDaySheetPdf(
     startY: currentY,
     theme: 'grid',
     head: [['#', 'Type', 'Location', 'Window', 'ETA', 'Pallets', 'Weight', 'Notes']],
-    styles: { fontSize: 8, cellPadding: 3.5 },
+    styles: { halign: 'left', fontSize: 8, cellPadding: 3.5 },
     headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     // Let autoTable size these columns: fixed widths pushed the widest cell past
     // the printable area of a portrait page.

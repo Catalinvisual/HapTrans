@@ -22,10 +22,15 @@ export const PDF_MUTED: [number, number, number] = [107, 114, 128];
 export const PDF_LINE: [number, number, number] = [229, 231, 235];
 
 /** Shared table head: a soft orange band with dark text, readable in print. */
+// Every cell starts on the left, including numbers: jsPDF-autoTable otherwise
+// right-aligns numeric cells, which made values drift away from their heading.
+const LEFT = 'left' as const;
+
 export const PDF_HEAD_STYLES = {
   fillColor: PDF_ORANGE_SOFT,
   textColor: PDF_INK,
   fontStyle: 'bold' as const,
+  halign: LEFT,
   lineColor: PDF_ORANGE_SOFT,
   lineWidth: 0,
 };
@@ -34,6 +39,7 @@ export const PDF_TABLE_STYLES = {
   fontSize: 8.5,
   cellPadding: 4,
   textColor: PDF_BODY,
+  halign: LEFT,
   lineColor: PDF_LINE,
   lineWidth: 0.4,
 };

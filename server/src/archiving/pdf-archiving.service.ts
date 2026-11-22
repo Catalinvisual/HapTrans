@@ -130,10 +130,16 @@ export class PdfArchivingService {
       // Also clean up loose "_ - " or " - _"
       name = name.replace(/_\s*-\s*/g, ' - ').replace(/\s*-\s*_/g, ' - ');
 
-      // Strip unsafe filesystem characters, preserving spaces, alphanumeric, dot, hyphen, underscore
+      // Strip unsafe filesystem characters, preserving spaces, alphanumeric, dot and hyphen
       name = name.replace(/[^a-zA-Z0-9_\.\s-]/g, '');
-      // Normalize multiple spaces
-      name = name.replace(/\s+/g, ' ').trim();
+      // Underscores are never part of an archived name: the NAS shows them as a
+      // line under the text. Keep the single " - " separator and use spaces
+      // between the remaining words, so "TRP-1_-_AR_67X_WT" becomes "TRP-1 - AR 67X WT".
+      // The document type keeps its single separator: "Truck_B-123-XYZ" reads
+      // as "Truck - B-123-XYZ", while "GammaLog_SRL" reads as "GammaLog SRL".
+      name = name.replace(/^(Order|Truck|Trailer|Client|Driver|Invoice|Trip|Payslip|Document|Report)_+/i, '$1 - ');
+      name = name.replace(/\s*_+\s*/g, ' ').replace(/\s+/g, ' ').trim();
+      name = name.replace(/\s+-\s+/g, ' - ');
 
       if (!name.toLowerCase().endsWith('.pdf')) {
         name = `${name}.pdf`;
@@ -143,7 +149,7 @@ export class PdfArchivingService {
 
     if (!candidate || candidate === '.pdf' || candidate === 'document.pdf') {
       const cleanRef = this.sanitizeReference(meta.sourceReference || meta.sourceId || 'Document');
-      candidate = `${cleanType}_${cleanRef}.pdf`;
+      candidate = `${cleanType} - ${cleanRef}`.replace(/_/g, ' ') + '.pdf';
     }
 
     candidate = candidate.replace(/^\.+/, '').trim();
@@ -169,8 +175,7 @@ export class PdfArchivingService {
         const base = path.basename(candidate, ext);
         const disambiguator = this.sanitizeReference(meta.sourceId);
         if (!base.endsWith(disambiguator)) {
-          const sep = base.includes(' - ') ? ' - ' : '_';
-          candidate = `${base}${sep}${disambiguator}${ext}`;
+          candidate = `${base} - ${disambiguator}${ext}`;
         }
       }
     }

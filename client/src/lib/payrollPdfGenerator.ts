@@ -127,7 +127,7 @@ export const generatePayrollPdf = async (
   finishPdf(doc);
 
   const safeName = sanitizeClientNameForFilename(payroll.user?.name || 'Employee');
-  const filename = `Payslip - ${safeName} - ${payroll.month}_${payroll.year}.pdf`;
+  const filename = `Payslip - ${safeName} - ${monthName} ${payroll.year}.pdf`;
   const base64 = doc.output('datauristring');
   const blob = doc.output('blob');
 

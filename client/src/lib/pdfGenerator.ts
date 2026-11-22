@@ -66,23 +66,16 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   pdfSectionTitle(doc, 'General Information', 40, currentY, 'pt');
   currentY += 15;
 
-  // The order number is already the document title; only print a reference row
-  // when the customer's own reference is something else.
-  const titleReference = String(order?.orderNumber || '').trim();
-  const customerReference = String(order?.customerReference || '').trim();
-  const referenceRows: string[][] = customerReference && customerReference !== titleReference
-    ? [['Customer Reference', normalizeText(customerReference)]]
-    : [];
-
+  // The order number and the customer's reference already appear in the stop and
+  // order blocks below, so the header block does not repeat them.
   autoTable(doc, {
     startY: currentY,
     theme: 'plain',
-    styles: { fontSize: 10, cellPadding: 3, textColor: [71, 85, 105] },
+    styles: { halign: 'left', fontSize: 10, cellPadding: 3, textColor: [71, 85, 105] },
     columnStyles: { 0: { fontStyle: 'bold', textColor: [30, 41, 59], cellWidth: 100 } },
     body: [
       ['Status', formatStatus(order?.status)],
       ['Client', normalizeText(order?.client?.name || '—')],
-      ...referenceRows,
       ['Price', `€ ${order?.price || 0}`],
       ['Transport Type', transportTypeLabel(order?.transportType)],
       ['ADR Status', (order?.isAdr || (order?.adrStatus && order?.adrStatus !== 'none')) ? `${(order?.adrStatus || 'ADR').toUpperCase()} (${order?.adrTotalPoints || 0} pts${order?.adrExemptionApplied ? ` - ${order?.adrExemptionApplied}` : ''})` : 'Not Applicable (Non-hazardous)'],
@@ -129,8 +122,8 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       head: [['#', 'Type', 'Location', 'Date/Time', 'Reference']],
       body: stopsData,
       theme: 'grid',
-      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 9, textColor: [71, 85, 105] },
+      headStyles: { halign: 'left', fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { halign: 'left', fontSize: 9, textColor: [71, 85, 105] },
       alternateRowStyles: { fillColor: [250, 252, 253] },
       margin: { left: 40, right: 40 },
     });
@@ -158,8 +151,8 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       head: [['Description', 'Qty', 'Unit', 'Weight', 'LDM', 'ADR']],
       body: cargoData,
       theme: 'grid',
-      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 9, textColor: [71, 85, 105] },
+      headStyles: { halign: 'left', fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { halign: 'left', fontSize: 9, textColor: [71, 85, 105] },
       margin: { left: 40, right: 40 },
     });
     currentY = (doc as any).lastAutoTable.finalY + 25;
@@ -196,8 +189,8 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       head: [['#', 'UN #', 'Proper Shipping Name', 'Class', 'PG', 'Tunnel', 'Cat', 'Points', 'ADR 5.4 Declaration']],
       body: adrTableData,
       theme: 'grid',
-      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+      headStyles: { halign: 'left', fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { halign: 'left', fontSize: 8, textColor: [30, 41, 59] },
       columnStyles: { 8: { fontStyle: 'bold', cellWidth: 220 } },
       margin: { left: 40, right: 40 },
     });
@@ -222,7 +215,7 @@ export async function generateClientPdf(client: any, company: CompanySettings | 
     startY: currentY,
     theme: 'grid',
     head: [['Field', 'Details']],
-    styles: { fontSize: 10, cellPadding: 5 },
+    styles: { halign: 'left', fontSize: 10, cellPadding: 5 },
     columnStyles: { 0: { fontStyle: 'bold', textColor: [30, 41, 59], cellWidth: 150, fillColor: [248, 250, 252] } },
     body: [
       ['Client Name', client?.name || '—'],
@@ -255,7 +248,7 @@ export async function generateTruckPdf(truck: any, company: CompanySettings | nu
     startY: currentY,
     theme: 'grid',
     head: [['Specification', 'Value']],
-    styles: { fontSize: 10, cellPadding: 5 },
+    styles: { halign: 'left', fontSize: 10, cellPadding: 5 },
     columnStyles: { 0: { fontStyle: 'bold', textColor: [30, 41, 59], cellWidth: 150, fillColor: [248, 250, 252] } },
     body: [
       ['Plate Number', truck?.plateNumber || '—'],
@@ -291,7 +284,7 @@ export async function generateTrailerPdf(trailer: any, company: CompanySettings 
     startY: currentY,
     theme: 'grid',
     head: [['Specification', 'Value']],
-    styles: { fontSize: 10, cellPadding: 5 },
+    styles: { halign: 'left', fontSize: 10, cellPadding: 5 },
     columnStyles: { 0: { fontStyle: 'bold', textColor: [30, 41, 59], cellWidth: 150, fillColor: [248, 250, 252] } },
     body: [
       ['Plate Number', trailer?.plateNumber || '—'],
@@ -324,7 +317,7 @@ export async function generateDriverPdf(driver: any, company: CompanySettings | 
     startY: currentY,
     theme: 'grid',
     head: [['Information', 'Details']],
-    styles: { fontSize: 10, cellPadding: 5 },
+    styles: { halign: 'left', fontSize: 10, cellPadding: 5 },
     columnStyles: { 0: { fontStyle: 'bold', textColor: [30, 41, 59], cellWidth: 150, fillColor: [248, 250, 252] } },
     body: [
       ['Full Name', driverName],
@@ -371,8 +364,8 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
     startY: currentY,
     theme: 'grid',
     head: [['Trip Specification', 'Details', 'Planning & Timing', 'Schedule']],
-    styles: { fontSize: 9, cellPadding: 4 },
-    headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
+    styles: { halign: 'left', fontSize: 9, cellPadding: 4 },
+    headStyles: { halign: 'left', fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 120, fillColor: [248, 250, 252] },
       1: { cellWidth: 260 },
@@ -416,8 +409,8 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
       startY: currentY,
       theme: 'grid',
       head: [['#', 'Type', 'Location & Address', 'Scheduled Time', 'Instructions / Notes']],
-      styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
+      styles: { halign: 'left', fontSize: 8.5, cellPadding: 4 },
+      headStyles: { halign: 'left', fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 25 },
         1: { cellWidth: 65, fontStyle: 'bold' },
@@ -456,8 +449,8 @@ export async function generateTripPdf(trip: any, company: CompanySettings | null
       startY: currentY,
       theme: 'grid',
       head: [['#', 'Order Reference', 'Client', 'Cargo Summary', 'Revenue']],
-      styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
+      styles: { halign: 'left', fontSize: 8.5, cellPadding: 4 },
+      headStyles: { halign: 'left', fillColor: [255, 237, 227], textColor: [15, 23, 42], fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 25 },
         1: { cellWidth: 140, fontStyle: 'bold' },
