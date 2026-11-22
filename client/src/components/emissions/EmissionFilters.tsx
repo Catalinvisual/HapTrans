@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarRange, RotateCcw } from 'lucide-react';
 import CustomSelect from '../CustomSelect';
+import CountryFilterSelect from '../CountryFilterSelect';
 import type { EmissionFiltersState } from '../../lib/emissionsApi';
-import { countryName } from '../../lib/countries';
 
 export interface FilterOptions {
   trucks?: Array<{ id: string; label: string }>;
@@ -60,6 +60,21 @@ export function presetRange(preset: Preset): { from?: string; to?: string } {
 
 const ALL = '__all__';
 
+/** Lifecycle values `EmissionTripLifecycle` actually writes to a record. */
+const LIFECYCLE_VALUES = [
+  'pending_data', 'estimated', 'preliminary', 'verified', 'finalized', 'corrected', 'reconciliation_required',
+] as const;
+
+const FUEL_CODES: Record<string, string> = {
+  DIESEL: 'Diesel', HVO: 'HVO', LPG: 'LPG', CNG: 'CNG', LNG: 'LNG',
+};
+
+/** Fallback label for a value without a translation: "pending data" → "Pending data". */
+function titleCase(value: string): string {
+  const text = value.replace(/_/g, ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
 export default function EmissionFilters({
   value, onChange, options, showDates = true, compact = false,
 }: {
@@ -110,22 +125,23 @@ export default function EmissionFilters({
     { value: ALL, label: t('emissions_all', 'All') },
     ...(options.customers || []).filter((x) => x.id).map((x) => ({ value: x.id, label: x.label || x.id })),
   ];
-  const countryOptions = [
-    { value: ALL, label: t('emissions_all', 'All') },
-    ...(options.countries || []).map((code) => ({
-      value: code,
-      label: `${countryName(code, lang as any) || code} (${code})`,
-    })),
-  ];
+  const fuelLabel = (fuel: string) => {
+    const code = String(fuel || '').trim().toUpperCase();
+    if (FUEL_CODES[code]) return FUEL_CODES[code];
+    if (code === 'ELECTRIC') return t('emissions_fuel_electric', 'Electric');
+    if (code === 'GASOLINE') return t('emissions_fuel_gasoline', 'Petrol');
+    if (code === 'DIESEL_REEFER') return t('emissions_fuel_diesel_reefer', 'Diesel (reefer)');
+    return titleCase(code.toLowerCase());
+  };
   const fuelOptions = [
     { value: ALL, label: t('emissions_all', 'All') },
-    ...(options.fuelTypes || []).map((fuel) => ({ value: fuel, label: fuel.replace(/_/g, ' ') })),
+    ...(options.fuelTypes || []).map((fuel) => ({ value: fuel, label: fuelLabel(fuel) })),
   ];
   const lifecycleOptions = [
     { value: ALL, label: t('emissions_all', 'All') },
-    ...['estimated', 'preliminary', 'verified', 'finalized', 'pending_data', 'reconciliation_required'].map((s) => ({
+    ...LIFECYCLE_VALUES.map((s) => ({
       value: s,
-      label: t(`emissions_registry_status_${s}`, s.replace(/_/g, ' ')),
+      label: t(`emissions_registry_status_${s}`, titleCase(s)),
     })),
   ];
   const fleetOptions = [
@@ -182,7 +198,16 @@ export default function EmissionFilters({
 
         <div className="min-w-[130px]">
           <span className="block text-[9px] font-bold uppercase tracking-wider text-text-secondary mb-0.5">{t('emissions_country')}</span>
-          <CustomSelect size="sm" value={value.country || ALL} onChange={(v) => update('country', v)} options={countryOptions} />
+          <CountryFilterSelect
+            size="sm"
+            value={value.country || ALL}
+            onChange={(v) => update('country', v)}
+            countries={options.countries || []}
+            lang={lang}
+            allLabel={t('emissions_all', 'All')}
+            allValue={ALL}
+            title={t('emissions_country')}
+          />
         </div>
         <div className="min-w-[150px]">
           <span className="block text-[9px] font-bold uppercase tracking-wider text-text-secondary mb-0.5">{t('emissions_truck')}</span>

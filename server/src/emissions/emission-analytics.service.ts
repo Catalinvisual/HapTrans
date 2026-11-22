@@ -76,7 +76,16 @@ export class EmissionAnalyticsService {
     if (f.to) qb.andWhere(`${alias}."executionDate" <= :to`, { to: f.to });
     if (f.truckId) qb.andWhere(`${alias}."truckId" = :truckId`, { truckId: f.truckId });
     if (f.trailerId) qb.andWhere(`${alias}."trailerId" = :trailerId`, { trailerId: f.trailerId });
-    if (f.driverId) qb.andWhere(`${alias}."driverId" = :driverId`, { driverId: f.driverId });
+    if (f.driverId) {
+      // Records calculated before the driver was attached carry no driverId, so
+      // the driver of the trip or of the truck that pulled it counts as well.
+      qb.andWhere(
+        `(${alias}."driverId" = :driverId
+          OR EXISTS (SELECT 1 FROM "trips" tr WHERE tr.id = ${alias}."tripId" AND tr."driverId" = :driverId)
+          OR EXISTS (SELECT 1 FROM "trucks" t WHERE t.id = ${alias}."truckId" AND t."driverId" = :driverId))`,
+        { driverId: f.driverId },
+      );
+    }
     if (f.fuelType) qb.andWhere(`${alias}."fuelType" = :fuelType`, { fuelType: f.fuelType });
     if (f.methodology) qb.andWhere(`${alias}."methodology" = :methodology`, { methodology: f.methodology });
     if (f.lifecycle) qb.andWhere(`${alias}."lifecycle" = :lifecycle`, { lifecycle: f.lifecycle });
@@ -435,25 +444,74 @@ export class EmissionAnalyticsService {
     }, [] as Array<{ id: string | null; label: string | null }>);
 
     const drivers = await this.option('drivers', async () => {
-      const rows = await inCompany(
-        this.records.createQueryBuilder('r')
-          .leftJoin('drivers', 'd', 'd.id = r."driverId"')
-          .leftJoin('users', 'u', 'u.id = d."userId"')
-          .select('DISTINCT r."driverId"', 'id')
-          .addSelect('u.name', 'label')
-          .where('r."driverId" IS NOT NULL'),
+      // A driver can be attached to the emission record, to its trip or to the
+      // truck that pulled it, and older records were calculated before any of
+      // that. Every source is read and merged, so one missing link (or a driver
+      // without a linked user account) can never empty the list.
+      const label = 'COALESCE(u.name, u.email, d.phone)';
+      const grouped = (qb: SelectQueryBuilder<any>, key: string) =>
+        qb.groupBy(key).addGroupBy('u.name').addGroupBy('u.email').addGroupBy('d.phone');
+
+      const fromRecords = await inCompany(
+        grouped(
+          this.records.createQueryBuilder('r')
+            .leftJoin('drivers', 'd', 'd.id = r."driverId"')
+            .leftJoin('users', 'u', 'u.id = d."userId"')
+            .select('r."driverId"', 'id')
+            .addSelect(label, 'label')
+            .where('r."driverId" IS NOT NULL'),
+          'r."driverId"',
+        ),
         'r',
-      ).orderBy('u.name', 'ASC').getRawMany();
-      if (rows.length) return rows;
-      return inCompany(
-        this.records.manager.createQueryBuilder()
-          .select('d.id', 'id')
-          .addSelect('u.name', 'label')
-          .from('drivers', 'd')
-          .innerJoin('users', 'u', 'u.id = d."userId"')
-          .where('u.name IS NOT NULL'),
+      ).getRawMany();
+
+      const fromTrips = await inCompany(
+        grouped(
+          this.records.manager.createQueryBuilder()
+            .select('tr."driverId"', 'id')
+            .addSelect(label, 'label')
+            .from('trips', 'tr')
+            .innerJoin('drivers', 'd', 'd.id = tr."driverId"')
+            .leftJoin('users', 'u', 'u.id = d."userId"')
+            .where('tr."driverId" IS NOT NULL'),
+          'tr."driverId"',
+        ),
+        'tr',
+      ).getRawMany();
+
+      const fromTrucks = await inCompany(
+        grouped(
+          this.records.manager.createQueryBuilder()
+            .select('t."driverId"', 'id')
+            .addSelect(label, 'label')
+            .from('trucks', 't')
+            .innerJoin('drivers', 'd', 'd.id = t."driverId"')
+            .leftJoin('users', 'u', 'u.id = d."userId"')
+            .where('t."driverId" IS NOT NULL'),
+          't."driverId"',
+        ),
+        't',
+      ).getRawMany();
+
+      const fromMaster = await inCompany(
+        grouped(
+          this.records.manager.createQueryBuilder()
+            .select('d.id', 'id')
+            .addSelect(label, 'label')
+            .from('drivers', 'd')
+            .leftJoin('users', 'u', 'u.id = d."userId"')
+            .where('d.id IS NOT NULL'),
+          'd.id',
+        ),
         'u',
-      ).orderBy('u.name', 'ASC').limit(500).getRawMany();
+      ).limit(500).getRawMany();
+
+      return [
+        ...(fromRecords as Array<{ id: string | null; label: string | null }>),
+        ...(fromTrips as Array<{ id: string | null; label: string | null }>),
+        ...(fromTrucks as Array<{ id: string | null; label: string | null }>),
+        ...(fromMaster as Array<{ id: string | null; label: string | null }>),
+      ];
     }, [] as Array<{ id: string | null; label: string | null }>);
 
     const customers = await this.option('customers', async () => {
@@ -502,16 +560,28 @@ export class EmissionAnalyticsService {
     }, [] as string[]);
 
     const fuels = await this.option('fuelTypes', async () => {
+      // The records carry the fuel they were calculated with; the fleet can
+      // already have trucks running on another energy source that no record
+      // covers yet. Both are shown, deduplicated and normalised to the code the
+      // trip records store (DIESEL, HVO, LNG, CNG, ELECTRIC, ...).
       const rows = await inCompany(
         this.records.createQueryBuilder('r')
-          .select('DISTINCT r."fuelType"', 'fuelType')
+          .select('DISTINCT UPPER(r."fuelType")', 'fuelType')
           .where('r."fuelType" IS NOT NULL'),
         'r',
       ).getRawMany();
-      return (rows as Array<{ fuelType: string }>)
-        .map((row) => String(row.fuelType || '').trim())
-        .filter(Boolean)
-        .sort();
+      const fleetRows = await inCompany(
+        this.records.manager.createQueryBuilder()
+          .select('DISTINCT UPPER(t."fuelType")', 'fuelType')
+          .from('trucks', 't')
+          .where('t."fuelType" IS NOT NULL'),
+        't',
+      ).getRawMany();
+      return [...new Set(
+        [...(rows as Array<{ fuelType: string }>), ...(fleetRows as Array<{ fuelType: string }>)]
+          .map((row) => String(row.fuelType || '').trim().toUpperCase())
+          .filter(Boolean),
+      )].sort();
     }, [] as string[]);
 
     const range = await this.option('dateRange', async () => inCompany(
