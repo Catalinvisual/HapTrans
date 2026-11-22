@@ -37,27 +37,41 @@ describe('DocumentsService - Clean Filename Resolution & Deduplication', () => {
     });
 
     it('creates specific POD name when reference is an order or trip number', () => {
-      expect(service.buildCleanBaseName('POD', 'ORD-2026-0001')).toBe('POD_ORD-2026-0001');
-      expect(service.buildCleanBaseName('POD', 'TRP-2026-0001')).toBe('POD_TRP-2026-0001');
+      expect(service.buildCleanBaseName('POD', 'ORD-2026-0001')).toBe('POD - ORD-2026-0001');
+      expect(service.buildCleanBaseName('POD', 'TRP-2026-0001')).toBe('POD - TRP-2026-0001');
     });
 
     it('deduplicates POD prefix if reference already has POD', () => {
-      expect(service.buildCleanBaseName('POD', 'POD_ORD-2026-0001')).toBe('POD_ORD-2026-0001');
+      expect(service.buildCleanBaseName('POD', 'POD_ORD-2026-0001')).toBe('POD ORD-2026-0001');
       expect(service.buildCleanBaseName('POD', 'POD-1002')).toBe('POD-1002');
     });
 
     it('deduplicates CMR prefix if reference already has CMR', () => {
       expect(service.buildCleanBaseName('CMR', 'CMR-2026-0001')).toBe('CMR-2026-0001');
-      expect(service.buildCleanBaseName('CMR', 'ORD-2026-0001')).toBe('CMR_ORD-2026-0001');
+      expect(service.buildCleanBaseName('CMR', 'ORD-2026-0001')).toBe('CMR - ORD-2026-0001');
     });
 
     it('creates clean driver license document with driver human name', () => {
-      expect(service.buildCleanBaseName('LICENSE', 'Ion_Popescu')).toBe('LICENSE_Ion_Popescu');
-      expect(service.buildCleanBaseName('LICENSE', 'Jan_de_Vries')).toBe('LICENSE_Jan_de_Vries');
+      expect(service.buildCleanBaseName('LICENSE', 'Ion Popescu')).toBe('LICENSE - Ion Popescu');
+      expect(service.buildCleanBaseName('LICENSE', 'Jan de Vries')).toBe('LICENSE - Jan de Vries');
     });
 
-    it('sanitizes illegal characters and double underscores', () => {
-      expect(service.buildCleanBaseName('CMR', 'ORD/2026@001#A')).toBe('CMR_ORD_2026_001_A');
+    it('turns separators into spaces instead of underscores', () => {
+      expect(service.buildCleanBaseName('CMR', 'ORD/2026@001#A')).toBe('CMR - ORD 2026 001 A');
+      expect(service.buildCleanBaseName('PACKING_LIST', 'TRP-2026-0007')).toBe('PACKING LIST - TRP-2026-0007');
+    });
+  });
+
+  describe('humanizeLegacyDocumentFileName', () => {
+    it('rewrites legacy underscore names into readable ones', () => {
+      expect(service.humanizeLegacyDocumentFileName('PACKING_LIST_TRP-2026-0007.jpg')).toBe('PACKING LIST - TRP-2026-0007.jpg');
+      expect(service.humanizeLegacyDocumentFileName('CMR_TRP-2026-0007.jpg')).toBe('CMR - TRP-2026-0007.jpg');
+      expect(service.humanizeLegacyDocumentFileName('POD_ORD-2026-000033_3.jpg')).toBe('POD - ORD-2026-000033 (3).jpg');
+    });
+
+    it('leaves already readable names untouched', () => {
+      expect(service.humanizeLegacyDocumentFileName('CMR - TRP-2026-0007.jpg')).toBe('CMR - TRP-2026-0007.jpg');
+      expect(service.humanizeLegacyDocumentFileName('ORD-2026-000035.pdf')).toBe('ORD-2026-000035.pdf');
     });
   });
 });

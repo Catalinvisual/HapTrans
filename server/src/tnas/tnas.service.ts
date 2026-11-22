@@ -195,7 +195,7 @@ export class TnasService {
         const invNum = (i.invoiceNumber || '').trim();
         let fallbackFile = 'Invoice.pdf';
         if (invNum) {
-          const baseNum = invNum.toUpperCase().startsWith('INV') ? invNum : `Invoice_${invNum}`;
+          const baseNum = invNum.toUpperCase().startsWith('INV') ? invNum : `Invoice ${invNum}`;
           const rawClient = (i.client?.name || '').trim();
           const safeClient = rawClient
             .normalize('NFD')
@@ -233,7 +233,7 @@ export class TnasService {
         results.push({
           id: e.id,
           source: 'expenses',
-          filename: e.originalFilename || `Expense_${e.id.substring(0,8)}.pdf`,
+          filename: e.originalFilename || `Expense ${e.id.substring(0,8)}.pdf`,
           category: 'Expenses',
           signedUrl: this.generateSignedUrl(e, 15 * 60),
           createdAt: e.createdAt,

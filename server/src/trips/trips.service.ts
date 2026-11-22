@@ -912,7 +912,7 @@ export class TripsService {
           order: orderId ? { id: orderId } : null,
           documentType: DocumentType.POD,
           type: 'POD',
-          fileName: `POD_${trip.tripNumber || tripId}.png`,
+          fileName: `POD - ${trip.tripNumber || tripId}.png`,
           fileUrl: data.signatureBase64 || (data.photoUrls || [])[0] || null,
           notes: data.notes || `POD — ${data.recipientName}`,
           uploadedBy: user?.id ? { id: user.id } : null,

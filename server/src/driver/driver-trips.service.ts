@@ -83,8 +83,8 @@ export class DriverTripsService {
   async submitPod(userId: string, id: string, dto: any) {
     const trip = await this.findOwnedTrip(userId, id);
     const orderRef = trip.orders?.[0]?.orderNumber || trip.tripNumber || 'Trip';
-    const cleanRef = orderRef.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const defaultName = cleanRef.toUpperCase().startsWith('POD') ? `${cleanRef}.png` : `POD_${cleanRef}.png`;
+    const cleanRef = String(orderRef).replace(/[^a-zA-Z0-9\-\s]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Trip';
+    const defaultName = cleanRef.toUpperCase().startsWith('POD') ? `${cleanRef}.png` : `POD - ${cleanRef}.png`;
 
     const doc = this.docsRepo.create({
       trip,

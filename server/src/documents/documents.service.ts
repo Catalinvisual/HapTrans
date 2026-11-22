@@ -70,6 +70,8 @@ export class DocumentsService implements OnModuleInit {
     } catch {
       // ignore
     }
+    // Older uploads were stored with `PACKING_LIST_TRP-...` style names.
+    await this.healLegacyTnasDocumentNames();
   }
 
   async findAll(user?: any) {
@@ -326,27 +328,39 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
+   * Normalizes one part of a document name so it reads like a filename a human
+   * would type: codes keep their hyphens (ORD-2026-0001), while underscores and
+   * any other punctuation become single spaces.
+   */
+  private normalizeNamePart(value: string): string {
+    return (value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9.\-\s]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
    * Builds clean, readable, collision-resistant base filenames without ugly redundant prefixes
-   * like ORDER_ORD or INVOICE_INV, and without arbitrary internal codes.
+   * like ORDER_ORD or INVOICE_INV, without arbitrary internal codes and without underscores
+   * (e.g. "Packing List - TRP-2026-0007").
    */
   buildCleanBaseName(prefix: string, reference: string): string {
-    const normPrefix = (prefix || '').trim().toUpperCase();
-    let cleanRef = (reference || '')
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .replace(/_{2,}/g, '_')
-      .replace(/^_+|_+$/g, '');
+    const normPrefix = this.normalizeNamePart(prefix).toUpperCase();
+    const cleanRef = this.normalizeNamePart(reference);
 
     if (!cleanRef) return normPrefix || 'DOCUMENT';
 
     const upperRef = cleanRef.toUpperCase();
+    const startsWithPrefix = (candidate: string) =>
+      upperRef === candidate ||
+      upperRef.startsWith(`${candidate} `) ||
+      upperRef.startsWith(`${candidate}-`) ||
+      upperRef.startsWith(`${candidate}_`);
 
     // Deduplicate if reference is already identical or starts with prefix
-    if (
-      upperRef === normPrefix ||
-      upperRef.startsWith(`${normPrefix}_`) ||
-      upperRef.startsWith(`${normPrefix}-`)
-    ) {
+    if (startsWithPrefix(normPrefix)) {
       return cleanRef;
     }
 
@@ -390,7 +404,76 @@ export class DocumentsService implements OnModuleInit {
       return cleanRef;
     }
 
-    return normPrefix ? `${normPrefix}_${cleanRef}` : cleanRef;
+    return normPrefix ? `${normPrefix} - ${cleanRef}` : cleanRef;
+  }
+
+  /**
+   * Rewrites a filename produced by the old underscore generator into a readable
+   * one: `PACKING_LIST_TRP-2026-0007.jpg` -> `PACKING LIST - TRP-2026-0007.jpg`
+   * and `POD_ORD-2026-000033_3.jpg` -> `POD - ORD-2026-000033 (3).jpg`.
+   * Names without underscores are returned untouched.
+   */
+  humanizeLegacyDocumentFileName(fileName: string): string {
+    const name = (fileName || '').trim();
+    if (!name || !name.includes('_')) return name;
+
+    const dot = name.lastIndexOf('.');
+    const ext = dot > 0 ? name.slice(dot) : '';
+    const base = dot > 0 ? name.slice(0, dot) : name;
+    const upperBase = base.toUpperCase();
+
+    const prefixes = [
+      'PACKING_LIST', 'DELIVERY_NOTE', 'FUEL_RECEIPT', 'LOADING_PHOTO',
+      'CARGO_PHOTO', 'WEIGHT_TICKET', 'TACHOGRAPH', 'INVOICE', 'LICENSE',
+      'DOCUMENT', 'PHOTO', 'ORDER', 'TRIP', 'POD', 'CMR',
+    ].sort((a, b) => b.length - a.length);
+
+    const matched = prefixes.find(
+      (prefix) =>
+        upperBase === prefix ||
+        upperBase.startsWith(`${prefix}_`) ||
+        upperBase.startsWith(`${prefix}-`),
+    );
+
+    const prefix = matched ? matched.replace(/_/g, ' ') : '';
+    let rest = matched ? base.slice(matched.length).replace(/^[_\-\s]+/, '') : base;
+    // Old collision counter (`..._3`) becomes ` (3)`.
+    rest = rest.replace(/_(\d+)$/, ' ($1)');
+    rest = rest.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const clean = prefix ? (rest ? `${prefix} - ${rest}` : prefix) : rest;
+    return clean ? `${clean}${ext}` : name;
+  }
+
+  private legacyTnasNamesHealed = false;
+
+  /**
+   * Documents uploaded before readable filenames existed carry `_` separators that
+   * the NAS mirrors verbatim. Heal them once per process and re-queue them so the
+   * TerraMaster folder receives the clean name on the next worker poll.
+   */
+  private async healLegacyTnasDocumentNames(): Promise<void> {
+    if (this.legacyTnasNamesHealed) return;
+    try {
+      const legacy = await this.repo
+        .createQueryBuilder('document')
+        .where("POSITION('_' IN document.fileName) > 0")
+        .andWhere('document.publicId IS NOT NULL')
+        .getMany();
+
+      for (const doc of legacy) {
+        const cleanName = this.humanizeLegacyDocumentFileName(doc.fileName || '');
+        if (!cleanName || cleanName === doc.fileName) continue;
+        await this.repo.update(doc.id, {
+          fileName: cleanName,
+          originalFilename: cleanName,
+          tnasDownloaded: false,
+        } as any);
+      }
+      this.legacyTnasNamesHealed = true;
+    } catch (err) {
+      console.warn('Could not heal legacy document filenames:', err);
+    }
   }
 
   private async uploadToCloudinary(
@@ -511,7 +594,7 @@ export class DocumentsService implements OnModuleInit {
         if (!reference && driver) {
           const realName = (driver.user?.name || (driver as any).name || '').trim();
           if (realName) {
-            reference = realName.replace(/\s+/g, '_');
+            reference = realName;
           }
         }
       } catch (err) {
@@ -544,7 +627,7 @@ export class DocumentsService implements OnModuleInit {
       ],
     });
 
-    const uniqueBase = existingCount > 0 ? `${baseName}_${existingCount + 1}` : baseName;
+    const uniqueBase = existingCount > 0 ? `${baseName} (${existingCount + 1})` : baseName;
     const finalFileName = `${uniqueBase}.${ext}`;
     // For images Cloudinary manages extensions; for raw (PDF/doc) public_id must include extension
     const cloudinaryPublicId = treatAsImage ? uniqueBase : finalFileName;
@@ -801,6 +884,7 @@ export class DocumentsService implements OnModuleInit {
   }
 
   async getPendingTnasDocuments() {
+    await this.healLegacyTnasDocumentNames();
     const documents = await this.repo.find({
       where: [
         { tnasDownloaded: false, publicId: Not(IsNull()) },
