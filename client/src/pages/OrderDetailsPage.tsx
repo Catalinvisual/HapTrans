@@ -12,7 +12,7 @@ import WeightKgIcon from '../components/icons/WeightKgIcon';
 import AdrBadge from '../components/common/AdrBadge';
 import ActivityTimeline from '../components/ActivityTimeline';
 import StatusBadge from '../components/ui/StatusBadge';
-import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
+import { orderStatusDisplay } from '../lib/orderStatus';
 import { describeWallClockAppointment } from '../lib/stopAppointment';
 import { composeAddress } from '../lib/address';
 import TripEtaPanel, { useTripLiveEta } from '../components/eta/TripEtaPanel';
@@ -48,6 +48,7 @@ export default function OrderDetailsPage() {
   }, [id, navigate, t]);
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!order) return null;
+  const statusBadge = orderStatusDisplay(order);
   return <div className="max-w-[1600px] mx-auto space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -58,8 +59,8 @@ export default function OrderDetailsPage() {
           <div>
             <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3 flex-wrap">{order.orderNumber}
               <StatusBadge
-                status={operationalStatusForDisplay(order)}
-                label={t(operationalStatusKey(order), operationalStatusForDisplay(order)) as string}
+                status={statusBadge.code}
+                label={t(statusBadge.labelKey, statusBadge.fallback) as string}
                 size="md"
               />
               {orderIsAdr(order) && (

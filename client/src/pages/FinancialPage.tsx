@@ -30,6 +30,7 @@ const CAT_COLORS: Record<string, string> = {
   fuel: '#EF4444',
   toll: '#F59E0B',
   maintenance: '#3B82F6',
+  driver: '#7C3AED',
   salary: '#8B5CF6',
   accounting: '#14B8A6',
   admin: '#6366F1',
@@ -39,8 +40,16 @@ const CAT_COLORS: Record<string, string> = {
   other: '#94A3B8',
 };
 
+// Every category keeps its own colour, so a driver cost never shares the grey
+// "other" slice and the pie stays readable with more than eight categories.
+const FALLBACK_CAT_COLORS = ['#0EA5E9', '#84CC16', '#F43F5E', '#A855F7', '#22D3EE', '#FB923C', '#4ADE80', '#E879F9'];
+
 function costColor(cat: string): string {
-  return CAT_COLORS[String(cat).toLowerCase()] || CAT_COLORS.other;
+  const key = String(cat || '').toLowerCase();
+  if (CAT_COLORS[key]) return CAT_COLORS[key];
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) % 9973;
+  return FALLBACK_CAT_COLORS[hash % FALLBACK_CAT_COLORS.length];
 }
 
 export default function FinancialPage() {
@@ -243,8 +252,30 @@ export default function FinancialPage() {
 
         <div className="card !p-5 relative overflow-hidden flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-error" />
-          <h3 className="text-sm font-bold text-text mb-2">{t('an_cost_breakdown')}</h3>
-          <p className="text-xs text-text-secondary mb-4">{fmtMoney(k.totalCost || 0)}</p>
+          <h3 className="text-sm font-bold text-text mb-3">{t('an_cost_breakdown')}</h3>
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] px-2 py-1.5">
+              <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400">{t('an_revenue')}</p>
+              <p className="mt-0.5 text-[13px] font-black text-emerald-600 dark:text-emerald-400">{fmtMoney(k.revenue || 0)}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface/50 px-2 py-1.5">
+              <p className="text-[9px] font-black uppercase tracking-wide text-text-secondary">{t('an_total_cost')}</p>
+              <p className="mt-0.5 text-[13px] font-black text-text">{fmtMoney(k.totalCost || 0)}</p>
+            </div>
+            <div className={`rounded-xl border px-2 py-1.5 ${
+              Number(k.grossProfit || 0) >= 0
+                ? 'border-emerald-500/25 bg-emerald-500/[0.07]'
+                : 'border-error/30 bg-error/[0.07]'
+            }`}>
+              <p className={`text-[9px] font-black uppercase tracking-wide ${
+                Number(k.grossProfit || 0) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-error'
+              }`}>{t('an_gross_profit')}</p>
+              <p className={`mt-0.5 text-[13px] font-black ${
+                Number(k.grossProfit || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-error'
+              }`}>{fmtMoney(k.grossProfit || 0)}</p>
+              <p className="text-[9px] font-bold text-text-secondary">{fmtPercent(k.grossMargin || 0)}</p>
+            </div>
+          </div>
           {costBreakdown.length > 0 ? (
             <>
               <div className="h-[200px]">
@@ -273,6 +304,24 @@ export default function FinancialPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+              <div className={`mt-3 flex items-center justify-between rounded-xl border px-2.5 py-2 ${
+                Number(k.grossProfit || 0) >= 0
+                  ? 'border-emerald-500/30 bg-emerald-500/10'
+                  : 'border-error/30 bg-error/[0.07]'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <div className={`h-2.5 w-2.5 rounded-full ${Number(k.grossProfit || 0) >= 0 ? 'bg-emerald-500' : 'bg-error'}`} />
+                  <span className={`text-xs font-bold ${Number(k.grossProfit || 0) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-error'}`}>
+                    {t('an_gross_profit')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold text-text-secondary">{fmtPercent(k.grossMargin || 0)}</span>
+                  <span className={`text-xs font-black ${Number(k.grossProfit || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-error'}`}>
+                    {fmtMoney(k.grossProfit || 0)}
+                  </span>
+                </div>
               </div>
             </>
           ) : (

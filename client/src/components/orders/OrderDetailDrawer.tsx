@@ -24,7 +24,7 @@ import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
 import { orderIsAdr } from '../../lib/adrDetect';
 import { transportTypeLabel } from '../../lib/transportType';
-import { operationalStatusForDisplay, operationalStatusKey } from '../../lib/operationalI18n';
+import { orderStatusDisplay } from '../../lib/orderStatus';
 import { describeWallClockAppointment } from '../../lib/stopAppointment';
 import TripEtaPanel, { useTripLiveEta } from '../eta/TripEtaPanel';
 import AdvanceStopAction from '../trips/AdvanceStopAction';
@@ -198,6 +198,9 @@ export default function OrderDetailDrawer({
     </div>
   );
 
+  // Same badge as the orders list: an invoiced order reads "Invoiced" here too.
+  const statusBadge = orderStatusDisplay(order);
+
   const tabs: TabDef[] = [
     {
       key: 'overview',
@@ -208,8 +211,8 @@ export default function OrderDetailDrawer({
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge
                 type="order"
-                status={operationalStatusForDisplay(order)}
-                label={t(operationalStatusKey(order), operationalStatusForDisplay(order)) as string}
+                status={statusBadge.code}
+                label={t(statusBadge.labelKey, statusBadge.fallback) as string}
                 size="md"
               />
               {orderIsAdr(order) && (

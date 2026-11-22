@@ -17,7 +17,8 @@ import type { Column } from '../components/ui/DataTable';
 import KpiStrip from '../components/ui/KpiStrip';
 import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
-import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
+import { operationalStatusForDisplay } from '../lib/operationalI18n';
+import { billingStatusOf, effectiveOrderStatus, isInvoicedOrderStatus, orderStatusDisplay } from '../lib/orderStatus';
 import CustomSelect from '../components/CustomSelect';
 import DateField from '../components/dashboard/DateField';
 import type { SelectOption } from '../components/CustomSelect';
@@ -44,30 +45,12 @@ import { composeAddress } from '../lib/address';
 import { matchesSearch } from '../lib/search';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid', 'cancelled'];
-const INVOICED_STATUSES = ['ready_for_invoice', 'invoice_draft', 'invoiced', 'paid'];
-const BILLING_BADGE_STATUSES = ['invoice_draft', 'invoiced', 'paid'];
 // Invoicing starts only after the transport is finished.
 const INVOICEABLE_ORDER_STATUSES = ['delivered', 'pod_received', 'completed', 'ready_for_invoice', 'invoice_draft', 'invoiced', 'paid'];
 
-/**
- * The invoice is the source of truth for the financial side of an order. The
- * server sends `billingStatus` from the linked invoice, so the badge and the
- * Invoiced filter stay correct even when the stored order status is stale.
- */
-function billingStatusOf(o: any): string {
-  const fromInvoice = String(o?.billingStatus || '');
-  if (BILLING_BADGE_STATUSES.includes(fromInvoice)) return fromInvoice;
-  const stored = String(o?.status || '');
-  return BILLING_BADGE_STATUSES.includes(stored) ? stored : '';
-}
-
-function effectiveOrderStatus(o: any): string {
-  return billingStatusOf(o) || String(o?.status || '');
-}
-
 function canInvoiceOrder(o: any): boolean {
   const status = String(o?.status || '').toLowerCase();
-  if (BILLING_BADGE_STATUSES.includes(status)) return true;
+  if (isInvoicedOrderStatus(status)) return true;
   // The status shown in the list is the operational one: a row reading
   // "Completed" is invoiceable even if its stored status is older, and a row
   // still in planning/transit is not, whatever the stored status says.
@@ -232,7 +215,7 @@ export default function OrdersPage() {
         if (filters.status === 'plannedGroup' && !['PLANNING', 'ACCEPTED'].includes(op)) return false;
         else if (filters.status === 'activeGroup' && !['EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'LOADING', 'EN_ROUTE_TO_DELIVERY', 'ARRIVED_AT_DELIVERY', 'UNLOADING'].includes(op)) return false;
         else if (filters.status === 'deliveredGroup' && op !== 'COMPLETED') return false;
-        else if (filters.status === 'invoicedGroup' && !INVOICED_STATUSES.includes(effectiveOrderStatus(o))) return false;
+        else if (filters.status === 'invoicedGroup' && !isInvoicedOrderStatus(effectiveOrderStatus(o))) return false;
         else if (!['plannedGroup', 'activeGroup', 'deliveredGroup', 'invoicedGroup'].includes(filters.status) && effectiveOrderStatus(o) !== filters.status) return false;
       }
       if (filters.client !== 'all' && o.client?.id !== filters.client) return false;
@@ -552,12 +535,8 @@ export default function OrdersPage() {
     { key: 'status', label: t('status', 'Status'), width: '150px', render: o => {
       // The invoice is the financial truth: a completed order with an invoice
       // reads "Invoice draft" / "Invoiced" / "Paid" instead of only "Completed".
-      const billing = billingStatusOf(o);
-      const code = billing || operationalStatusForDisplay(o);
-      const label = billing
-        ? t(`status_${billing}`, billing.replace(/_/g, ' '))
-        : t(operationalStatusKey(o), operationalStatusForDisplay(o));
-      return <StatusBadge status={code} label={label as string} />;
+      const badge = orderStatusDisplay(o);
+      return <StatusBadge status={badge.code} label={t(badge.labelKey, badge.fallback) as string} />;
     } },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', sticky: 'right', width: '150px', render: o => {
       const trip = o.trip;
