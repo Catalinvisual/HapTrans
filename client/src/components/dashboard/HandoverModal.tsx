@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -84,7 +85,7 @@ export default function HandoverModal({
     </section>
   );
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 md:p-6">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
       <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-border/70 bg-card shadow-2xl">
@@ -227,4 +228,8 @@ export default function HandoverModal({
       </div>
     </div>
   );
+
+  // Portal to <body>: rendered inside the dashboard, the fixed overlay was clipped
+  // by the page container and left an uncovered strip at the top of the screen.
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : null;
 }
