@@ -83,8 +83,10 @@ import {
   PROVENANCE,
   avgSpeedKmh,
   isMovableTrip,
+  isRepeatableTrip,
   planVarianceMin,
   provenanceOf,
+  shiftDays,
   shiftWindow,
   toggleHiddenTrip,
 } from '../lib/planningPremium';
@@ -3654,9 +3656,47 @@ export default function PlanningPage() {
   };
 
   // ── Repeat a plan (the practical form of a recurring route) ───────────────
+  // The board shows one period at a time, so repeating moves the appointment
+  // windows of the chosen trips by whole days: same route, same hours, later
+  // week. A trip without appointment windows is moved through its departure,
+  // and a failure is always reported — the action must never look like a
+  // button that does nothing.
+  const offerRepeatJump = (count: number) => {
+    toast.custom((instance) => (
+      <div
+        className={`pointer-events-auto flex w-[360px] items-center gap-2 rounded-xl border border-border bg-card px-2.5 py-2 shadow-xl ${
+          instance.visible ? 'animate-enter' : 'animate-leave'
+        }`}
+      >
+        <Repeat2 className="h-4 w-4 shrink-0 text-cyan-500" />
+        <span className="min-w-0 flex-1 text-[11px] font-bold leading-snug text-text-primary">
+          {t('pv_repeat_done', { count, defaultValue: 'Plan repeated for {{count}} trips.' })}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            toast.dismiss(instance.id);
+            setSelectedDate((d) => shiftPeriod(d, viewMode, 1));
+          }}
+          className="flex h-6 shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 text-[10px] font-black text-primary transition-colors hover:bg-primary/20"
+        >
+          <CalendarClock className="h-3 w-3" />
+          {t('pv_repeat_open', 'New period')}
+        </button>
+      </div>
+    ), { duration: 8000 });
+  };
+
   const handleRepeatPlan = async (days = 7) => {
-    const targets = selectedTrip ? [selectedTrip] : trips.filter((trip: any) => isMovableTrip(trip));
-    if (!targets.length) return;
+    const targets = (selectedTrip ? [selectedTrip] : trips).filter((trip: any) => isRepeatableTrip(trip));
+    if (!targets.length) {
+      toast.error(
+        selectedTrip
+          ? t('pv_repeat_locked', 'This trip has already started, so its plan can no longer be repeated.')
+          : t('pv_repeat_empty', 'There is no trip to repeat in this period. Select a trip first.'),
+      );
+      return;
+    }
     const ok = await confirm({
       type: 'warning',
       title: t('pv_repeat', 'Repeat plan'),
@@ -3666,12 +3706,14 @@ export default function PlanningPage() {
     });
     if (!ok) return;
     setRepeatBusy(true);
-    let done = 0;
+    let moved = 0;
+    let failed = 0;
     for (const trip of targets) {
       try {
         const orderedStops = [...(trip.stops || [])].sort(
           (a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0),
         );
+        let shiftedStops = 0;
         for (const stop of orderedStops) {
           const patch = shiftWindow(stop.timeWindowMin, stop.timeWindowMax, days);
           if (!patch.timeWindowMin && !patch.timeWindowMax) continue;
@@ -3679,18 +3721,29 @@ export default function PlanningPage() {
             ...(patch.timeWindowMin ? { timeWindowMin: patch.timeWindowMin } : {}),
             ...(patch.timeWindowMax ? { timeWindowMax: patch.timeWindowMax } : {}),
           });
+          shiftedStops += 1;
+        }
+        if (shiftedStops === 0) {
+          // No customer window to move: shift the departure itself, which moves
+          // the trip and every stop time through the reschedule endpoint.
+          const departure = shiftDays(trip.plannedDeparture || trip.stops?.[0]?.plannedDate, days);
+          if (!departure) throw new Error('No departure to shift');
+          await planningApi.rescheduleTrip(trip.id, departure);
         }
         await planningApi.recalculateTrip(trip.id);
-        done += 1;
+        moved += 1;
       } catch {
-        /* per-trip failure is reported by the summary below */
+        failed += 1;
       }
     }
     setRepeatBusy(false);
-    if (done > 0) {
-      toast.success(t('pv_repeat_done', { count: done, defaultValue: 'Plan repeated for {{count}} trips.' }));
-      void loadData();
-    } else {
+    if (moved > 0) {
+      void loadData(true);
+      offerRepeatJump(moved);
+    }
+    if (failed > 0) {
+      toast.error(t('pv_repeat_partial', { count: failed, defaultValue: '{{count}} trips could not be repeated.' }));
+    } else if (moved === 0) {
       toast.error(t('pv_repeat_failed', 'Repeating the plan failed.'));
     }
   };
@@ -4914,7 +4967,7 @@ export default function PlanningPage() {
                   label: t('pv_repeat', 'Repeat plan'),
                   short: t('pv_repeat', 'Repeat plan'),
                   run: () => void handleRepeatPlan(7),
-                  disabled: repeatBusy || !isMovableTrip(selectedTrip),
+                  disabled: repeatBusy || !isRepeatableTrip(selectedTrip),
                 },
                 {
                   key: 'dispatch',

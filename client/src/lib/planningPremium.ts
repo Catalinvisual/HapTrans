@@ -177,6 +177,23 @@ export function isMovableTrip(trip: any): boolean {
 }
 
 /**
+ * Trips whose plan can still be repeated into a later period. Work that has
+ * physically started (loading, driving, delivered) and terminal trips are
+ * excluded: shifting them would rewrite a plan the driver already executes.
+ */
+export function isRepeatableTrip(trip: any): boolean {
+  return [
+    'planning',
+    'planned',
+    'confirmed',
+    'assigned',
+    'dispatched',
+    'driver_received',
+    'driver_accepted',
+  ].includes(String(trip?.status || '').trim().toLowerCase());
+}
+
+/**
  * Group the suggestions endpoint payload by truck so the panel reads as
  * "truck → what it could take" instead of a flat ranked list.
  */
