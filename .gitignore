@@ -68,3 +68,9 @@ client/blob-report/
 
 # Flutter golden failure artifacts (generated)
 mobile/test/failures/
+
+# Local verification screenshots (agent / script output at the repo root)
+/*.png
+
+# Standalone Playwright runs outside the client
+web/test-results/
