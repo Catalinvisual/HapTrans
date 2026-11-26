@@ -5196,7 +5196,7 @@ export default function PlanningPage() {
                       <h2 className="text-[11px] font-black text-text-primary truncate">{t('timeline_title', 'Fleet operations timeline')}</h2>
                       <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-emerald-600"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{t('timeline_live', 'Live')}</span>
                     </div>
-                    <p className="text-[9px] text-text-secondary truncate">{rangeLabel} · {displayResources.length} {t('timeline_resources_short', 'resources')} · {trips.length} {t('timeline_trips_short', 'trips')}</p>
+                    <p className="text-[9px] text-text-secondary truncate">{displayResources.length} {t('timeline_resources_short', 'resources')} · {trips.length} {t('timeline_trips_short', 'trips')}</p>
                   </div>
                 </div>
 
@@ -5268,22 +5268,9 @@ export default function PlanningPage() {
                         {/* Time scale header: two-level resource / time ruler. */}
                         <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-12" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
                           <div className="w-56 shrink-0 border-r border-border/60 bg-card flex flex-col justify-center gap-0.5 px-2 py-1 sticky left-0 z-30">
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, -1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_previous', 'Previous period')}>
-                                <ChevronLeft className="w-3.5 h-3.5" />
-                              </button>
-                              <DateField
-                                value={selectedDate}
-                                onChange={(v) => v && setSelectedDate(v)}
-                                lang={lang}
-                                size="sm"
-                                className="w-[150px]"
-                                title={t('timeline_selected_date', 'Selected date')}
-                              />
-                              <button onClick={() => setSelectedDate(d => shiftPeriod(d, viewMode, 1))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_next', 'Next period')}>
-                                <ChevronRight className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-wide text-text-muted">
+                              {grouping === 'driver' ? t('jsx_groupDriver', 'Driver') : grouping === 'trailer' ? t('jsx_groupTrailer', 'Trailer') : t('jsx_groupVehicle', 'Truck')}
+                            </span>
                           </div>
                           <div className="flex flex-1 relative" style={{ minWidth: `${totalTimelineWidth}px` }}>
                             {Array.from({ length: hoursVisible }, (_, h) => {
