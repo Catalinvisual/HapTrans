@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
+import { runPageQuickCommand } from '../lib/quickCommand';
 import { stopFieldNavigation } from '../lib/fieldNavigation';
 import { translateCountryNames } from '../lib/notificationText';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
@@ -683,10 +684,11 @@ export default function Layout() {
     'f12': () => setIsLogoutModalOpen(true),
     'shift+arrowup': () => navigateSidebar(-1),
     'shift+arrowdown': () => navigateSidebar(1),
-    'shift+k': () => setIsSearchOpen(true),
-    // Cmd/Ctrl+K is the palette shortcut every other tool uses.
-    'ctrl+k': () => setIsSearchOpen(true),
-    'meta+k': () => setIsSearchOpen(true),
+    // Cmd/Ctrl+K is the palette shortcut every other tool uses. A page with its
+    // own palette (planning) claims it first, so only one palette ever opens.
+    'shift+k': () => { if (!runPageQuickCommand()) setIsSearchOpen(true); },
+    'ctrl+k': () => { if (!runPageQuickCommand()) setIsSearchOpen(true); },
+    'meta+k': () => { if (!runPageQuickCommand()) setIsSearchOpen(true); },
     '/': () => focusPageSearch(),
     'shift+n': () => {}, // Prevent default browser behavior if page has no handler
     'escape': () => {

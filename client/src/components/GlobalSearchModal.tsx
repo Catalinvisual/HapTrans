@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, X, FileText, Users, Truck, Map, LayoutDashboard, Settings } from 'lucide-react';
+import { Search, X, Users, Truck, Map } from 'lucide-react';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { matchesSearch } from '../lib/search';
 import { composeCityLine } from '../lib/address';
+import { navItems, filterNavItems } from '../lib/navPermissions';
+import { useAuthStore } from '../store/authStore';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -25,21 +27,30 @@ type SearchResult = {
 export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const staticPages: SearchResult[] = [
-    { id: 'p1', type: 'page', title: t('dashboard', 'Dashboard'), url: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { id: 'p2', type: 'page', title: t('trips', 'Curse'), url: '/trips', icon: <Map className="w-5 h-5" /> },
-    { id: 'p3', type: 'page', title: t('clients', 'Clienți'), url: '/clients', icon: <Users className="w-5 h-5" /> },
-    { id: 'p4', type: 'page', title: t('trucks', 'Camioane'), url: '/trucks', icon: <Truck className="w-5 h-5" /> },
-    { id: 'p5', type: 'page', title: t('drivers', 'Șoferi'), url: '/drivers', icon: <Users className="w-5 h-5" /> },
-    { id: 'p6', type: 'page', title: t('invoices', 'Facturi'), url: '/invoices', icon: <FileText className="w-5 h-5" /> },
-    { id: 'p7', type: 'page', title: t('settings', 'Setări'), url: '/settings', icon: <Settings className="w-5 h-5" /> },
-  ];
+  // Exactly the pages the sidebar lists, in the same order and only those the
+  // account may open: the palette used to carry a fixed shortlist, so planning,
+  // orders, fleet, reports and the other modules were missing from it.
+  const staticPages: SearchResult[] = useMemo(
+    () =>
+      filterNavItems(user, navItems).map((item) => {
+        const Icon = item.icon;
+        return {
+          id: `page_${item.to}`,
+          type: 'page' as const,
+          title: item.labelKey ? t(item.labelKey, 'Payroll & Settlements') : t(item.key),
+          url: item.to,
+          icon: <Icon className="w-5 h-5" />,
+        };
+      }),
+    [user, t],
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -48,7 +59,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [isOpen]);
+  }, [isOpen, staticPages]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -126,7 +137,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, isOpen]);
+  }, [query, isOpen, staticPages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -209,7 +220,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
                     {res.icon}
                   </div>
                   <div className="flex-1 flex flex-col">
-                    <span className="font-semibold">{res.title}</span>
+                    <span className="font-semibold capitalize">{res.title}</span>
                     {res.subtitle && <span className="text-xs text-text-secondary">{res.subtitle}</span>}
                   </div>
                   <div className="text-xs font-mono px-2 py-1 bg-black/5 rounded text-text-secondary capitalize">

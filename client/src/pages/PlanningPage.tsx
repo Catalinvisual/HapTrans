@@ -25,6 +25,7 @@ import { driverEntityDisplayName } from '../lib/driverName';
 import { formatDelay } from '../lib/formatDuration';
 import DateField from '../components/dashboard/DateField';
 import { useShortcuts } from '../hooks/useShortcuts';
+import { registerPageQuickCommand } from '../lib/quickCommand';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import '../planning-theme.css';
@@ -3942,15 +3943,11 @@ export default function PlanningPage() {
     };
   }, []);
 
+  // Ctrl/Cmd+K belongs to this board: its action palette replaces the shell's
+  // global search while the page is mounted, so the two never open together.
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((value) => !value);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    registerPageQuickCommand(() => setPaletteOpen((value) => !value));
+    return () => registerPageQuickCommand(null);
   }, []);
 
   const handleConfirmPastDate = async () => {
